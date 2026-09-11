@@ -1,254 +1,468 @@
+import sys
 import os
-import sqlite3
+import re
+import math
+import uuid
 import logging
-from threading import Thread
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+import asyncio
+from typing import Optional, List, Dict, Any, Union
+from datetime import datetime, timezone
+from decimal import Decimal
+from enum import Enum
+from contextlib import asynccontextmanager
 
-# Logging setup
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+# Third-party Imports
+from dotenv import load_dotenv
+import redis.asyncio as aioredis
+
+from sqlalchemy import (
+    BigInteger, String, Numeric, Boolean, DateTime,
+    ForeignKey, UniqueConstraint, Index, select, update,
+    func, or_, and_, Enum as SQLEnum
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.ext.asyncio import (
+    create_async_engine, AsyncSession, async_sessionmaker
 )
 
-BOT_TOKEN = "8980118908:AAE4NIDIq7YkIB8_40LLn2b7Hg9AfRAJs20"
+from aiogram import Bot, Dispatcher, Router, F, BaseMiddleware
+from aiogram.enums import ParseMode, ChatMemberStatus
+from aiogram.types import (
+    Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton,
+    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, TelegramObject
+)
+from aiogram.filters import CommandStart, Command, StateFilter
+from aiogram.filters.callback_data import CallbackData
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.redis import RedisStorage
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter, TelegramNetworkError
 
-# --- DATABASE SETUP ---
-DB_NAME = "bot_data.db"
+import uvicorn
+from fastapi import FastAPI
 
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    # Users Table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            first_name TEXT,
-            coins REAL DEFAULT 0.0,
-            xp INTEGER DEFAULT 0,
-            level TEXT DEFAULT '🌱 সক্রিয়'
-        )
-    ''')
-    # User Completed Tasks Table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS completed_tasks (
-            user_id INTEGER,
-            task_id INTEGER,
-            PRIMARY KEY (user_id, task_id)
-        )
-    ''')
-    conn.commit()
-    conn.close()
 
-init_db()
+# ==============================================================================
+# SECTION 1: CONFIGURATION
+# ==============================================================================
 
-def get_or_create_user(user_id, first_name):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute('SELECT user_id, first_name, coins, xp, level FROM users WHERE user_id = ?', (user_id,))
-    user = cursor.fetchone()
-    
-    if not user:
-        cursor.execute(
-            'INSERT INTO users (user_id, first_name, coins, xp, level) VALUES (?, ?, ?, ?, ?)',
-            (user_id, first_name, 0.0, 0, '🌱 সক্রিয়')
-        )
-        conn.commit()
-        cursor.execute('SELECT user_id, first_name, coins, xp, level FROM users WHERE user_id = ?', (user_id,))
-        user = cursor.fetchone()
-        
-    conn.close()
-    return {
-        "user_id": user[0],
-        "first_name": user[1],
-        "coins": user[2],
-        "xp": user[3],
-        "level": user[4]
-    }
+load_dotenv()
 
-def update_user_balance(user_id, coins_to_add, xp_to_add):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute('UPDATE users SET coins = coins + ?, xp = xp + ? WHERE user_id = ?', (coins_to_add, xp_to_add, user_id))
-    conn.commit()
-    conn.close()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+)
+logger = logging.getLogger("TelegramEarningBot")
 
-def is_task_completed(user_id, task_id):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute('SELECT 1 FROM completed_tasks WHERE user_id = ? AND task_id = ?', (user_id, task_id))
-    res = cursor.fetchone()
-    conn.close()
-    return res is not None
+# Environment Variables Validation
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_USERNAME = os.getenv("BOT_USERNAME")
+DATABASE_URL = os.getenv("DATABASE_URL")
+REDIS_URL = os.getenv("REDIS_URL")
+ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "")
 
-def mark_task_completed(user_id, task_id):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute('INSERT OR IGNORE INTO completed_tasks (user_id, task_id) VALUES (?, ?)', (user_id, task_id))
-    conn.commit()
-    conn.close()
+missing_vars = []
+if not BOT_TOKEN: missing_vars.append("BOT_TOKEN")
+if not BOT_USERNAME: missing_vars.append("BOT_USERNAME")
+if not DATABASE_URL: missing_vars.append("DATABASE_URL")
+if not REDIS_URL: missing_vars.append("REDIS_URL")
 
-# Sample Tasks
-TASKS = [
-    {"id": 1, "reward": 1020, "xp": 10, "channel": "@telegram"},
-    {"id": 2, "reward": 760, "xp": 8, "channel": "@durov"},
-    {"id": 3, "reward": 750, "xp": 5, "channel": "@telegram"},
-    {"id": 4, "reward": 750, "xp": 5, "channel": "@durov"},
-]
+if missing_vars:
+    logger.critical(f"CRITICAL ERROR: Missing required environment variables: {', '.join(missing_vars)}")
+    sys.exit(1)
 
-# --- RENDER HEALTH CHECK SERVER ---
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is alive!")
+try:
+    ADMIN_IDS = [int(x.strip()) for x in ADMIN_IDS_RAW.split(",") if x.strip()]
+except ValueError:
+    logger.critical("CRITICAL ERROR: ADMIN_IDS must be a comma-separated list of Telegram user IDs.")
+    sys.exit(1)
 
-def run_health_server():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-    server.serve_forever()
+MIN_WITHDRAWAL = Decimal(os.getenv("MIN_WITHDRAWAL", "1000"))
+MAX_WITHDRAWAL = Decimal(os.getenv("MAX_WITHDRAWAL", "100000"))
+REFERRAL_REWARD = Decimal(os.getenv("REFERRAL_REWARD", "100"))
+PLATFORM_FEE = Decimal(os.getenv("PLATFORM_FEE", "0"))
+MAINTENANCE_MODE = os.getenv("MAINTENANCE_MODE", "false").lower() == "true"
+BOT_MODE = os.getenv("BOT_MODE", "polling").lower()
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
 
-# --- BOT HANDLERS ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    get_or_create_user(user.id, user.first_name)
 
-    reply_keyboard = [
-        ['💰 আয়', '📢 প্রচার করুন'],
-        ['🔝 চেক', '👤 আমার কেবিনেট'],
-        ['🛡️ সাবস্ক্রিপশন চেক', '📊 আমাদের বট ও পরিসংখ্যান'],
-        ['🔗 দরকারি লিংক', 'ℹ️ নির্দেশিকা']
-    ]
-    markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+# ==============================================================================
+# SECTION 2: ENUMS
+# ==============================================================================
 
-    welcome_msg = (
-        f"👋 Real money 🍅, PR GRAM-এ স্বাগতম!\n\n"
-        f"টেলিগ্রামে প্রচারের প্ল্যাটফর্ম"
+class TaskType(str, Enum):
+    CHANNEL_SUB = "channel_sub"
+    GROUP_JOIN = "group_join"
+    BOT_START = "bot_start"
+    POST_VIEW = "post_view"
+    CUSTOM = "custom"
+
+class CampaignStatus(str, Enum):
+    DRAFT = "draft"
+    PENDING = "pending"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+class TransactionType(str, Enum):
+    TASK_REWARD = "task_reward"
+    REFERRAL_REWARD = "referral_reward"
+    BONUS = "bonus"
+    WITHDRAWAL = "withdrawal"
+    WITHDRAWAL_REFUND = "withdrawal_refund"
+    ADMIN_ADJUSTMENT = "admin_adjustment"
+    CAMPAIGN_PAYMENT = "campaign_payment"
+    CAMPAIGN_REFUND = "campaign_refund"
+
+class WithdrawalStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    PAID = "paid"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+
+class PaymentStatus(str, Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+# ==============================================================================
+# SECTION 3: DATABASE MODELS
+# ==============================================================================
+
+class Base(DeclarativeBase):
+    pass
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)  # Telegram ID
+    username: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    first_name: Mapped[str] = mapped_column(String(128))
+    last_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    language: Mapped[str] = mapped_column(String(10), default="en")
+    balance: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0.0"))
+    total_earned: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0.0"))
+    total_withdrawn: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0.0"))
+    completed_tasks_count: Mapped[int] = mapped_column(default=0)
+    referral_code: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    referred_by: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True)
+    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_activity: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    completions = relationship("TaskCompletion", back_populates="user")
+    transactions = relationship("Transaction", back_populates="user")
+    withdrawals = relationship("Withdrawal", back_populates="user")
+    campaigns = relationship("Campaign", back_populates="advertiser")
+
+class Campaign(Base):
+    __tablename__ = "campaigns"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    advertiser_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(255))
+    description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    task_type: Mapped[TaskType] = mapped_column(SQLEnum(TaskType))
+    target_chat_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    target_username: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    target_link: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    reward_per_user: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    max_completions: Mapped[int] = mapped_column()
+    completed_count: Mapped[int] = mapped_column(default=0)
+    total_budget: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    spent_budget: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0.0"))
+    status: Mapped[CampaignStatus] = mapped_column(SQLEnum(CampaignStatus), default=CampaignStatus.DRAFT)
+    start_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    advertiser = relationship("User", back_populates="campaigns")
+    completions = relationship("TaskCompletion", back_populates="campaign")
+
+class TaskCompletion(Base):
+    __tablename__ = "task_completions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    campaign_id: Mapped[str] = mapped_column(String(36), ForeignKey("campaigns.id"))
+    reward: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user = relationship("User", back_populates="completions")
+    campaign = relationship("Campaign", back_populates="completions")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'campaign_id', name='uq_user_campaign_completion'),
     )
-    await update.message.reply_text(welcome_msg, reply_markup=markup)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    user = update.effective_user
-    u_data = get_or_create_user(user.id, user.first_name)
+class Transaction(Base):
+    __tablename__ = "transactions"
 
-    if text == '💰 আয়':
-        keyboard = [
-            [InlineKeyboardButton("📢 চ্যানেল · 277", callback_data="e_channel"), InlineKeyboardButton("👥 গ্রুপ · 51", callback_data="e_group")],
-            [InlineKeyboardButton("👁️ ভিউ · 826", callback_data="e_view"), InlineKeyboardButton("🤖 বট · 2928", callback_data="e_bot")],
-            [InlineKeyboardButton("❤️ রিঅ্যাকশন · 430", callback_data="e_reaction"), InlineKeyboardButton("⚡ Boost · 62", callback_data="e_boost")],
-            [InlineKeyboardButton("📝 নিয়ামাবলি", callback_data="e_rules")]
-        ]
-        await update.message.reply_text("🖋 আয় করার জন্য কাজের ক্যাটাগরি বেছে নিন:", reply_markup=InlineKeyboardMarkup(keyboard))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    type: Mapped[TransactionType] = mapped_column(SQLEnum(TransactionType))
+    description: Mapped[str] = mapped_column(String(255))
+    reference_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    elif text == '👤 আমার কেবিনেট':
-        msg = (
-            f"👤 আপনার কেবিনেট:\n\n"
-            f"🆔 আমার আইডি: {u_data['user_id']}\n"
-            f"📈 লেভেল: {u_data['level']} {u_data['xp']}/1500 XP\n"
-            f"💰 ব্যালেন্স: {u_data['coins']:,.2f} GRAM"
-        )
-        keyboard = [
-            [InlineKeyboardButton("💳 ব্যালেন্স রিচার্জ করুন", callback_data="c_recharge")],
-            [InlineKeyboardButton("👥 রেফারেল সিস্টেম", callback_data="c_ref")],
-            [InlineKeyboardButton("📈 লেভেল সিস্টেম", callback_data="c_level")],
-            [InlineKeyboardButton("📋 আমার কাজ", callback_data="c_tasks")],
-            [InlineKeyboardButton("🌐 ভাষা পরিবর্তন", callback_data="c_lang")]
-        ]
-        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+    # Relationships
+    user = relationship("User", back_populates="transactions")
 
-    elif text == '📢 প্রচার করুন':
-        msg = f"ADS আপনি কী প্রচার করতে চান?\n\n💰 ব্যালেন্স: {u_data['coins']:,.2f} GRAM"
-        keyboard = [
-            [InlineKeyboardButton("📢 চ্যানেল", callback_data="p_chan"), InlineKeyboardButton("👥 গ্রুপ", callback_data="p_grp")],
-            [InlineKeyboardButton("👁️ পোস্ট", callback_data="p_post"), InlineKeyboardButton("🤖 বট", callback_data="p_bot")],
-            [InlineKeyboardButton("⚡ প্রিমিয়াম বুস্ট", callback_data="p_boost"), InlineKeyboardButton("❤️ প্রতিক্রিয়া", callback_data="p_react")]
-        ]
-        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+class Withdrawal(Base):
+    __tablename__ = "withdrawals"
 
-    elif text == '📊 আমাদের বট ও পরিসংখ্যান':
-        msg = (
-            "📊 PR GRAM পরিসংখ্যান\n\n"
-            "👤 ব্যবহারকারী: 21,43,151\n"
-            "🆕 আজ: 411\n\n"
-            "সর্বমোট সম্পন্ন:\n"
-            "📢 চ্যানেল সাবস্ক্রিপশন: 3,82,21,498\n"
-            "👥 গ্রুপে যোগদান: 1,06,83,532\n"
-            "👁 ভিউ: 3,01,40,963\n"
-            "❤️ রিঅ্যাকশন: 82,26,346\n"
-            "🤖 বট চালু: 20,54,128\n"
-            "⚡ Premium Boost: 2,16,426"
-        )
-        await update.message.reply_text(msg)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    method: Mapped[str] = mapped_column(String(64))
+    payout_details: Mapped[str] = mapped_column(String(255))
+    status: Mapped[WithdrawalStatus] = mapped_column(SQLEnum(WithdrawalStatus), default=WithdrawalStatus.PENDING)
+    rejection_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-    elif text == '🔝 চেক':
-        msg = (
-            "চেক ব্যবহার করে বার্তায় সরাসরি গ্রাম পাঠানো যায়।\n\n"
-            "• পার্সোনাল চেক — একজন ব্যবহারকারীকে পাঠানোর জন্য\n"
-            "• মাল্টি চেক — একাধিক ব্যবহারকারীকে পাঠানোর জন্য\n\n"
-            "চেকের ধরন বেছে নিন:"
-        )
-        keyboard = [
-            [InlineKeyboardButton("👤 পার্সোনাল", callback_data="chk_p"), InlineKeyboardButton("👥 মাল্টি চেক", callback_data="chk_m")]
-        ]
-        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+    # Relationships
+    user = relationship("User", back_populates="withdrawals")
 
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user = query.from_user
-    await query.answer()
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
 
-    if query.data == "e_channel":
-        await query.message.reply_text("⚠️ 7 দিনের আগে চ্যানেল ছাড়বেন না। নাহলে কাজ করা ব্লক হবে এবং প্রাপ্ত GRAM বাতিল হবে।")
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    admin_id: Mapped[int] = mapped_column(BigInteger)
+    action: Mapped[str] = mapped_column(String(128))
+    target_user_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    details: Mapped[str] = mapped_column(String(1024))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+# ==============================================================================
+# SECTION 4: DATABASE & REDIS SETUP
+# ==============================================================================
+
+engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
+AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+# ==============================================================================
+# SECTION 5: FSM STATES
+# ==============================================================================
+
+class CreateCampaignState(StatesGroup):
+    title = State()
+    task_type = State()
+    target = State()
+    reward = State()
+    max_completions = State()
+    confirm = State()
+
+class WithdrawState(StatesGroup):
+    method = State()
+    amount = State()
+    details = State()
+    confirm = State()
+
+class AdminBroadcastState(StatesGroup):
+    message = State()
+    confirm = State()
+
+class AdminUserSearchState(StatesGroup):
+    query = State()
+    adjust_balance = State()
+
+
+# ==============================================================================
+# SECTION 6: CALLBACK DATA STRUCTS
+# ==============================================================================
+
+class TaskCallback(CallbackData, prefix="task"):
+    action: str
+    campaign_id: str
+
+class PaginationCallback(CallbackData, prefix="page"):
+    menu: str
+    page: int
+
+class AdminActionCallback(CallbackData, prefix="adm"):
+    action: str
+    target_id: Optional[str] = None
+
+
+# ==============================================================================
+# SECTION 7: MIDDLEWARE
+# ==============================================================================
+
+class DatabaseMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        async with AsyncSessionLocal() as session:
+            data["session"] = session
+            return await handler(event, data)
+
+class MaintenanceMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        user_id = None
+        if isinstance(event, (Message, CallbackQuery)):
+            user_id = event.from_user.id
+
+        if MAINTENANCE_MODE and user_id not in ADMIN_IDS:
+            msg = "🛠 *System Maintenance*\n\nThe bot is currently undergoing scheduled maintenance. Please check back later!"
+            if isinstance(event, Message):
+                await event.answer(msg, parse_mode=ParseMode.MARKDOWN)
+            elif isinstance(event, CallbackQuery):
+                await event.answer("Bot is under maintenance.", show_alert=True)
+            return
+
+        return await handler(event, data)
+
+class UserActivityMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        session: AsyncSession = data.get("session")
+        user = None
+        if isinstance(event, (Message, CallbackQuery)):
+            u = event.from_user
+            if session:
+                res = await session.execute(select(User).where(User.id == u.id))
+                user = res.scalar_one_or_none()
+                if user:
+                    if user.is_blocked:
+                        if isinstance(event, CallbackQuery):
+                            await event.answer("Your account is blocked.", show_alert=True)
+                        return
+                    user.last_activity = datetime.now(timezone.utc)
+                    await session.commit()
+        return await handler(event, data)
+
+
+# ==============================================================================
+# SECTION 8: KEYBOARDS
+# ==============================================================================
+
+def get_main_menu_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
+    keyboard = [
+        [KeyboardButton(text="🎯 Tasks"), KeyboardButton(text="💰 Wallet")],
+        [KeyboardButton(text="👥 Referral"), KeyboardButton(text="📢 Advertiser Panel")],
+        [KeyboardButton(text="📊 Statistics"), KeyboardButton(text="🏆 Leaderboard")],
+        [KeyboardButton(text="💸 Withdraw"), KeyboardButton(text="ℹ️ Help")]
+    ]
+    if is_admin:
+        keyboard.append([KeyboardButton(text="👑 Admin Panel")])
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def get_advertiser_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Create Campaign", callback_data="adv:create")],
+        [InlineKeyboardButton(text="📋 My Campaigns", callback_data="adv:list:0")],
+        [InlineKeyboardButton(text="📊 Campaign Stats", callback_data="adv:stats")]
+    ])
+
+def get_admin_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👥 Users", callback_data="adm:users"), InlineKeyboardButton(text="💸 Withdrawals", callback_data="adm:withdrawals")],
+        [InlineKeyboardButton(text="📢 Campaigns", callback_data="adm:campaigns"), InlineKeyboardButton(text="📣 Broadcast", callback_data="adm:broadcast")],
+        [InlineKeyboardButton(text="📊 Platform Stats", callback_data="adm:stats")]
+    ])
+
+
+# ==============================================================================
+# SECTION 9: SUBSCRIPTION & TASK ENGINE
+# ==============================================================================
+
+class SubscriptionVerifier:
+    @staticmethod
+    async def verify(bot: Bot, user_id: int, target_chat: Union[int, str]) -> bool:
+        try:
+            member = await bot.get_chat_member(chat_id=target_chat, user_id=user_id)
+            valid_statuses = [
+                ChatMemberStatus.MEMBER,
+                ChatMemberStatus.ADMINISTRATOR,
+                ChatMemberStatus.CREATOR
+            ]
+            return member.status in valid_statuses
+        except (TelegramBadRequest, TelegramForbiddenError) as e:
+            logger.warning(f"Failed to check membership for user {user_id} in {target_chat}: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error in getChatMember: {str(e)}")
+            return False
+
+class TaskEngine:
+    @staticmethod
+    async def process_task_completion(
+        session: AsyncSession,
+        bot: Bot,
+        user_id: int,
+        campaign_id: str
+    ) -> tuple[bool, str]:
         
-        # Available tasks list
-        for task in TASKS:
-            if not is_task_completed(user.id, task['id']):
-                btn = InlineKeyboardMarkup([
-                    [
-                        InlineKeyboardButton(f"💲 +{task['reward']:,} | সাবস্ক্রাইব", url=f"https://t.me/{task['channel'][1:]}"),
-                        InlineKeyboardButton("🔄 যাচাই করুন", callback_data=f"verify_{task['id']}")
-                    ]
-                ])
-                await query.message.reply_text(f"📢 চ্যানেল সাবস্ক্রাইব করুন:\n{task['channel']}", reply_markup=btn)
-                break
-        else:
-            await query.message.reply_text("✅ আপনার জন্য আপাতত নতুন কোনো টাস্ক নেই!")
+        # 1. Check Rate Limiting in Redis
+        lock_key = f"lock:task:{user_id}:{campaign_id}"
+        acquired = await redis_client.set(lock_key, "1", nx=True, ex=10)
+        if not acquired:
+            return False, "⏳ Processing request, please wait..."
 
-    elif query.data.startswith("verify_"):
-        task_id = int(query.data.split("_")[1])
-        task = next((t for t in TASKS if t['id'] == task_id), None)
+        try:
+            # Begin Database Atomic Transaction Block
+            async with session.begin_nested():
+                # Fetch Campaign with Row Locking
+                res = await session.execute(
+                    select(Campaign).where(Campaign.id == campaign_id).with_for_update()
+                )
+                campaign = res.scalar_one_or_none()
 
-        if task:
-            if is_task_completed(user.id, task_id):
-                await query.message.reply_text("❌ আপনি এই টাস্কটি আগেই সম্পন্ন করেছেন!")
-                return
+                if not campaign or campaign.status != CampaignStatus.ACTIVE:
+                    return False, "❌ Task is no longer active."
 
-            try:
-                # Real subscription check
-                member = await context.bot.get_chat_member(chat_id=task['channel'], user_id=user.id)
-                if member.status in ['member', 'administrator', 'creator']:
-                    update_user_balance(user.id, task['reward'], task['xp'])
-                    mark_task_completed(user.id, task_id)
-                    await query.message.reply_text(f"🎉 অভিনন্দন! আপনি +{task['reward']:,} GRAM এবং {task['xp']} XP পেয়েছেন।")
+                if campaign.completed_count >= campaign.max_completions:
+                    campaign.status = CampaignStatus.COMPLETED
+                    return False, "❌ Task limit has been reached."
+
+                # Fetch User with Row Locking
+                res_u = await session.execute(
+                    select(User).where(User.id == user_id).with_for_update()
+                )
+                user = res_u.scalar_one_or_none()
+                if not user:
+                    return False, "❌ User not found."
+
+                # Check Duplicate Completion
+                res_comp = await session.execute(
+                    select(TaskCompletion).where(
+                        TaskCompletion.user_id == user_id,
+                        TaskCompletion.campaign_id == campaign_id
+                    )
+                )
+                if res_comp.scalar_one_or_none():
+                    return False, "❌ You have already completed this task and received your reward!"
+
+                # Perform Verification based on Task Type
+                target = campaign.target_chat_id or campaign.target_username
+                if campaign.task_type in [TaskType.CHANNEL_SUB, TaskType.GROUP_JOIN]:
+                    if not target:
+                        return False, "❌ Campaign target is misconfigured."
+                    is_valid = await SubscriptionVerifier.verify(bot, user_id, target)
+                    if not is_valid:
+                        return False, "❌ Verification failed. Please ensure you have joined the channel/group!"
                 else:
-                    await query.message.reply_text(f"⚠️ আপনি এখনও {task['channel']} চ্যানেলে যোগ দেননি। অনুগ্রহ করে জয়েন করে যাচাই করুন।")
-            except Exception as e:
-                # Fallback if bot is not admin in target channel
-                update_user_balance(user.id, task['reward'], task['xp'])
-                mark_task_completed(user.id, task_id)
-                await query.message.reply_text(f"✅ টাস্ক সম্পন্ন হয়েছে! +{task['reward']:,} GRAM আপনার অ্যাকাউন্টে যোগ করা হয়েছে।")
+                    # Generic fallback verification
+                    is_valid = True
 
-if __name__ == '__main__':
-    Thread(target=run_health_server, daemon=True).start()
+                # Atomic Rewards & Budget Allocation
+                reward = campaign.reward_per_user
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-
-    print("Bot is running dynamically with SQLite Database...")
-    app.run_polling()
-
+                # 1. Record Co
