@@ -1,0 +1,27 @@
+# Environment Variables (অত্যন্ত গুরুত্বপূর্ণ - সিক্রেট পাসওয়ার্ড)
+.env
+.env.*
+
+# Python Cache & Compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Local Database & Redis dumps (যদি লোকাল ফাইল থাকে)
+*.db
+*.sqlite3
+dump.rdb
+
+# Code Editors & IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
