@@ -1,6 +1,8 @@
+
 import sys
 import os
 import re
+import html
 import uuid
 import logging
 import asyncio
@@ -34,6 +36,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.types import ErrorEvent
 
 import uvicorn  # noqa: F401  (kept for deployment parity, used if serving fastapi_app)
 from fastapi import FastAPI
@@ -50,6 +53,10 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 )
 logger = logging.getLogger("BoostGramBot")
+
+def esc(value) -> str:
+    """Escape dynamic text (names, titles) so it can't break HTML parse_mode."""
+    return html.escape(str(value), quote=False)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "BoostGramBot")
@@ -108,8 +115,8 @@ VERIFIABLE_TASK_TYPES = {TaskType.CHANNEL_SUB, TaskType.GROUP_JOIN}
 
 LANGUAGES = {
     "en": {
-        "welcome": "👋 Welcome to *{bot_name}*, {first_name}!\n\n🚀 Complete tasks, earn GRAM coins, and promote your channels instantly!",
-        "cabinet": "👤 *Your Cabinet:*\n\n🆔 My ID: `{user_id}`\n📈 Level: 🌱 {rank} {xp}/1500 XP\n💰 Balance: `{balance:,.0f}` GRAM",
+        "welcome": "👋 Welcome to <b>{bot_name}</b>, {first_name}!\n\n🚀 Complete tasks, earn GRAM coins, and promote your channels instantly!",
+        "cabinet": "👤 <b>Your Cabinet:</b>\n\n🆔 My ID: <code>{user_id}</code>\n📈 Level: 🌱 {rank} {xp}/1500 XP\n💰 Balance: <code>{balance:,.0f}</code> GRAM",
         "menu_earnings": "💰 Earnings",
         "menu_promote": "📢 Promote",
         "menu_checks": "📋 Checks",
@@ -129,8 +136,8 @@ LANGUAGES = {
         "lang_changed": "✅ Language changed to English successfully!"
     },
     "bn": {
-        "welcome": "👋 *{bot_name}*-এ আপনাকে স্বাগতম, {first_name}!\n\n🚀 টাস্ক সম্পন্ন করুন, GRAM কয়েন আয় করুন এবং আপনার চ্যানেল প্রমোট করুন!",
-        "cabinet": "👤 *আপনার ক্যাবিনেট:*\n\n🆔 আমার আইডি: `{user_id}`\n📈 লেভেল: 🌱 {rank} {xp}/1500 XP\n💰 ব্যালেন্স: `{balance:,.0f}` GRAM",
+        "welcome": "👋 <b>{bot_name}</b>-এ আপনাকে স্বাগতম, {first_name}!\n\n🚀 টাস্ক সম্পন্ন করুন, GRAM কয়েন আয় করুন এবং আপনার চ্যানেল প্রমোট করুন!",
+        "cabinet": "👤 <b>আপনার ক্যাবিনেট:</b>\n\n🆔 আমার আইডি: <code>{user_id}</code>\n📈 লেভেল: 🌱 {rank} {xp}/1500 XP\n💰 ব্যালেন্স: <code>{balance:,.0f}</code> GRAM",
         "menu_earnings": "💰 আর্নিংস",
         "menu_promote": "📢 প্রমোট",
         "menu_checks": "📋 চেক্স",
@@ -499,7 +506,7 @@ class TaskEngine:
                     campaign.status = CampaignStatus.COMPLETED
 
             await session.commit()
-            return True, f"🎉 Task Verified Successfully!\n💰 You earned: +`{reward:,.0f}` GRAM\n⚡ XP gained: +50"
+            return True, f"🎉 Task Verified Successfully!\n💰 You earned: +<code>{reward:,.0f}</code> GRAM\n⚡ XP gained: +50"
 
         except Exception as e:
             await session.rollback()
@@ -588,8 +595,8 @@ async def cmd_start(message: Message, session: AsyncSession):
             except (TelegramForbiddenError, TelegramBadRequest):
                 pass
 
-    welcome_msg = get_text(user.language, "welcome", bot_name=BOT_USERNAME, first_name=message.from_user.first_name)
-    await message.answer(welcome_msg, reply_markup=get_main_keyboard(user.language), parse_mode=ParseMode.MARKDOWN)
+    welcome_msg = get_text(user.language, "welcome", bot_name=esc(BOT_USERNAME), first_name=esc(message.from_user.first_name))
+    await message.answer(welcome_msg, reply_markup=get_main_keyboard(user.language), parse_mode=ParseMode.HTML)
 
 
 # --- MY CABINET ---
@@ -611,7 +618,7 @@ async def show_cabinet(message: Message, session: AsyncSession):
     await message.answer(
         cabinet_text,
         reply_markup=get_cabinet_keyboard(user.language, user.notifications_enabled),
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -630,7 +637,7 @@ async def cb_back_to_cabinet(query: CallbackQuery, session: AsyncSession):
     await query.message.edit_text(
         cabinet_text,
         reply_markup=get_cabinet_keyboard(user.language, user.notifications_enabled),
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -642,11 +649,11 @@ async def cb_replenish(query: CallbackQuery, state: FSMContext, session: AsyncSe
     lang = user.language if user else "en"
 
     msg = (
-        "⭐ *Replenish Balance via Telegram Stars*\n\nRate: `1 Star = 5000 GRAM`\nEnter amount of Telegram Stars:"
+        "⭐ <b>Replenish Balance via Telegram Stars</b>\n\nRate: <code>1 Star = 5000 GRAM</code>\nEnter amount of Telegram Stars:"
         if lang == "en" else
-        "⭐ *টেলিগ্রাম স্টারের মাধ্যমে ব্যালেন্স টপ-আপ*\n\nরেট: `১ স্টার = ৫০০০ GRAM`\nকতগুলো স্টার পেমেন্ট করতে চান সংখ্যাটি লিখুন:"
+        "⭐ <b>টেলিগ্রাম স্টারের মাধ্যমে ব্যালেন্স টপ-আপ</b>\n\nরেট: <code>১ স্টার = ৫০০০ GRAM</code>\nকতগুলো স্টার পেমেন্ট করতে চান সংখ্যাটি লিখুন:"
     )
-    await query.message.answer(msg, parse_mode=ParseMode.MARKDOWN)
+    await query.message.answer(msg, parse_mode=ParseMode.HTML)
     await state.set_state(TopUpState.amount_stars)
     await query.answer()
 
@@ -705,7 +712,7 @@ async def successful_payment_handler(message: Message, session: AsyncSession):
                 session.add(tx)
 
         await session.commit()
-        await message.answer(f"✅ Top-up successful! Added `+{coins_to_add:,.0f}` GRAM.", parse_mode=ParseMode.MARKDOWN)
+        await message.answer(f"✅ Top-up successful! Added <code>+{coins_to_add:,.0f}</code> GRAM.", parse_mode=ParseMode.HTML)
 
 @router.callback_query(F.data == "cab_referral")
 async def cb_referral(query: CallbackQuery, session: AsyncSession):
@@ -718,10 +725,10 @@ async def cb_referral(query: CallbackQuery, session: AsyncSession):
 
     ref_link = f"https://t.me/{BOT_USERNAME}?start=ref_{user.referral_code}"
     text = (
-        f"👥 *Referral System*\n\nInvite friends & earn `{REFERRAL_COIN_REWARD:,.0f} GRAM` + "
-        f"`{REFERRAL_XP_REWARD} XP` per referral!\n\n📊 Total Invited: `{invited}`\n🔗 Your Link:\n`{ref_link}`"
+        f"👥 <b>Referral System</b>\n\nInvite friends &amp; earn <code>{REFERRAL_COIN_REWARD:,.0f} GRAM</code> + "
+        f"<code>{REFERRAL_XP_REWARD} XP</code> per referral!\n\n📊 Total Invited: <code>{invited}</code>\n🔗 Your Link:\n<code>{esc(ref_link)}</code>"
     )
-    await query.message.edit_text(text, reply_markup=get_back_to_cabinet_keyboard(user.language), parse_mode=ParseMode.MARKDOWN)
+    await query.message.edit_text(text, reply_markup=get_back_to_cabinet_keyboard(user.language), parse_mode=ParseMode.HTML)
     await query.answer()
 
 @router.callback_query(F.data == "cab_level")
@@ -730,8 +737,8 @@ async def cb_level(query: CallbackQuery, session: AsyncSession):
     if not user:
         await query.answer(NOT_STARTED_TEXT["en"], show_alert=True)
         return
-    text = f"📊 *Level System*\n\nCurrent Level: `{user.level}`\nTotal XP: `{user.xp}`\nNext rank progress: `{user.xp % 1500}/1500 XP`"
-    await query.message.edit_text(text, reply_markup=get_back_to_cabinet_keyboard(user.language), parse_mode=ParseMode.MARKDOWN)
+    text = f"📊 <b>Level System</b>\n\nCurrent Level: <code>{user.level}</code>\nTotal XP: <code>{user.xp}</code>\nNext rank progress: <code>{user.xp % 1500}/1500 XP</code>"
+    await query.message.edit_text(text, reply_markup=get_back_to_cabinet_keyboard(user.language), parse_mode=ParseMode.HTML)
     await query.answer()
 
 @router.callback_query(F.data == "cab_tasks")
@@ -756,7 +763,7 @@ async def cb_lang(query: CallbackQuery, session: AsyncSession):
     await query.message.edit_text(
         f"{get_text(lang, 'lang_changed')}\n\n{cabinet_text}",
         reply_markup=get_cabinet_keyboard(lang, user.notifications_enabled),
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.HTML
     )
     await query.answer()
 
@@ -787,11 +794,11 @@ async def show_earnings_menu(message: Message, session: AsyncSession):
     lang = user.language if user else "en"
 
     text = (
-        "🎯 *Available Tasks*\nComplete any task below to earn GRAM coins:"
+        "🎯 <b>Available Tasks</b>\nComplete any task below to earn GRAM coins:"
         if lang == "en" else
-        "🎯 *উপলব্ধ টাস্কসমূহ*\nGRAM কয়েন অর্জনের জন্য নিচের টাস্কগুলো সম্পন্ন করুন:"
+        "🎯 <b>উপলব্ধ টাস্কসমূহ</b>\nGRAM কয়েন অর্জনের জন্য নিচের টাস্কগুলো সম্পন্ন করুন:"
     )
-    await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+    await message.answer(text, parse_mode=ParseMode.HTML)
     await render_tasks_page(message.from_user.id, message, session, page=0, edit=False)
 
 async def render_tasks_page(user_id: int, message: Message, session: AsyncSession, page: int = 0, edit: bool = False):
@@ -834,15 +841,15 @@ async def render_tasks_page(user_id: int, message: Message, session: AsyncSessio
         buttons.append(nav_row)
 
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
-    text = f"🎯 *Active Tasks List* ({total} available):"
+    text = f"🎯 <b>Active Tasks List</b> ({total} available):"
 
     if edit:
         try:
-            await message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+            await message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
         except TelegramBadRequest:
-            await message.answer(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+            await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     else:
-        await message.answer(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+        await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
 
 @router.callback_query(F.data.startswith("tasks_page_"))
 async def tasks_page_nav(query: CallbackQuery, session: AsyncSession):
@@ -878,16 +885,16 @@ async def view_task_detail(query: CallbackQuery, session: AsyncSession):
     action_label = type_labels.get(TaskType(campaign.task_type), "🚀 Open Link")
 
     text = (
-        f"📢 *{campaign.title}*\n\n"
-        f"💰 Reward: `{campaign.reward_per_user:,.0f}` GRAM\n"
-        f"Slots remaining: `{campaign.max_completions - campaign.completed_count}`"
+        f"📢 <b>{esc(campaign.title)}</b>\n\n"
+        f"💰 Reward: <code>{campaign.reward_per_user:,.0f}</code> GRAM\n"
+        f"Slots remaining: <code>{campaign.max_completions - campaign.completed_count}</code>"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=action_label, url=target_url)],
         [InlineKeyboardButton(text="✅ Verify Task", callback_data=f"task_ver_{campaign.id}")],
         [InlineKeyboardButton(text="◀️ Back to list", callback_data="tasks_page_0")]
     ])
-    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer()
 
 @router.callback_query(F.data.startswith("task_ver_"))
@@ -901,7 +908,7 @@ async def verify_task_callback(query: CallbackQuery, session: AsyncSession, bot:
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="◀️ Back to task list", callback_data="tasks_page_0")]
         ])
-        await query.message.edit_text(message, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+        await query.message.edit_text(message, reply_markup=kb, parse_mode=ParseMode.HTML)
 
 
 # --- PROMOTE / CAMPAIGN CREATION ---
@@ -920,8 +927,8 @@ async def start_campaign_creation(message: Message, state: FSMContext, session: 
         [InlineKeyboardButton(text="🌐 Web App / Custom", callback_data="ctype:web_app")]
     ])
     await message.answer(
-        "📢 *Create Promotion Campaign*\n\nSelect the task type advertisers/subscribers must complete:",
-        reply_markup=kb, parse_mode=ParseMode.MARKDOWN
+        "📢 <b>Create Promotion Campaign</b>\n\nSelect the task type advertisers/subscribers must complete:",
+        reply_markup=kb, parse_mode=ParseMode.HTML
     )
     await state.set_state(CampaignCreationState.task_type)
 
@@ -945,8 +952,8 @@ async def campaign_title_entered(message: Message, state: FSMContext):
 
     if task_type in (TaskType.CHANNEL_SUB.value, TaskType.GROUP_JOIN.value):
         await message.answer(
-            "🔗 Send the channel/group username (e.g. `@mychannel`), invite link, or numeric chat ID:",
-            parse_mode=ParseMode.MARKDOWN
+            "🔗 Send the channel/group username (e.g. <code>@mychannel</code>), invite link, or numeric chat ID:",
+            parse_mode=ParseMode.HTML
         )
     else:
         await message.answer("🔗 Enter the link users should open (or any short instruction text):")
@@ -970,17 +977,17 @@ async def campaign_target_entered(message: Message, state: FSMContext, bot: Bot)
         if error == TargetResolutionError.BOT_NOT_MEMBER:
             await status_msg.edit_text(
                 f"❌ I'm not a member of that chat yet.\n\n"
-                f"👉 Please add *@{BOT_USERNAME}* to your channel/group as an *Administrator*, "
+                f"👉 Please add <b>@{esc(BOT_USERNAME)}</b> to your channel/group as an <b>Administrator</b>, "
                 f"then send the username/link again.",
-                parse_mode=ParseMode.MARKDOWN
+                parse_mode=ParseMode.HTML
             )
             return
         if error == TargetResolutionError.BOT_NOT_ADMIN:
             await status_msg.edit_text(
-                f"❌ I'm in the chat, but not as an *Administrator*.\n\n"
-                f"👉 Please promote *@{BOT_USERNAME}* to Admin (any permissions are fine) so I can "
+                f"❌ I'm in the chat, but not as an <b>Administrator</b>.\n\n"
+                f"👉 Please promote <b>@{esc(BOT_USERNAME)}</b> to Admin (any permissions are fine) so I can "
                 f"automatically verify subscriptions, then send the username/link again.",
-                parse_mode=ParseMode.MARKDOWN
+                parse_mode=ParseMode.HTML
             )
             return
         if error:
@@ -994,9 +1001,9 @@ async def campaign_target_entered(message: Message, state: FSMContext, bot: Bot)
             target_invite_link=chat_info["invite_link"],
         )
         await status_msg.edit_text(
-            f"✅ Verified! I'm an admin in *{chat_info['title']}* — subscriptions will be checked automatically.\n\n"
+            f"✅ Verified! I'm an admin in <b>{esc(chat_info['title'])}</b> — subscriptions will be checked automatically.\n\n"
             f"💰 Now enter the reward per user (GRAM coins):",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
     else:
         await state.update_data(target=raw, target_chat_id=None, target_username=None, target_invite_link=None)
@@ -1044,9 +1051,9 @@ async def campaign_finalize(message: Message, state: FSMContext, session: AsyncS
 
     if user.balance < total_cost:
         await message.answer(
-            f"❌ Insufficient balance!\nRequired: `{total_cost:,.0f}` GRAM (includes 15% platform fee)\n"
-            f"Your balance: `{user.balance:,.0f}` GRAM",
-            parse_mode=ParseMode.MARKDOWN
+            f"❌ Insufficient balance!\nRequired: <code>{total_cost:,.0f}</code> GRAM (includes 15% platform fee)\n"
+            f"Your balance: <code>{user.balance:,.0f}</code> GRAM",
+            parse_mode=ParseMode.HTML
         )
         await state.clear()
         return
@@ -1083,8 +1090,8 @@ async def campaign_finalize(message: Message, state: FSMContext, session: AsyncS
     await state.clear()
     await message.answer(
         "✅ Campaign created successfully and is now active!\n\n"
-        "Users can now find and complete it under 💰 *Earnings*.",
-        parse_mode=ParseMode.MARKDOWN
+        "Users can now find and complete it under 💰 <b>Earnings</b>.",
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -1106,17 +1113,17 @@ async def checks_menu(message: Message, session: AsyncSession):
     user = await get_or_none(session, message.from_user.id)
     lang = user.language if user else "en"
     text = (
-        "📋 *Checks System*\n\nA Check is a shareable code pre-funded with GRAM coins — "
+        "📋 <b>Checks System</b>\n\nA Check is a shareable code pre-funded with GRAM coins — "
         "create one to gift coins to others, or activate a code someone shared with you."
         if lang == "en" else
-        "📋 *চেক সিস্টেম*\n\nচেক হলো GRAM কয়েন দিয়ে ফান্ড করা একটি শেয়ারযোগ্য কোড — "
+        "📋 <b>চেক সিস্টেম</b>\n\nচেক হলো GRAM কয়েন দিয়ে ফান্ড করা একটি শেয়ারযোগ্য কোড — "
         "অন্যদের কয়েন গিফট করতে একটি তৈরি করুন, অথবা কারো শেয়ার করা কোড একটিভেট করুন।"
     )
-    await message.answer(text, reply_markup=get_checks_menu_keyboard(lang), parse_mode=ParseMode.MARKDOWN)
+    await message.answer(text, reply_markup=get_checks_menu_keyboard(lang), parse_mode=ParseMode.HTML)
 
 @router.callback_query(F.data == "chk_create")
 async def chk_create_start(query: CallbackQuery, state: FSMContext):
-    await query.message.edit_text("💰 Enter the GRAM amount *per activation* (e.g. `1000`):", parse_mode=ParseMode.MARKDOWN)
+    await query.message.edit_text("💰 Enter the GRAM amount <b>per activation</b> (e.g. <code>1000</code>):", parse_mode=ParseMode.HTML)
     await state.set_state(CheckCreateState.amount)
     await query.answer()
 
@@ -1157,8 +1164,8 @@ async def chk_create_finalize(message: Message, state: FSMContext, session: Asyn
         return
     if user.balance < total_cost:
         await message.answer(
-            f"❌ Insufficient balance. Required: `{total_cost:,.0f}` GRAM, you have `{user.balance:,.0f}` GRAM.",
-            parse_mode=ParseMode.MARKDOWN
+            f"❌ Insufficient balance. Required: <code>{total_cost:,.0f}</code> GRAM, you have <code>{user.balance:,.0f}</code> GRAM.",
+            parse_mode=ParseMode.HTML
         )
         return
 
@@ -1175,11 +1182,11 @@ async def chk_create_finalize(message: Message, state: FSMContext, session: Asyn
 
     await session.commit()
     await message.answer(
-        f"✅ *Check Created!*\n\n"
-        f"🎫 Code: `{code}`\n"
-        f"💰 Amount: `{amount:,.0f}` GRAM x {activations} activation(s)\n\n"
+        f"✅ <b>Check Created!</b>\n\n"
+        f"🎫 Code: <code>{code}</code>\n"
+        f"💰 Amount: <code>{amount:,.0f}</code> GRAM x {activations} activation(s)\n\n"
         f"Share this code — each person can activate it once.",
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.HTML
     )
 
 @router.callback_query(F.data == "chk_activate")
@@ -1237,7 +1244,7 @@ async def chk_activate_finalize(message: Message, state: FSMContext, session: As
         reward_amount = chk.amount_per_activation
 
     await session.commit()
-    await message.answer(f"✅ Check redeemed! +`{reward_amount:,.0f}` GRAM added to your balance.", parse_mode=ParseMode.MARKDOWN)
+    await message.answer(f"✅ Check redeemed! +<code>{reward_amount:,.0f}</code> GRAM added to your balance.", parse_mode=ParseMode.HTML)
 
 
 # --- OTHER MENU BUTTONS ---
@@ -1245,11 +1252,11 @@ async def chk_activate_finalize(message: Message, state: FSMContext, session: As
 @router.message(F.text.in_(["🛡 Subscription Check", "🛡 সাবস্ক্রিপশন চেক"]))
 async def sub_check_menu(message: Message):
     await message.answer(
-        "🛡 *Subscription Verification Engine*\n\n"
+        "🛡 <b>Subscription Verification Engine</b>\n\n"
         "All channel/group subscriptions are verified live through the Telegram Bot API.\n\n"
-        "📌 For this to work, the channel/group owner must add this bot as an *Administrator* — "
+        "📌 For this to work, the channel/group owner must add this bot as an <b>Administrator</b> — "
         "once that's done, the bot checks membership automatically every time a user taps 'Verify Task'.",
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.HTML
     )
 
 @router.message(F.text.in_(["📊 Our Bots and Statistics", "📊 আমাদের বট ও পরিসংখ্যান"]))
@@ -1262,30 +1269,30 @@ async def stats_menu(message: Message, session: AsyncSession):
     total_campaigns = res_camp_all.scalar()
 
     await message.answer(
-        f"📊 *Platform Statistics*\n\n"
-        f"👥 Total Users: `{total_users:,}`\n"
-        f"📢 Active Campaigns: `{active_campaigns:,}`\n"
-        f"🗂 Total Campaigns Ever: `{total_campaigns:,}`",
-        parse_mode=ParseMode.MARKDOWN
+        f"📊 <b>Platform Statistics</b>\n\n"
+        f"👥 Total Users: <code>{total_users:,}</code>\n"
+        f"📢 Active Campaigns: <code>{active_campaigns:,}</code>\n"
+        f"🗂 Total Campaigns Ever: <code>{total_campaigns:,}</code>",
+        parse_mode=ParseMode.HTML
     )
 
 @router.message(F.text.in_(["🔗 Useful Links", "🔗 দরকারী লিংক"]))
 async def links_menu(message: Message):
     await message.answer(
-        f"🔗 *Useful Links*\n• Bot: @{BOT_USERNAME}\n• Official Channel: Update soon\n• Support: Contact admin",
-        parse_mode=ParseMode.MARKDOWN
+        f"🔗 <b>Useful Links</b>\n• Bot: @{esc(BOT_USERNAME)}\n• Official Channel: Update soon\n• Support: Contact admin",
+        parse_mode=ParseMode.HTML
     )
 
 @router.message(F.text.in_(["ℹ️ Instruction", "ℹ️ নির্দেশিকা"]))
 async def instruction_menu(message: Message):
     await message.answer(
-        "ℹ️ *Instruction*\n\n"
+        "ℹ️ <b>Instruction</b>\n\n"
         "1️⃣ Earn GRAM coins by completing tasks under 💰 Earnings.\n"
-        "2️⃣ Promote your own channel/group under 📢 Promote — add this bot as *Admin* "
+        "2️⃣ Promote your own channel/group under 📢 Promote — add this bot as <b>Admin</b> "
         "to your channel/group first so subscriptions can be verified automatically.\n"
         "3️⃣ Use 📋 Checks to gift or redeem pre-funded GRAM codes.\n"
         "4️⃣ Use 👤 My Cabinet to manage your profile, referrals, and language.",
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -1304,7 +1311,7 @@ async def cmd_admin(message: Message):
         [InlineKeyboardButton(text="🚫 Ban User", callback_data="adm_ban")],
         [InlineKeyboardButton(text="📢 Moderate Tasks", callback_data="adm_tasks")]
     ])
-    await message.answer("👑 *Admin Panel*\nChoose an action:", reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+    await message.answer("👑 <b>Admin Panel</b>\nChoose an action:", reply_markup=kb, parse_mode=ParseMode.HTML)
 
 @router.callback_query(F.data == "adm_coins")
 async def adm_coins(query: CallbackQuery, state: FSMContext):
@@ -1322,7 +1329,7 @@ async def adm_get_uid(message: Message, state: FSMContext):
     try:
         uid = int(message.text.strip())
         await state.update_data(target_uid=uid)
-        await message.answer("Enter GRAM coin amount to add/deduct (e.g. `5000` or `-1000`):", parse_mode=ParseMode.MARKDOWN)
+        await message.answer("Enter GRAM coin amount to add/deduct (e.g. <code>5000</code> or <code>-1000</code>):", parse_mode=ParseMode.HTML)
         await state.set_state(AdminState.coin_amount)
     except ValueError:
         await message.answer("❌ Invalid ID.")
@@ -1351,7 +1358,7 @@ async def adm_apply_coins(message: Message, state: FSMContext, session: AsyncSes
         session.add(Transaction(user_id=uid, amount=amount, type=TransactionType.TASK_REWARD, description="Admin adjustment"))
 
     await session.commit()
-    await message.answer(f"✅ Balance updated for user `{uid}` by `{amount:,.0f}` GRAM.", parse_mode=ParseMode.MARKDOWN)
+    await message.answer(f"✅ Balance updated for user <code>{uid}</code> by <code>{amount:,.0f}</code> GRAM.", parse_mode=ParseMode.HTML)
 
 @router.callback_query(F.data == "adm_ban")
 async def adm_ban(query: CallbackQuery, state: FSMContext):
@@ -1380,7 +1387,7 @@ async def adm_apply_ban(message: Message, state: FSMContext, session: AsyncSessi
             return
         user.is_blocked = True
     await session.commit()
-    await message.answer(f"🚫 User `{uid}` banned successfully.", parse_mode=ParseMode.MARKDOWN)
+    await message.answer(f"🚫 User <code>{uid}</code> banned successfully.", parse_mode=ParseMode.HTML)
 
 @router.callback_query(F.data == "adm_tasks")
 async def adm_tasks(query: CallbackQuery, session: AsyncSession):
