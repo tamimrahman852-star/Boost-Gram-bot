@@ -465,4 +465,674 @@ class TaskEngine:
                 # Atomic Rewards & Budget Allocation
                 reward = campaign.reward_per_user
 
-                # 1. Record Co
+                # Record Completion
+                completion = TaskCompletion(
+                    user_id=user_id,
+                    campaign_id=campaign_id,
+                    reward=reward
+                )
+                session.add(completion)
+
+                # Credit Wallet
+                user.balance += reward
+                user.total_earned += reward
+                user.completed_tasks_count += 1
+
+                # Create Transaction
+                tx = Transaction(
+                    user_id=user_id,
+                    amount=reward,
+                    type=TransactionType.TASK_REWARD,
+                    description=f"Reward for completing: {campaign.title}",
+                    reference_id=campaign_id
+                )
+                session.add(tx)
+
+                # Update Campaign
+                campaign.completed_count += 1
+                campaign.spent_budget += reward
+
+                if campaign.completed_count >= campaign.max_completions or (campaign.total_budget - campaign.spent_budget) < reward:
+                    campaign.status = CampaignStatus.COMPLETED
+
+            await session.commit()
+            return True, f"🎉 Task Verified! You earned 💰 {reward:,.2f} points!"
+
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Error during task completion processing: {str(e)}")
+            return False, "❌ An error occurred during verification. Duplicate reward prevented."
+
+
+# ==============================================================================
+# SECTION 10: USER HANDLERS
+# ==============================================================================
+
+router = Router()
+
+@router.message(CommandStart())
+async def cmd_start(message: Message, session: AsyncSession):
+    user_id = message.from_user.id
+    args = message.text.split(maxsplit=1)
+    referrer_id = None
+
+    if len(args) > 1 and args[1].startswith("ref_"):
+        ref_code = args[1].replace("ref_", "").strip()
+        res = await session.execute(select(User).where(User.referral_code == ref_code))
+        ref_user = res.scalar_one_or_none()
+        if ref_user and ref_user.id != user_id:
+            referrer_id = ref_user.id
+
+    res = await session.execute(select(User).where(User.id == user_id))
+    user = res.scalar_one_or_none()
+
+    if not user:
+        ref_code = str(uuid.uuid4())[:8]
+        user = User(
+            id=user_id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name,
+            referral_code=ref_code,
+            referred_by=referrer_id
+        )
+        session.add(user)
+
+        # Handle Referral Bonus if applicable
+        if referrer_id:
+            res_ref = await session.execute(select(User).where(User.id == referrer_id))
+            referrer = res_ref.scalar_one_or_none()
+            if referrer:
+                referrer.balance += REFERRAL_REWARD
+                referrer.total_earned += REFERRAL_REWARD
+                tx = Transaction(
+                    user_id=referrer.id,
+                    amount=REFERRAL_REWARD,
+                    type=TransactionType.REFERRAL_REWARD,
+                    description=f"Referral reward for inviting {message.from_user.first_name}",
+                    reference_id=str(user_id)
+                )
+                session.add(tx)
+
+        await session.commit()
+
+    is_admin = user_id in ADMIN_IDS
+    welcome_text = (
+        f"👋 Welcome {message.from_user.first_name} to *{BOT_USERNAME}*!\n\n"
+        "🎯 Complete simple tasks to earn rewards.\n"
+        "📢 Promote your own channels/groups instantly!"
+    )
+    await message.answer(welcome_text, reply_markup=get_main_menu_keyboard(is_admin), parse_mode=ParseMode.MARKDOWN)
+
+@router.message(F.text == "🎯 Tasks")
+async def show_tasks(message: Message, session: AsyncSession):
+    await display_tasks_page(message.from_user.id, message, session, page=0)
+
+async def display_tasks_page(user_id: int, message_or_query: Union[Message, CallbackQuery], session: AsyncSession, page: int = 0):
+    limit = 5
+    offset = page * limit
+
+    # Query Active Campaigns not yet completed by User
+    completed_sub = select(TaskCompletion.campaign_id).where(TaskCompletion.user_id == user_id)
+    
+    stmt = (
+        select(Campaign)
+        .where(
+            Campaign.status == CampaignStatus.ACTIVE,
+            Campaign.id.not_in(completed_sub)
+        )
+        .offset(offset)
+        .limit(limit)
+    )
+    res = await session.execute(stmt)
+    campaigns = res.scalars().all()
+
+    if not campaigns:
+        msg = "🎯 *Available Tasks*\n\nThere are currently no active tasks available. Check back soon!"
+        if isinstance(message_or_query, Message):
+            await message_or_query.answer(msg, parse_mode=ParseMode.MARKDOWN)
+        else:
+            await message_or_query.message.edit_text(msg, parse_mode=ParseMode.MARKDOWN)
+        return
+
+    buttons = []
+    for c in campaigns:
+        title = f"📢 {c.title} (+{c.reward_per_user:,.0f} pts)"
+        buttons.append([InlineKeyboardButton(text=title, callback_data=TaskCallback(action="view", campaign_id=c.id).pack())])
+
+    # Navigation
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton(text="⬅️ Prev", callback_data=PaginationCallback(menu="tasks", page=page-1).pack()))
+    nav.append(InlineKeyboardButton(text="Next ➡️", callback_data=PaginationCallback(menu="tasks", page=page+1).pack()))
+    buttons.append(nav)
+
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    msg = "🎯 *Available Tasks*\nSelect a task below to complete:"
+    if isinstance(message_or_query, Message):
+        await message_or_query.answer(msg, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await message_or_query.message.edit_text(msg, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+
+@router.callback_query(TaskCallback.filter(F.action == "view"))
+async def view_task(query: CallbackQuery, callback_data: TaskCallback, session: AsyncSession):
+    res = await session.execute(select(Campaign).where(Campaign.id == callback_data.campaign_id))
+    campaign = res.scalar_one_or_none()
+
+    if not campaign or campaign.status != CampaignStatus.ACTIVE:
+        await query.answer("Task is no longer available.", show_alert=True)
+        return
+
+    if campaign.target_username and not campaign.target_username.startswith("@"):
+        target_url = f"https://t.me/{campaign.target_username}"
+    elif campaign.target_link:
+        target_url = campaign.target_link
+    else:
+        target_url = f"https://t.me/{BOT_USERNAME}"
+
+    msg = (
+        f"📢 *Task Details: {campaign.title}*\n\n"
+        f"📜 *Description:* {campaign.description or 'No description'}\n"
+        f"💰 *Reward:* {campaign.reward_per_user:,.2f} points\n"
+        f"👥 *Remaining:* {campaign.max_completions - campaign.completed_count:,}\n"
+    )
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚀 Open Link / Join", url=target_url)],
+        [InlineKeyboardButton(text="✅ Check Subscription", callback_data=TaskCallback(action="check", campaign_id=campaign.id).pack())],
+        [InlineKeyboardButton(text="⬅️ Back", callback_data=PaginationCallback(menu="tasks", page=0).pack())]
+    ])
+
+    await query.message.edit_text(msg, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+
+@router.callback_query(TaskCallback.filter(F.action == "check"))
+async def check_task(query: CallbackQuery, callback_data: TaskCallback, session: AsyncSession, bot: Bot):
+    user_id = query.from_user.id
+    success, message = await TaskEngine.process_task_completion(
+        session=session,
+        bot=bot,
+        user_id=user_id,
+        campaign_id=callback_data.campaign_id
+    )
+
+    if success:
+        await query.answer("Verified!", show_alert=False)
+        await query.message.edit_text(message, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await query.answer(message, show_alert=True)
+
+@router.message(F.text == "💰 Wallet")
+async def show_wallet(message: Message, session: AsyncSession):
+    user_id = message.from_user.id
+    res = await session.execute(select(User).where(User.id == user_id))
+    user = res.scalar_one_or_none()
+
+    msg = (
+        f"💰 *Your Balance & Wallet*\n\n"
+        f"👤 *User:* {user.first_name}\n"
+        f"💳 *Current Balance:* `{user.balance:,.2f}` points\n"
+        f"📈 *Total Earned:* `{user.total_earned:,.2f}` points\n"
+        f"💸 *Total Withdrawn:* `{user.total_withdrawn:,.2f}` points\n"
+        f"✅ *Completed Tasks:* `{user.completed_tasks_count}`"
+    )
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💸 Withdraw Funds", callback_data="wallet:withdraw")],
+        [InlineKeyboardButton(text="📜 Transaction History", callback_data="wallet:history:0")]
+    ])
+
+    await message.answer(msg, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+
+@router.message(F.text == "👥 Referral")
+async def show_referral(message: Message, session: AsyncSession):
+    user_id = message.from_user.id
+    res = await session.execute(select(User).where(User.id == user_id))
+    user = res.scalar_one_or_none()
+
+    res_count = await session.execute(select(func.count(User.id)).where(User.referred_by == user_id))
+    invited_count = res_count.scalar()
+
+    ref_link = f"https://t.me/{BOT_USERNAME}?start=ref_{user.referral_code}"
+
+    msg = (
+        f"👥 *Referral Program*\n\n"
+        f"Invite friends and earn *{REFERRAL_REWARD:,.0f} points* for every active user that joins!\n\n"
+        f"📊 *Your Invites:* `{invited_count}` users\n"
+        f"🔗 *Your Referral Link:*\n`{ref_link}`"
+    )
+
+    await message.answer(msg, parse_mode=ParseMode.MARKDOWN)
+
+@router.message(F.text == "📊 Statistics")
+async def show_statistics(message: Message, session: AsyncSession):
+    res_u = await session.execute(select(func.count(User.id)))
+    total_users = res_u.scalar()
+
+    res_c = await session.execute(select(func.count(Campaign.id)).where(Campaign.status == CampaignStatus.ACTIVE))
+    active_campaigns = res_c.scalar()
+
+    res_comp = await session.execute(select(func.count(TaskCompletion.id)))
+    total_completions = res_comp.scalar()
+
+    msg = (
+        f"📊 *Platform Statistics*\n\n"
+        f"👥 *Total Registered Users:* `{total_users:,}`\n"
+        f"📢 *Active Campaigns:* `{active_campaigns:,}`\n"
+        f"✅ *Tasks Completed:* `{total_completions:,}`"
+    )
+
+    await message.answer(msg, parse_mode=ParseMode.MARKDOWN)
+
+@router.message(F.text == "🏆 Leaderboard")
+async def show_leaderboard(message: Message, session: AsyncSession):
+    stmt = select(User).order_by(User.total_earned.desc()).limit(10)
+    res = await session.execute(stmt)
+    top_users = res.scalars().all()
+
+    msg = "🏆 *Top Earners Leaderboard*\n\n"
+    for idx, u in enumerate(top_users, 1):
+        name = u.first_name or u.username or "Anonymous"
+        msg += f"{idx}. *{name}* — `{u.total_earned:,.2f}` points\n"
+
+    await message.answer(msg, parse_mode=ParseMode.MARKDOWN)
+
+
+# ==============================================================================
+# SECTION 11: WITHDRAWAL SYSTEM
+# ==============================================================================
+
+@router.message(F.text == "💸 Withdraw")
+@router.callback_query(F.data == "wallet:withdraw")
+async def init_withdrawal(event: Union[Message, CallbackQuery], state: FSMContext, session: AsyncSession):
+    user_id = event.from_user.id
+    res = await session.execute(select(User).where(User.id == user_id))
+    user = res.scalar_one_or_none()
+
+    if user.balance < MIN_WITHDRAWAL:
+        msg = f"❌ *Insufficient Balance*\n\nMinimum withdrawal is `{MIN_WITHDRAWAL:,.0f}` points. Your balance: `{user.balance:,.2f}` points."
+        if isinstance(event, Message):
+            await event.answer(msg, parse_mode=ParseMode.MARKDOWN)
+        else:
+            await event.answer(msg, show_alert=True)
+        return
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="TON Wallet", callback_data="method:TON"), InlineKeyboardButton(text="USDT (TRC20)", callback_data="method:USDT")],
+        [InlineKeyboardButton(text="Payeer", callback_data="method:Payeer")]
+    ])
+
+    msg = "💸 *Withdrawal Request*\nSelect your preferred payment method:"
+    if isinstance(event, Message):
+        await event.answer(msg, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await event.message.edit_text(msg, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+
+    await state.set_state(WithdrawState.method)
+
+@router.callback_query(WithdrawState.method, F.data.startswith("method:"))
+async def select_withdraw_method(query: CallbackQuery, state: FSMContext):
+    method = query.data.split(":")[1]
+    await state.update_data(method=method)
+
+    await query.message.edit_text(
+        f"💳 Method Selected: *{method}*\n\nPlease enter the amount you wish to withdraw (Min: `{MIN_WITHDRAWAL:,.0f}`):",
+        parse_mode=ParseMode.MARKDOWN
+    )
+    await state.set_state(WithdrawState.amount)
+
+@router.message(WithdrawState.amount)
+async def process_withdraw_amount(message: Message, state: FSMContext, session: AsyncSession):
+    try:
+        amount = Decimal(message.text.strip())
+    except Exception:
+        await message.answer("❌ Invalid amount. Please enter a numerical value.")
+        return
+
+    user_id = message.from_user.id
+    res = await session.execute(select(User).where(User.id == user_id))
+    user = res.scalar_one_or_none()
+
+    if amount < MIN_WITHDRAWAL or amount > MAX_WITHDRAWAL or amount > user.balance:
+        await message.answer(f"❌ Invalid amount. Ensure it is within bounds and doesn't exceed your balance (`{user.balance:,.2f}`).")
+        return
+
+    await state.update_data(amount=str(amount))
+    await message.answer("📝 Enter your payment destination address / account details:")
+    await state.set_state(WithdrawState.details)
+
+@router.message(WithdrawState.details)
+async def process_withdraw_details(message: Message, state: FSMContext, session: AsyncSession):
+    details = message.text.strip()
+    data = await state.get_data()
+    amount = Decimal(data["amount"])
+    method = data["method"]
+    user_id = message.from_user.id
+
+    async with session.begin_nested():
+        res = await session.execute(select(User).where(User.id == user_id).with_for_update())
+        user = res.scalar_one_or_none()
+
+        if user.balance < amount:
+            await message.answer("❌ Balance error. Transaction cancelled.")
+            await state.clear()
+            return
+
+        user.balance -= amount
+        withdrawal = Withdrawal(
+            user_id=user_id,
+            amount=amount,
+            method=method,
+            payout_details=details,
+            status=WithdrawalStatus.PENDING
+        )
+        session.add(withdrawal)
+
+        tx = Transaction(
+            user_id=user_id,
+            amount=-amount,
+            type=TransactionType.WITHDRAWAL,
+            description=f"Withdrawal request via {method}",
+            reference_id=withdrawal.id
+        )
+        session.add(tx)
+
+    await session.commit()
+    await state.clear()
+
+    await message.answer(
+        f"✅ *Withdrawal Request Submitted!*\n\n"
+        f"💰 *Amount:* `{amount:,.2f}`\n"
+        f"💳 *Method:* `{method}`\n"
+        f"📋 *Details:* `{details}`\n\n"
+        "Your request is now pending manual admin approval.",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
+# ==============================================================================
+# SECTION 12: ADVERTISER PANEL & CAMPAIGN CREATION
+# ==============================================================================
+
+@router.message(F.text == "📢 Advertiser Panel")
+async def show_advertiser_panel(message: Message, session: AsyncSession):
+    user_id = message.from_user.id
+    res = await session.execute(select(User).where(User.id == user_id))
+    user = res.scalar_one_or_none()
+
+    msg = (
+        f"📢 *Advertiser Dashboard*\n\n"
+        f"Create campaigns to promote channels, groups, or links.\n"
+        f"💰 *Available Account Balance:* `{user.balance:,.2f}` points"
+    )
+
+    await message.answer(msg, reply_markup=get_advertiser_keyboard(), parse_mode=ParseMode.MARKDOWN)
+
+@router.callback_query(F.data == "adv:create")
+async def start_campaign_creation(query: CallbackQuery, state: FSMContext):
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📢 Channel Sub", callback_data="type:channel_sub"), InlineKeyboardButton(text="👥 Group Join", callback_data="type:group_join")],
+        [InlineKeyboardButton(text="🔗 Custom Link", callback_data="type:custom")]
+    ])
+    await query.message.edit_text("🎯 Select Task Type for Campaign:", reply_markup=kb)
+    await state.set_state(CreateCampaignState.task_type)
+
+@router.callback_query(CreateCampaignState.task_type, F.data.startswith("type:"))
+async def process_campaign_type(query: CallbackQuery, state: FSMContext):
+    task_type = query.data.split(":")[1]
+    await state.update_data(task_type=task_type)
+
+    await query.message.edit_text("📝 Enter Campaign Title:")
+    await state.set_state(CreateCampaignState.title)
+
+@router.message(CreateCampaignState.title)
+async def process_campaign_title(message: Message, state: FSMContext):
+    title = message.text.strip()
+    await state.update_data(title=title)
+
+    await message.answer("🔗 Enter Channel/Group Username (e.g. `@mychannel`) or full URL link:")
+    await state.set_state(CreateCampaignState.target)
+
+@router.message(CreateCampaignState.target)
+async def process_campaign_target(message: Message, state: FSMContext):
+    target = message.text.strip()
+    await state.update_data(target=target)
+
+    await message.answer("💰 Enter reward per user (in points):")
+    await state.set_state(CreateCampaignState.reward)
+
+@router.message(CreateCampaignState.reward)
+async def process_campaign_reward(message: Message, state: FSMContext):
+    try:
+        reward = Decimal(message.text.strip())
+        if reward <= 0: raise ValueError()
+    except Exception:
+        await message.answer("❌ Invalid reward value. Must be greater than 0.")
+        return
+
+    await state.update_data(reward=str(reward))
+    await message.answer("👥 Enter maximum number of user completions target:")
+    await state.set_state(CreateCampaignState.max_completions)
+
+@router.message(CreateCampaignState.max_completions)
+async def process_campaign_max_completions(message: Message, state: FSMContext, session: AsyncSession, bot: Bot):
+    try:
+        max_comp = int(message.text.strip())
+        if max_comp <= 0: raise ValueError()
+    except Exception:
+        await message.answer("❌ Invalid integer value.")
+        return
+
+    data = await state.get_data()
+    reward = Decimal(data["reward"])
+    total_budget = reward * max_comp
+    user_id = message.from_user.id
+
+    res = await session.execute(select(User).where(User.id == user_id))
+    user = res.scalar_one_or_none()
+
+    if user.balance < total_budget:
+        await message.answer(
+            f"❌ *Insufficient Balance*\n\nRequired Budget: `{total_budget:,.2f}` points\nYour Balance: `{user.balance:,.2f}` points\n\nPlease earn or top-up balance first.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        await state.clear()
+        return
+
+    target = data["target"]
+    target_username = None
+
+    if target.startswith("@"):
+        target_username = target.replace("@", "")
+    elif "t.me/" in target:
+        target_username = target.split("t.me/")[1].replace("/", "")
+
+    async with session.begin_nested():
+        user.balance -= total_budget
+
+        campaign = Campaign(
+            advertiser_id=user_id,
+            title=data["title"],
+            task_type=TaskType(data["task_type"]),
+            target_username=target_username,
+            target_link=target if not target_username else None,
+            reward_per_user=reward,
+            max_completions=max_comp,
+            total_budget=total_budget,
+            status=CampaignStatus.ACTIVE
+        )
+        session.add(campaign)
+
+        tx = Transaction(
+            user_id=user_id,
+            amount=-total_budget,
+            type=TransactionType.CAMPAIGN_PAYMENT,
+            description=f"Created campaign: {data['title']}",
+            reference_id=campaign.id
+        )
+        session.add(tx)
+
+    await session.commit()
+    await state.clear()
+
+    await message.answer(
+        f"✅ *Campaign Successfully Launched!*\n\n"
+        f"📢 *Title:* {data['title']}\n"
+        f"💰 *Budget Allocated:* `{total_budget:,.2f}` points\n"
+        f"🚀 Status: Active",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
+# ==============================================================================
+# SECTION 13: ADMIN PANEL
+# ==============================================================================
+
+@router.message(F.text == "👑 Admin Panel")
+async def show_admin_panel(message: Message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    msg = "👑 *Admin Control Panel*\n\nSelect a management option below:"
+    await message.answer(msg, reply_markup=get_admin_keyboard(), parse_mode=ParseMode.MARKDOWN)
+
+@router.callback_query(AdminActionCallback.filter(F.action == "withdrawals"))
+async def admin_list_withdrawals(query: CallbackQuery, session: AsyncSession):
+    if query.from_user.id not in ADMIN_IDS:
+        return
+
+    res = await session.execute(
+        select(Withdrawal).where(Withdrawal.status == WithdrawalStatus.PENDING).limit(10)
+    )
+    withdrawals = res.scalars().all()
+
+    if not withdrawals:
+        await query.message.edit_text("✅ No pending withdrawals found.", reply_markup=get_admin_keyboard())
+        return
+
+    msg = "💸 *Pending Withdrawals:*\n\n"
+    buttons = []
+    for w in withdrawals:
+        msg += f"🆔 `{w.id[:8]}` | User: `{w.user_id}` | `{w.amount:,.2f}` via {w.method}\n"
+        buttons.append([
+            InlineKeyboardButton(text=f"✅ Approve {w.id[:8]}", callback_data=AdminActionCallback(action="app_w", target_id=w.id).pack()),
+            InlineKeyboardButton(text=f"❌ Reject {w.id[:8]}", callback_data=AdminActionCallback(action="rej_w", target_id=w.id).pack())
+        ])
+
+    buttons.append([InlineKeyboardButton(text="⬅️ Back", callback_data="adm:back")])
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    await query.message.edit_text(msg, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+
+@router.callback_query(AdminActionCallback.filter(F.action == "app_w"))
+async def admin_approve_withdrawal(query: CallbackQuery, callback_data: AdminActionCallback, session: AsyncSession):
+    if query.from_user.id not in ADMIN_IDS: return
+
+    async with session.begin_nested():
+        res = await session.execute(select(Withdrawal).where(Withdrawal.id == callback_data.target_id).with_for_update())
+        w = res.scalar_one_or_none()
+
+        if not w or w.status != WithdrawalStatus.PENDING:
+            await query.answer("Withdrawal no longer pending.", show_alert=True)
+            return
+
+        w.status = WithdrawalStatus.PAID
+
+        audit = AuditLog(
+            admin_id=query.from_user.id,
+            action="APPROVE_WITHDRAWAL",
+            target_user_id=w.user_id,
+            details=f"Approved withdrawal {w.id} of amount {w.amount}"
+        )
+        session.add(audit)
+
+    await session.commit()
+    await query.answer("Withdrawal Approved!")
+    await admin_list_withdrawals(query, session)
+
+@router.callback_query(AdminActionCallback.filter(F.action == "rej_w"))
+async def admin_reject_withdrawal(query: CallbackQuery, callback_data: AdminActionCallback, session: AsyncSession):
+    if query.from_user.id not in ADMIN_IDS: return
+
+    async with session.begin_nested():
+        res = await session.execute(select(Withdrawal).where(Withdrawal.id == callback_data.target_id).with_for_update())
+        w = res.scalar_one_or_none()
+
+        if not w or w.status != WithdrawalStatus.PENDING:
+            await query.answer("Withdrawal no longer pending.", show_alert=True)
+            return
+
+        w.status = WithdrawalStatus.REJECTED
+
+        res_u = await session.execute(select(User).where(User.id == w.user_id).with_for_update())
+        user = res_u.scalar_one_or_none()
+        if user:
+            user.balance += w.amount
+            tx = Transaction(
+                user_id=user.id,
+                amount=w.amount,
+                type=TransactionType.WITHDRAWAL_REFUND,
+                description="Withdrawal rejected & refunded",
+                reference_id=w.id
+            )
+            session.add(tx)
+
+        audit = AuditLog(
+            admin_id=query.from_user.id,
+            action="REJECT_WITHDRAWAL",
+            target_user_id=w.user_id,
+            details=f"Rejected withdrawal {w.id} and refunded {w.amount}"
+        )
+        session.add(audit)
+
+    await session.commit()
+    await query.answer("Withdrawal Rejected and Refunded!")
+    await admin_list_withdrawals(query, session)
+
+
+# ==============================================================================
+# SECTION 14: FASTAPI & APP INITIALIZATION
+# ==============================================================================
+
+fastapi_app = FastAPI(title="Telegram Bot Health Checker")
+
+@fastapi_app.get("/health")
+async def health_check():
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
+async def start_bot():
+    bot = Bot(token=BOT_TOKEN)
+    storage = RedisStorage(redis=redis_client)
+    dp = Dispatcher(storage=storage)
+
+    # Register Middlewares
+    dp.message.outer_middleware(DatabaseMiddleware())
+    dp.callback_query.outer_middleware(DatabaseMiddleware())
+    dp.message.outer_middleware(MaintenanceMiddleware())
+    dp.callback_query.outer_middleware(MaintenanceMiddleware())
+    dp.message.outer_middleware(UserActivityMiddleware())
+    dp.callback_query.outer_middleware(UserActivityMiddleware())
+
+    # Include Router
+    dp.include_router(router)
+
+    # Initialize Database Tables
+    await init_db()
+
+    logger.info("Database initialized successfully.")
+
+    if BOT_MODE == "polling":
+        logger.info("Starting Telegram Bot in POLLING mode...")
+        await dp.start_polling(bot)
+    else:
+        logger.info(f"Setting Webhook to {WEBHOOK_URL}...")
+        await bot.set_webhook(url=WEBHOOK_URL, secret_token=WEBHOOK_SECRET)
+        
+        config = uvicorn.Config(app=fastapi_app, host="0.0.0.0", port=8000, log_level="info")
+        server = uvicorn.Server(config)
+        await server.serve()
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(start_bot())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Bot stopped successfully.")
