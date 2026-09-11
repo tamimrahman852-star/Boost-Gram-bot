@@ -1,3 +1,4 @@
+
 import sys
 import os
 import re
@@ -68,7 +69,7 @@ try:
 except ValueError:
     ADMIN_IDS = []
 
-# Business Logic Constants (User Requirements)
+# Business Logic Constants
 REFERRAL_COIN_REWARD = Decimal("5000")
 REFERRAL_XP_REWARD = 500
 STAR_TO_COIN_RATE = 5000  # 1 Telegram Star = 5000 Coins
@@ -78,7 +79,7 @@ MAX_WITHDRAWAL = Decimal("1000000")
 
 
 # ==============================================================================
-# SECTION 2: ENUMS
+# SECTION 2: ENUMS & LOCALIZATION DICTIONARY
 # ==============================================================================
 
 class TaskType(str, Enum):
@@ -99,8 +100,53 @@ class TransactionType(str, Enum):
     REFERRAL_REWARD = "referral_reward"
     STAR_TOPUP = "star_topup"
     WITHDRAWAL = "withdrawal"
-    WITHDRAWAL_REFUND = "withdrawal_refund"
     CAMPAIGN_PAYMENT = "campaign_payment"
+
+LANGUAGES = {
+    "en": {
+        "welcome": "👋 Welcome to *{bot_name}*, {first_name}!\n\n🚀 Complete tasks, earn GRAM coins, and promote your channels instantly!",
+        "cabinet": "👤 *Your Cabinet:*\n\n🆔 My ID: `{user_id}`\n📈 Level: 🌱 {rank} {xp}/1500 XP\n💰 Balance: `{balance:,.0f}` GRAM",
+        "menu_earnings": "💰 Earnings",
+        "menu_promote": "📢 Promote",
+        "menu_checks": "📋 Checks",
+        "menu_cabinet": "👤 My Cabinet",
+        "menu_sub_check": "🛡 Subscription Check",
+        "menu_stats": "📊 Our Bots and Statistics",
+        "menu_links": "🔗 Useful Links",
+        "menu_instruction": "ℹ️ Instruction",
+        "btn_replenish": "🪙 Replenish Balance",
+        "btn_referral": "👥 Referral System",
+        "btn_level": "📊 Level System",
+        "btn_tasks": "📋 My Tasks",
+        "btn_lang": "🌐 Change Language",
+        "btn_notif": "🔕 Disable notifications",
+        "lang_changed": "✅ Language changed to English successfully!"
+    },
+    "bn": {
+        "welcome": "👋 *{bot_name}*-এ আপনাকে স্বাগতম, {first_name}!\n\n🚀 টাস্ক সম্পন্ন করুন, GRAM কয়েন আয় করুন এবং আপনার চ্যানেল প্রমোট করুন!",
+        "cabinet": "👤 *আপনার ক্যাবিনেট:*\n\n🆔 আমার আইডি: `{user_id}`\n📈 লেভেল: 🌱 {rank} {xp}/1500 XP\n💰 ব্যালেন্স: `{balance:,.0f}` GRAM",
+        "menu_earnings": "💰 আর্নিংস",
+        "menu_promote": "📢 প্রমোট",
+        "menu_checks": "📋 চেক্স",
+        "menu_cabinet": "👤 মাই ক্যাবিনেট",
+        "menu_sub_check": "🛡 সাবস্ক্রিপশন চেক",
+        "menu_stats": "📊 আমাদের বট ও পরিসংখ্যান",
+        "menu_links": "🔗 দরকারী লিংক",
+        "menu_instruction": "ℹ️ নির্দেশিকা",
+        "btn_replenish": "🪙 ব্যালেন্স টপ-আপ",
+        "btn_referral": "👥 রেফারেল সিস্টেম",
+        "btn_level": "📊 লেভেল সিস্টেম",
+        "btn_tasks": "📋 আমার টাস্কসমূহ",
+        "btn_lang": "🌐 ভাষা পরিবর্তন",
+        "btn_notif": "🔕 নোটিফিকেশন বন্ধ করুন",
+        "lang_changed": "✅ সফলভাবে ভাষা বাংলায় পরিবর্তন করা হয়েছে!"
+    }
+}
+
+def get_text(lang: str, key: str, **kwargs) -> str:
+    lang_dict = LANGUAGES.get(lang, LANGUAGES["en"])
+    text = lang_dict.get(key, LANGUAGES["en"].get(key, ""))
+    return text.format(**kwargs)
 
 
 # ==============================================================================
@@ -113,15 +159,15 @@ class Base(DeclarativeBase):
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)  # Telegram ID
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     first_name: Mapped[str] = mapped_column(String(128))
     last_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     
-    # Financial & Level System
-    balance: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0.0")) # Coins
+    balance: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0.0"))
     xp: Mapped[int] = mapped_column(Integer, default=0)
     level: Mapped[int] = mapped_column(Integer, default=1)
+    language: Mapped[str] = mapped_column(String(5), default="en")
     
     total_earned: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0.0"))
     completed_tasks_count: Mapped[int] = mapped_column(default=0)
@@ -212,28 +258,36 @@ class CampaignCreationState(StatesGroup):
 class TopUpState(StatesGroup):
     amount_stars = State()
 
+class AdminState(StatesGroup):
+    target_user_id = State()
+    coin_amount = State()
+    ban_user_id = State()
+
 
 # ==============================================================================
-# SECTION 6: CALLBACK DATA & KEYBOARDS
+# SECTION 6: KEYBOARDS (AS SEEN IN SCREENSHOT)
 # ==============================================================================
 
-class TaskCallback(CallbackData, prefix="task"):
-    action: str
-    campaign_id: str
+def get_main_keyboard(lang: str = "en") -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=get_text(lang, "menu_earnings")), KeyboardButton(text=get_text(lang, "menu_promote"))],
+            [KeyboardButton(text=get_text(lang, "menu_checks")), KeyboardButton(text=get_text(lang, "menu_cabinet"))],
+            [KeyboardButton(text=get_text(lang, "menu_sub_check")), KeyboardButton(text=get_text(lang, "menu_stats"))],
+            [KeyboardButton(text=get_text(lang, "menu_links")), KeyboardButton(text=get_text(lang, "menu_instruction"))]
+        ],
+        resize_keyboard=True
+    )
 
-class PaginationCallback(CallbackData, prefix="page"):
-    menu: str
-    page: int
-
-def get_main_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
-    keyboard = [
-        [KeyboardButton(text="🎯 Available Tasks"), KeyboardButton(text="💰 My Wallet")],
-        [KeyboardButton(text="⭐ Top-up Coins (Stars)"), KeyboardButton(text="👥 Referral Program")],
-        [KeyboardButton(text="📢 Create Promotion"), KeyboardButton(text="🏆 Leaderboard")]
-    ]
-    if is_admin:
-        keyboard.append([KeyboardButton(text="👑 Admin Panel")])
-    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+def get_cabinet_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=get_text(lang, "btn_replenish"), callback_data="cab_replenish")],
+        [InlineKeyboardButton(text=get_text(lang, "btn_referral"), callback_data="cab_referral")],
+        [InlineKeyboardButton(text=get_text(lang, "btn_level"), callback_data="cab_level")],
+        [InlineKeyboardButton(text=get_text(lang, "btn_tasks"), callback_data="cab_tasks")],
+        [InlineKeyboardButton(text=get_text(lang, "btn_lang"), callback_data="cab_lang")],
+        [InlineKeyboardButton(text=get_text(lang, "btn_notif"), callback_data="cab_notif")]
+    ])
 
 
 # ==============================================================================
@@ -243,11 +297,6 @@ def get_main_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
 class SubscriptionVerifier:
     @staticmethod
     async def verify(bot: Bot, user_id: int, target_chat: Union[int, str]) -> bool:
-        """
-        যাচাই করে ইউজার চ্যানেল বা গ্রুপে সাবস্ক্রাইব করেছে কিনা।
-        ইউজার নিজে অ্যাডমিন না হলেও, যদি বট ওই চ্যানেল/গ্রুপের অ্যাডমিন হয়, 
-        তবে বট API দিয়ে চেক করতে পারবে ইউজার মেম্বার কি না।
-        """
         try:
             member = await bot.get_chat_member(chat_id=target_chat, user_id=user_id)
             valid_statuses = [
@@ -279,7 +328,6 @@ class TaskEngine:
 
         try:
             async with session.begin_nested():
-                # 1. Fetch Campaign
                 res_c = await session.execute(select(Campaign).where(Campaign.id == campaign_id).with_for_update())
                 campaign = res_c.scalar_one_or_none()
 
@@ -290,26 +338,22 @@ class TaskEngine:
                     campaign.status = CampaignStatus.COMPLETED
                     return False, "❌ Task limit has been reached."
 
-                # 2. Fetch User
                 res_u = await session.execute(select(User).where(User.id == user_id).with_for_update())
                 user = res_u.scalar_one_or_none()
 
-                # 3. Check Duplicate
                 res_comp = await session.execute(select(TaskCompletion).where(
                     TaskCompletion.user_id == user_id, TaskCompletion.campaign_id == campaign_id
                 ))
                 if res_comp.scalar_one_or_none():
                     return False, "❌ You have already completed this task!"
 
-                # 4. Task Specific Verification
                 target = campaign.target_chat_id or campaign.target_username
                 if campaign.task_type in [TaskType.CHANNEL_SUB, TaskType.GROUP_JOIN]:
                     if target:
                         is_valid = await SubscriptionVerifier.verify(bot, user_id, target)
                         if not is_valid:
-                            return False, "❌ Verification failed! Please make sure you joined the channel/group."
+                            return False, "❌ Verification failed! Please make sure you joined."
 
-                # 5. Reward Calculation & Distribution
                 reward = campaign.reward_per_user
                 
                 completion = TaskCompletion(user_id=user_id, campaign_id=campaign_id, reward=reward)
@@ -318,10 +362,8 @@ class TaskEngine:
                 user.balance += reward
                 user.total_earned += reward
                 user.completed_tasks_count += 1
-                
-                # Update XP & Level (Level up logic: every 10,000 XP = +1 Level)
                 user.xp += 50
-                user.level = 1 + (user.xp // 10000)
+                user.level = 1 + (user.xp // 1500)
 
                 tx = Transaction(
                     user_id=user_id, amount=reward,
@@ -337,7 +379,7 @@ class TaskEngine:
                     campaign.status = CampaignStatus.COMPLETED
 
             await session.commit()
-            return True, f"🎉 Task Verified Successfully!\n💰 You earned: +`{reward:,.0f}` Coins\n⚡ XP gained: +50"
+            return True, f"🎉 Task Verified Successfully!\n💰 You earned: +`{reward:,.0f}` GRAM\n⚡ XP gained: +50"
 
         except Exception as e:
             await session.rollback()
@@ -346,7 +388,7 @@ class TaskEngine:
 
 
 # ==============================================================================
-# SECTION 8: BOT HANDLERS (USER FLOWS)
+# SECTION 8: BOT HANDLERS & ROUTING
 # ==============================================================================
 
 router = Router()
@@ -375,63 +417,62 @@ async def cmd_start(message: Message, session: AsyncSession):
             first_name=message.from_user.first_name,
             last_name=message.from_user.last_name,
             referral_code=ref_code,
-            referred_by=referrer_id
+            referred_by=referrer_id,
+            language="en"
         )
         session.add(user)
 
-        # Referral reward: 5000 Coins + 500 XP
         if referrer_id:
             res_referrer = await session.execute(select(User).where(User.id == referrer_id))
             referrer = res_referrer.scalar_one_or_none()
             if referrer:
                 referrer.balance += REFERRAL_COIN_REWARD
                 referrer.xp += REFERRAL_XP_REWARD
-                referrer.level = 1 + (referrer.xp // 10000)
+                referrer.level = 1 + (referrer.xp // 1500)
                 
                 tx = Transaction(
                     user_id=referrer.id, amount=REFERRAL_COIN_REWARD,
                     type=TransactionType.REFERRAL_REWARD,
-                    description=f"Referral bonus for inviting {message.from_user.first_name}"
+                    description=f"Referral bonus for {message.from_user.first_name}"
                 )
                 session.add(tx)
 
         await session.commit()
 
-    is_admin = user_id in ADMIN_IDS
-    welcome_text = (
-        f"👋 Welcome to *{BOT_USERNAME}*, {message.from_user.first_name}!\n\n"
-        f"🚀 Complete tasks to earn coins, level up, and promote your own channels/groups instantly!\n\n"
-        f"📌 Use the menu below to navigate:"
-    )
-    await message.answer(welcome_text, reply_markup=get_main_keyboard(is_admin), parse_mode=ParseMode.MARKDOWN)
+    welcome_msg = get_text(user.language, "welcome", bot_name=BOT_USERNAME, first_name=message.from_user.first_name)
+    await message.answer(welcome_msg, reply_markup=get_main_keyboard(user.language), parse_mode=ParseMode.MARKDOWN)
 
 
-# --- WALLET & STARS TOPUP ---
+# --- MY CABINET (AS SEEN IN SCREENSHOT) ---
 
-@router.message(F.text == "💰 My Wallet")
-async def show_wallet(message: Message, session: AsyncSession):
+@router.message(F.text.in_(["👤 My Cabinet", "👤 মাই ক্যাবিনেট"]))
+async def show_cabinet(message: Message, session: AsyncSession):
     user_id = message.from_user.id
     res = await session.execute(select(User).where(User.id == user_id))
     user = res.scalar_one_or_none()
 
-    msg = (
-        f"💰 *Your Wallet & Profile*\n\n"
-        f"🪙 *Balance:* `{user.balance:,.0f}` Coins\n"
-        f"⚡ *XP:* `{user.xp:,}` | 🏆 *Level:* `{user.level}`\n"
-        f"📈 *Total Earned:* `{user.total_earned:,.0f}` Coins\n"
-        f"✅ *Completed Tasks:* `{user.completed_tasks_count}`"
-    )
-    await message.answer(msg, parse_mode=ParseMode.MARKDOWN)
+    rank_name = "Activist" if user.level >= 1 else "Newbie"
+    current_xp_mod = user.xp % 1500
 
-@router.message(F.text == "⭐ Top-up Coins (Stars)")
-async def prompt_star_topup(message: Message, state: FSMContext):
-    msg = (
-        f"⭐ *Telegram Stars Top-Up*\n\n"
-        f"Rate: `1 Star = {STAR_TO_COIN_RATE:,} Coins`\n\n"
-        f"Please enter the number of Telegram Stars you want to pay (e.g., 10, 50, 100):"
+    cabinet_text = get_text(
+        user.language, "cabinet",
+        user_id=user.id, rank=rank_name, xp=current_xp_mod, balance=user.balance
     )
-    await message.answer(msg, parse_mode=ParseMode.MARKDOWN)
+    await message.answer(cabinet_text, reply_markup=get_cabinet_keyboard(user.language), parse_mode=ParseMode.MARKDOWN)
+
+
+# --- INLINE ACTIONS FROM CABINET ---
+
+@router.callback_query(F.data == "cab_replenish")
+async def cb_replenish(query: CallbackQuery, state: FSMContext, session: AsyncSession):
+    res = await session.execute(select(User).where(User.id == query.from_user.id))
+    user = res.scalar_one_or_none()
+    lang = user.language if user else "en"
+
+    msg = "⭐ *Replenish Balance via Telegram Stars*\n\nRate: `1 Star = 5000 GRAM`\nEnter amount of Telegram Stars:" if lang == "en" else "⭐ *টেলিগ্রাম স্টারের মাধ্যমে ব্যালেন্স টপ-আপ*\n\nরেট: `১ স্টার = ৫০০০ GRAM`\nকতগুলো স্টার পেমেন্ট করতে চান সংখ্যাটি লিখুন:"
+    await query.message.answer(msg, parse_mode=ParseMode.MARKDOWN)
     await state.set_state(TopUpState.amount_stars)
+    await query.answer()
 
 @router.message(TopUpState.amount_stars)
 async def process_star_invoice(message: Message, state: FSMContext):
@@ -439,18 +480,17 @@ async def process_star_invoice(message: Message, state: FSMContext):
         stars = int(message.text.strip())
         if stars <= 0: raise ValueError()
     except Exception:
-        await message.answer("❌ Invalid input. Please enter a valid number of stars.")
+        await message.answer("❌ Invalid input.")
         return
 
     await state.clear()
     total_coins = stars * STAR_TO_COIN_RATE
-
-    prices = [LabeledPrice(label=f"{total_coins:,} Coins", amount=stars)] # 1 Star = 1 XTR (Telegram Stars currency is XTR)
+    prices = [LabeledPrice(label=f"{total_coins:,} GRAM", amount=stars)]
     
     await message.bot.send_invoice(
         chat_id=message.chat.id,
-        title="Coin Top-Up",
-        description=f"Top up {total_coins:,} Coins using Telegram Stars",
+        title="GRAM Top-Up",
+        description=f"Top up {total_coins:,} GRAM coins",
         payload=f"topup_coins_{stars}",
         currency="XTR",
         prices=prices
@@ -478,41 +518,65 @@ async def successful_payment_handler(message: Message, session: AsyncSession):
                 tx = Transaction(
                     user_id=user_id, amount=coins_to_add,
                     type=TransactionType.STAR_TOPUP,
-                    description=f"Purchased {coins_to_add:,.0f} coins via {stars} Telegram Stars"
+                    description=f"Top-up {coins_to_add:,.0f} GRAM via {stars} Stars"
                 )
                 session.add(tx)
 
         await session.commit()
-        await message.answer(f"✅ *Top-up Successful!*\n\nAdded `+{coins_to_add:,.0f}` Coins to your balance.", parse_mode=ParseMode.MARKDOWN)
+        await message.answer(f"✅ Top-up successful! Added `+{coins_to_add:,.0f}` GRAM.", parse_mode=ParseMode.MARKDOWN)
 
-
-# --- REFERRAL MENU ---
-
-@router.message(F.text == "👥 Referral Program")
-async def show_referral(message: Message, session: AsyncSession):
-    user_id = message.from_user.id
-    res = await session.execute(select(User).where(User.id == user_id))
+@router.callback_query(F.data == "cab_referral")
+async def cb_referral(query: CallbackQuery, session: AsyncSession):
+    res = await session.execute(select(User).where(User.id == query.from_user.id))
     user = res.scalar_one_or_none()
-
-    res_count = await session.execute(select(func.count(User.id)).where(User.referred_by == user_id))
-    invited_count = res_count.scalar()
+    res_count = await session.execute(select(func.count(User.id)).where(User.referred_by == query.from_user.id))
+    invited = res_count.scalar()
 
     ref_link = f"https://t.me/{BOT_USERNAME}?start=ref_{user.referral_code}"
+    text = f"👥 *Referral System*\n\nInvite friends & earn `5,000 GRAM` + `500 XP` per referral!\n\n📊 Total Invited: `{invited}`\n🔗 Link:\n`{ref_link}`"
+    await query.message.answer(text, parse_mode=ParseMode.MARKDOWN)
+    await query.answer()
 
-    msg = (
-        f"👥 *Referral Program*\n\n"
-        f"Invite your friends and earn:\n"
-        f"💰 *{REFERRAL_COIN_REWARD:,.0f} Coins* + *{REFERRAL_XP_REWARD} XP* per referral!\n\n"
-        f"📊 *Total Friends Invited:* `{invited_count}`\n\n"
-        f"🔗 *Your Referral Link:*\n`{ref_link}`"
-    )
-    await message.answer(msg, parse_mode=ParseMode.MARKDOWN)
+@router.callback_query(F.data == "cab_level")
+async def cb_level(query: CallbackQuery, session: AsyncSession):
+    res = await session.execute(select(User).where(User.id == query.from_user.id))
+    user = res.scalar_one_or_none()
+    text = f"📊 *Level System*\n\nCurrent Level: `{user.level}`\nTotal XP: `{user.xp}`\nNext rank progress: `{user.xp % 1500}/1500 XP`"
+    await query.message.answer(text, parse_mode=ParseMode.MARKDOWN)
+    await query.answer()
+
+@router.callback_query(F.data == "cab_tasks")
+async def cb_tasks(query: CallbackQuery, session: AsyncSession):
+    await query.answer()
+    await render_tasks_page(query.from_user.id, query.message, session, page=0)
+
+@router.callback_query(F.data == "cab_lang")
+async def cb_lang(query: CallbackQuery, session: AsyncSession):
+    res = await session.execute(select(User).where(User.id == query.from_user.id).with_for_update())
+    user = res.scalar_one_or_none()
+    if user:
+        user.language = "bn" if user.language == "en" else "en"
+        await session.commit()
+        lang = user.language
+        kb = get_cabinet_keyboard(lang)
+        await query.message.edit_text(get_text(lang, "lang_changed"), reply_markup=kb)
+    await query.answer()
+
+@router.callback_query(F.data == "cab_notif")
+async def cb_notif(query: CallbackQuery):
+    await query.answer("🔕 Notifications toggled.", show_alert=True)
 
 
-# --- TASK LISTING & EXECUTION ---
+# --- EARNINGS & TASKS MENU ---
 
-@router.message(F.text == "🎯 Available Tasks")
-async def show_tasks_menu(message: Message, session: AsyncSession):
+@router.message(F.text.in_(["💰 Earnings", "💰 আর্নিংস"]))
+async def show_earnings_menu(message: Message, session: AsyncSession):
+    res = await session.execute(select(User).where(User.id == message.from_user.id))
+    user = res.scalar_one_or_none()
+    lang = user.language if user else "en"
+    
+    text = "🎯 *Available Tasks*\nSelect tasks below to earn GRAM coins:" if lang == "en" else "🎯 *উপলব্ধ টাস্কসমূহ*\nGRAM কয়েন অর্জনের জন্য টাস্ক নির্বাচন করুন:"
+    await message.answer(text, parse_mode=ParseMode.MARKDOWN)
     await render_tasks_page(message.from_user.id, message, session, page=0)
 
 async def render_tasks_page(user_id: int, event: Union[Message, CallbackQuery], session: AsyncSession, page: int = 0):
@@ -529,98 +593,88 @@ async def render_tasks_page(user_id: int, event: Union[Message, CallbackQuery], 
     campaigns = res.scalars().all()
 
     if not campaigns:
-        text = "🎯 *Available Tasks*\n\nNo active tasks found right now. Check back later or create your own!"
+        text = "🎯 No active tasks right now. Check back soon!"
         if isinstance(event, Message):
-            await event.answer(text, parse_mode=ParseMode.MARKDOWN)
+            await event.answer(text)
         else:
-            await event.message.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+            await event.message.edit_text(text)
         return
 
     buttons = []
     for c in campaigns:
         buttons.append([InlineKeyboardButton(
-            text=f"📢 {c.title} (+{c.reward_per_user:,.0f} Coins)",
-            callback_data=TaskCallback(action="view", campaign_id=c.id).pack()
+            text=f"📢 {c.title} (+{c.reward_per_user:,.0f} GRAM)",
+            callback_data=f"task_view_{c.id}"
         )])
 
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
-    text = "🎯 *Available Tasks*\nSelect a task below to start earning:"
-    
+    text = "🎯 *Active Tasks List:*"
     if isinstance(event, Message):
         await event.answer(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
     else:
-        await event.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+        try:
+            await event.edit_text(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+        except Exception:
+            await event.answer(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
 
-@router.callback_query(TaskCallback.filter(F.action == "view"))
-async def view_task_detail(query: CallbackQuery, callback_data: TaskCallback, session: AsyncSession):
-    res = await session.execute(select(Campaign).where(Campaign.id == callback_data.campaign_id))
+@router.callback_query(F.data.startswith("task_view_"))
+async def view_task_detail(query: CallbackQuery, session: AsyncSession):
+    c_id = query.data.replace("task_view_", "")
+    res = await session.execute(select(Campaign).where(Campaign.id == c_id))
     campaign = res.scalar_one_or_none()
 
     if not campaign or campaign.status != CampaignStatus.ACTIVE:
-        await query.answer("Task is no longer available.", show_alert=True)
+        await query.answer("Task not available.", show_alert=True)
         return
 
     target_url = campaign.target_link or (f"https://t.me/{campaign.target_username}" if campaign.target_username else f"https://t.me/{BOT_USERNAME}")
 
-    text = (
-        f"📢 *Task: {campaign.title}*\n\n"
-        f"🔹 *Type:* `{campaign.task_type.value.upper()}`\n"
-        f"💰 *Reward:* `{campaign.reward_per_user:,.0f}` Coins\n"
-        f"👥 *Slots Remaining:* `{campaign.max_completions - campaign.completed_count}`"
-    )
-
+    text = f"📢 *{campaign.title}*\n\n💰 Reward: `{campaign.reward_per_user:,.0f}` GRAM\nSlots remaining: `{campaign.max_completions - campaign.completed_count}`"
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Open / Start Task", url=target_url)],
-        [InlineKeyboardButton(text="✅ Verify Task", callback_data=TaskCallback(action="verify", campaign_id=campaign.id).pack())],
-        [InlineKeyboardButton(text="⬅️ Back to Tasks", callback_data="tasks_back")]
+        [InlineKeyboardButton(text="🚀 Open Link", url=target_url)],
+        [InlineKeyboardButton(text="✅ Verify Task", callback_data=f"task_ver_{campaign.id}")]
     ])
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
 
-@router.callback_query(TaskCallback.filter(F.action == "verify"))
-async def verify_task_callback(query: CallbackQuery, callback_data: TaskCallback, session: AsyncSession, bot: Bot):
+@router.callback_query(F.data.startswith("task_ver_"))
+async def verify_task_callback(query: CallbackQuery, session: AsyncSession, bot: Bot):
+    c_id = query.data.replace("task_ver_", "")
     success, message = await TaskEngine.process_task_completion(
-        session=session, bot=bot, user_id=query.from_user.id, campaign_id=callback_data.campaign_id
+        session=session, bot=bot, user_id=query.from_user.id, campaign_id=c_id
     )
+    await query.answer(message, show_alert=True)
     if success:
-        await query.answer("Task completed successfully!", show_alert=True)
         await query.message.edit_text(message, parse_mode=ParseMode.MARKDOWN)
-    else:
-        await query.answer(message, show_alert=True)
-
-@router.callback_query(F.data == "tasks_back")
-async def tasks_back_handler(query: CallbackQuery, session: AsyncSession):
-    await render_tasks_page(query.from_user.id, query, session, page=0)
 
 
-# --- ADVERTISER CAMPAIGN CREATION (15% Commission & Non-Admin Support) ---
+# --- OTHER MENU BUTTONS HANDLERS ---
 
-@router.message(F.text == "📢 Create Promotion")
+@router.message(F.text.in_(["📢 Promote", "📢 প্রমোট"]))
 async def start_campaign_creation(message: Message, state: FSMContext):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📢 Channel Sub", callback_data="ctype:channel_sub"), InlineKeyboardButton(text="👥 Group Join", callback_data="ctype:group_join")],
         [InlineKeyboardButton(text="👀 Post View", callback_data="ctype:post_view"), InlineKeyboardButton(text="🤖 Bot Start", callback_data="ctype:bot_start")],
         [InlineKeyboardButton(text="🌐 Web App / Custom", callback_data="ctype:web_app")]
     ])
-    await message.answer("📢 *Create Promotion Campaign*\n\nSelect campaign type:\n*(Note: ইউজার গ্রুপের অ্যাডমিন না হলেও, যদি বট গ্রুপ/চ্যানেলে অ্যাডমিন থাকে তবেই ক্যাম্পেইন সফলভাবে কাজ করবে)*", reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+    await message.answer("📢 *Create Promotion Campaign*\nSelect type:", reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
     await state.set_state(CampaignCreationState.task_type)
 
 @router.callback_query(CampaignCreationState.task_type, F.data.startswith("ctype:"))
 async def campaign_type_selected(query: CallbackQuery, state: FSMContext):
-    t_type = query.data.split(":")[1]
-    await state.update_data(task_type=t_type)
-    await query.message.edit_text("📝 Enter Campaign Title (e.g., 'Join My Awesome Channel'):")
+    await state.update_data(task_type=query.data.split(":")[1])
+    await query.message.edit_text("📝 Enter Campaign Title:")
     await state.set_state(CampaignCreationState.title)
 
 @router.message(CampaignCreationState.title)
 async def campaign_title_entered(message: Message, state: FSMContext):
     await state.update_data(title=message.text.strip())
-    await message.answer("🔗 Enter Target Link or Username (e.g., `@mychannel` or `https://t.me/...`):")
+    await message.answer("🔗 Enter target link or username (@channel):")
     await state.set_state(CampaignCreationState.target)
 
 @router.message(CampaignCreationState.target)
 async def campaign_target_entered(message: Message, state: FSMContext):
     await state.update_data(target=message.text.strip())
-    await message.answer("💰 Enter reward per user (in Coins):")
+    await message.answer("💰 Enter reward per user (GRAM coins):")
     await state.set_state(CampaignCreationState.reward)
 
 @router.message(CampaignCreationState.reward)
@@ -629,10 +683,10 @@ async def campaign_reward_entered(message: Message, state: FSMContext):
         reward = Decimal(message.text.strip())
         if reward <= 0: raise ValueError()
     except Exception:
-        await message.answer("❌ Invalid reward. Must be greater than 0.")
+        await message.answer("❌ Invalid reward.")
         return
     await state.update_data(reward=str(reward))
-    await message.answer("👥 Enter total target completions count (e.g., 100):")
+    await message.answer("👥 Enter total target completions count:")
     await state.set_state(CampaignCreationState.max_completions)
 
 @router.message(CampaignCreationState.max_completions)
@@ -646,8 +700,6 @@ async def campaign_finalize(message: Message, state: FSMContext, session: AsyncS
 
     data = await state.get_data()
     reward_per_user = Decimal(data["reward"])
-    
-    # Calculation with 15% Platform Commission
     base_budget = reward_per_user * max_comp
     commission = base_budget * PLATFORM_COMMISSION_PERCENT
     total_cost = base_budget + commission
@@ -657,14 +709,7 @@ async def campaign_finalize(message: Message, state: FSMContext, session: AsyncS
     user = res.scalar_one_or_none()
 
     if user.balance < total_cost:
-        await message.answer(
-            f"❌ *Insufficient Balance*\n\n"
-            f"Base Cost: `{base_budget:,.0f}` Coins\n"
-            f"Platform Commission (15%): `{commission:,.0f}` Coins\n"
-            f"Total Required: `{total_cost:,.0f}` Coins\n"
-            f"Your Balance: `{user.balance:,.0f}` Coins",
-            parse_mode=ParseMode.MARKDOWN
-        )
+        await message.answer(f"❌ Insufficient balance! Required: `{total_cost:,.0f}` GRAM (incl. 15% fee)", parse_mode=ParseMode.MARKDOWN)
         await state.clear()
         return
 
@@ -686,43 +731,145 @@ async def campaign_finalize(message: Message, state: FSMContext, session: AsyncS
         )
         session.add(campaign)
 
-        tx = Transaction(
-            user_id=user_id, amount=-total_cost,
-            type=TransactionType.CAMPAIGN_PAYMENT,
-            description=f"Created campaign: {data['title']} (includes 15% fee)"
-        )
-        session.add(tx)
-
     await session.commit()
     await state.clear()
-
-    await message.answer(
-        f"✅ *Campaign Launched Successfully!*\n\n"
-        f"📢 *Title:* {data['title']}\n"
-        f"💰 *Total Deducted (incl. 15% fee):* `{total_cost:,.0f}` Coins\n"
-        f"🚀 Status: Active",
-        parse_mode=ParseMode.MARKDOWN
-    )
+    await message.answer("✅ Campaign created successfully and is now active!", parse_mode=ParseMode.MARKDOWN)
 
 
-# --- GENERAL LEADERBOARD ---
+@router.message(F.text.in_(["📋 Checks", "📋 চেক্স"]))
+async def checks_menu(message: Message):
+    await message.answer("📋 *Checks System*\nYou can create and redeem crypto/coin checks here.", parse_mode=ParseMode.MARKDOWN)
 
-@router.message(F.text == "🏆 Leaderboard")
-async def show_leaderboard(message: Message, session: AsyncSession):
-    stmt = select(User).order_by(User.total_earned.desc()).limit(10)
-    res = await session.execute(stmt)
-    top_users = res.scalars().all()
+@router.message(F.text.in_(["🛡 Subscription Check", "🛡 সাবস্ক্রিপশন চেক"]))
+async def sub_check_menu(message: Message):
+    await message.answer("🛡 *Subscription Verification Engine*\nAll channel and group memberships are verified automatically by bot administration status.", parse_mode=ParseMode.MARKDOWN)
 
-    text = "🏆 *Top Earners Leaderboard*\n\n"
-    for i, u in enumerate(top_users, 1):
-        name = u.first_name or "User"
-        text += f"{i}. *{name}* — `🪙 {u.total_earned:,.0f}` (Lvl {u.level})\n"
+@router.message(F.text.in_(["📊 Our Bots and Statistics", "📊 আমাদের বট ও পরিসংখ্যান"]))
+async def stats_menu(message: Message, session: AsyncSession):
+    res_users = await session.execute(select(func.count(User.id)))
+    total_users = res_users.scalar()
+    res_camp = await session.execute(select(func.count(Campaign.id)))
+    total_campaigns = res_camp.scalar()
 
-    await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+    await message.answer(f"📊 *Platform Statistics*\n\n👥 Total Users: `{total_users:,}`\n📢 Total Campaigns: `{total_campaigns:,}`", parse_mode=ParseMode.MARKDOWN)
+
+@router.message(F.text.in_(["🔗 Useful Links", "🔗 দরকারী লিংক"]))
+async def links_menu(message: Message):
+    await message.answer("🔗 *Useful Links*\n• Official Channel: Update soon\n• Support: Contact admin", parse_mode=ParseMode.MARKDOWN)
+
+@router.message(F.text.in_(["ℹ️ Instruction", "ℹ️ নির্দেশিকা"]))
+async def instruction_menu(message: Message):
+    await message.answer("ℹ️ *Instruction*\n1. Earn GRAM coins by completing tasks.\n2. Promote your channel or group using 'Promote'.\n3. Use 'My Cabinet' to manage profile & language.", parse_mode=ParseMode.MARKDOWN)
 
 
 # ==============================================================================
-# SECTION 9: FASTAPI & APP INITIALIZATION (POLLING / WEBHOOK)
+# SECTION 9: PROTECTED ADMIN PANEL & COMMAND (/admin)
+# ==============================================================================
+
+@router.message(Command("admin"))
+async def cmd_admin(message: Message):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ You are not authorized.")
+        return
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💰 Add/Deduct Coins", callback_data="adm_coins")],
+        [InlineKeyboardButton(text="🚫 Ban User", callback_data="adm_ban")],
+        [InlineKeyboardButton(text="📢 Moderate Tasks", callback_data="adm_tasks")]
+    ])
+    await message.answer("👑 *Admin Panel*\nChoose an action:", reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+
+@router.callback_query(F.data == "adm_coins")
+async def adm_coins(query: CallbackQuery, state: FSMContext):
+    if query.from_user.id not in ADMIN_IDS: return
+    await query.message.edit_text("Send target User ID:")
+    await state.set_state(AdminState.target_user_id)
+    await query.answer()
+
+@router.message(AdminState.target_user_id)
+async def adm_get_uid(message: Message, state: FSMContext):
+    try:
+        uid = int(message.text.strip())
+        await state.update_data(target_uid=uid)
+        await message.answer("Enter GRAM coin amount to add/deduct (e.g. `5000` or `-1000`):", parse_mode=ParseMode.MARKDOWN)
+        await state.set_state(AdminState.coin_amount)
+    except ValueError:
+        await message.answer("❌ Invalid ID.")
+
+@router.message(AdminState.coin_amount)
+async def adm_apply_coins(message: Message, state: FSMContext, session: AsyncSession):
+    try:
+        amount = Decimal(message.text.strip())
+    except Exception:
+        await message.answer("❌ Invalid amount.")
+        return
+
+    data = await state.get_data()
+    uid = data["target_uid"]
+    await state.clear()
+
+    async with session.begin_nested():
+        res = await session.execute(select(User).where(User.id == uid).with_for_update())
+        user = res.scalar_one_or_none()
+        if not user:
+            await message.answer("❌ User not found.")
+            return
+        user.balance += amount
+        session.add(Transaction(user_id=uid, amount=amount, type=TransactionType.TASK_REWARD, description="Admin adjustment"))
+
+    await session.commit()
+    await message.answer(f"✅ Balance updated for user `{uid}` by `{amount:,.0f}` GRAM.", parse_mode=ParseMode.MARKDOWN)
+
+@router.callback_query(F.data == "adm_ban")
+async def adm_ban(query: CallbackQuery, state: FSMContext):
+    if query.from_user.id not in ADMIN_IDS: return
+    await query.message.edit_text("Send User ID to ban:")
+    await state.set_state(AdminState.ban_user_id)
+    await query.answer()
+
+@router.message(AdminState.ban_user_id)
+async def adm_apply_ban(message: Message, state: FSMContext, session: AsyncSession):
+    try:
+        uid = int(message.text.strip())
+    except ValueError:
+        await message.answer("❌ Invalid ID.")
+        return
+    await state.clear()
+    async with session.begin_nested():
+        res = await session.execute(select(User).where(User.id == uid).with_for_update())
+        user = res.scalar_one_or_none()
+        if user:
+            user.is_blocked = True
+    await session.commit()
+    await message.answer(f"🚫 User `{uid}` banned successfully.", parse_mode=ParseMode.MARKDOWN)
+
+@router.callback_query(F.data == "adm_tasks")
+async def adm_tasks(query: CallbackQuery, session: AsyncSession):
+    if query.from_user.id not in ADMIN_IDS: return
+    res = await session.execute(select(Campaign).where(Campaign.status == CampaignStatus.ACTIVE).limit(5))
+    campaigns = res.scalars().all()
+    if not campaigns:
+        await query.message.edit_text("No active campaigns.")
+        return
+    buttons = [[InlineKeyboardButton(text=f"❌ Cancel: {c.title[:15]}", callback_data=f"adm_del_{c.id}")] for c in campaigns]
+    await query.message.edit_text("Select campaign to cancel:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    await query.answer()
+
+@router.callback_query(F.data.startswith("adm_del_"))
+async def adm_cancel_camp(query: CallbackQuery, session: AsyncSession):
+    if query.from_user.id not in ADMIN_IDS: return
+    cid = query.data.replace("adm_del_", "")
+    async with session.begin_nested():
+        res = await session.execute(select(Campaign).where(Campaign.id == cid).with_for_update())
+        c = res.scalar_one_or_none()
+        if c: c.status = CampaignStatus.CANCELLED
+    await session.commit()
+    await query.answer("Campaign cancelled.", show_alert=True)
+    await query.message.edit_text("✅ Campaign has been deactivated.")
+
+
+# ==============================================================================
+# SECTION 10: FASTAPI & APP INITIALIZATION
 # ==============================================================================
 
 fastapi_app = FastAPI(title="BoostGram Health Check")
@@ -736,7 +883,6 @@ async def start_bot():
     storage = RedisStorage(redis=redis_client)
     dp = Dispatcher(storage=storage)
 
-    # Middleware Registration
     class DatabaseMiddleware(BaseMiddleware):
         async def __call__(self, handler, event, data):
             async with AsyncSessionLocal() as session:
@@ -749,7 +895,6 @@ async def start_bot():
 
     await init_db()
     logger.info("Database initialized successfully.")
-
     logger.info("Starting bot in polling mode...")
     await dp.start_polling(bot)
 
