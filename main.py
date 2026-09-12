@@ -1,4 +1,5 @@
 
+
 import sys
 import os
 import re
@@ -1543,16 +1544,6 @@ async def root():
         """
 
 
-@fastapi_app.get("/google8c808883d07580e1.html", response_class=HTMLResponse)
-async def google_verification():
-  """Serves the Google site verification file."""
-  try:
-    with open("google8c808883d07580e1.html", "r", encoding="utf-8") as f:
-      return f.read()
-  except FileNotFoundError:
-    return "google-site-verification: google8c808883d07580e1.html"
-
-
 @fastapi_app.get("/health")
 async def health_check():
   return {
@@ -1675,3 +1666,4 @@ if __name__ == "__main__":
     asyncio.run(start_bot())
   except (KeyboardInterrupt, SystemExit):
     logger.info("Bot stopped.")
+    
