@@ -58,6 +58,13 @@ def esc(value) -> str:
     """Escape dynamic text (names, titles) so it can't break HTML parse_mode."""
     return html.escape(str(value), quote=False)
 
+def safe_text(message: "Message") -> Optional[str]:
+    """Returns stripped message text, or None if the user sent something non-text
+    (photo, sticker, voice note, etc.) where a text reply was expected."""
+    return message.text.strip() if message.text else None
+
+NON_TEXT_INPUT_MSG = "⚠️ Please send this as a text message (not a photo/sticker/file)."
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "BoostGramBot")
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -367,6 +374,17 @@ class TargetResolutionError(str, Enum):
     UNKNOWN = "unknown"
 
 
+_bot_id_cache: dict = {}
+
+async def get_bot_id(bot: Bot) -> int:
+    """Resolves and caches the bot's own numeric user id via getMe (more
+    reliable across aiogram versions than relying on Bot.id parsing the token)."""
+    if "id" not in _bot_id_cache:
+        me = await bot.get_me()
+        _bot_id_cache["id"] = me.id
+    return _bot_id_cache["id"]
+
+
 async def resolve_and_verify_target_chat(bot: Bot, raw_target: str):
     """
     Resolves a channel/group from user input and confirms this bot is an
@@ -380,12 +398,15 @@ async def resolve_and_verify_target_chat(bot: Bot, raw_target: str):
         chat = await bot.get_chat(identifier)
     except TelegramBadRequest:
         return None, TargetResolutionError.NOT_FOUND
+    except TelegramForbiddenError:
+        return None, TargetResolutionError.BOT_NOT_MEMBER
     except Exception as e:
         logger.error(f"get_chat failed for {identifier}: {e}")
         return None, TargetResolutionError.UNKNOWN
 
     try:
-        bot_member = await bot.get_chat_member(chat.id, bot.id)
+        bot_id = await get_bot_id(bot)
+        bot_member = await bot.get_chat_member(chat.id, bot_id)
     except (TelegramBadRequest, TelegramForbiddenError):
         return None, TargetResolutionError.BOT_NOT_MEMBER
     except Exception as e:
@@ -659,8 +680,12 @@ async def cb_replenish(query: CallbackQuery, state: FSMContext, session: AsyncSe
 
 @router.message(TopUpState.amount_stars)
 async def process_star_invoice(message: Message, state: FSMContext):
+    raw = safe_text(message)
+    if raw is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
     try:
-        stars = int(message.text.strip())
+        stars = int(raw)
         if stars <= 0:
             raise ValueError()
     except Exception:
@@ -942,9 +967,9 @@ async def campaign_type_selected(query: CallbackQuery, state: FSMContext):
 
 @router.message(CampaignCreationState.title)
 async def campaign_title_entered(message: Message, state: FSMContext):
-    title = message.text.strip()
+    title = safe_text(message)
     if not title or len(title) > 200:
-        await message.answer("❌ Please enter a title between 1 and 200 characters.")
+        await message.answer("❌ Please enter a title between 1 and 200 characters (text only).")
         return
     await state.update_data(title=title)
     data = await state.get_data()
@@ -961,13 +986,22 @@ async def campaign_title_entered(message: Message, state: FSMContext):
 
 @router.message(CampaignCreationState.target)
 async def campaign_target_entered(message: Message, state: FSMContext, bot: Bot):
-    raw = message.text.strip()
+    raw = safe_text(message)
+    if raw is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
     data = await state.get_data()
     task_type = data.get("task_type")
 
     if task_type in (TaskType.CHANNEL_SUB.value, TaskType.GROUP_JOIN.value):
         status_msg = await message.answer("🔎 Verifying access to that channel/group, please wait...")
-        chat_info, error = await resolve_and_verify_target_chat(bot, raw)
+        try:
+            chat_info, error = await asyncio.wait_for(
+                resolve_and_verify_target_chat(bot, raw), timeout=15
+            )
+        except asyncio.TimeoutError:
+            await status_msg.edit_text("❌ Verification timed out. Please try again in a moment.")
+            return
 
         if error == TargetResolutionError.NOT_FOUND:
             await status_msg.edit_text(
@@ -1013,8 +1047,12 @@ async def campaign_target_entered(message: Message, state: FSMContext, bot: Bot)
 
 @router.message(CampaignCreationState.reward)
 async def campaign_reward_entered(message: Message, state: FSMContext):
+    raw = safe_text(message)
+    if raw is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
     try:
-        reward = Decimal(message.text.strip())
+        reward = Decimal(raw)
         if reward <= 0:
             raise ValueError()
     except Exception:
@@ -1026,8 +1064,12 @@ async def campaign_reward_entered(message: Message, state: FSMContext):
 
 @router.message(CampaignCreationState.max_completions)
 async def campaign_finalize(message: Message, state: FSMContext, session: AsyncSession):
+    raw = safe_text(message)
+    if raw is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
     try:
-        max_comp = int(message.text.strip())
+        max_comp = int(raw)
         if max_comp <= 0:
             raise ValueError()
     except Exception:
@@ -1129,8 +1171,12 @@ async def chk_create_start(query: CallbackQuery, state: FSMContext):
 
 @router.message(CheckCreateState.amount)
 async def chk_create_amount(message: Message, state: FSMContext):
+    raw = safe_text(message)
+    if raw is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
     try:
-        amount = Decimal(message.text.strip())
+        amount = Decimal(raw)
         if amount <= 0:
             raise ValueError()
     except Exception:
@@ -1142,8 +1188,12 @@ async def chk_create_amount(message: Message, state: FSMContext):
 
 @router.message(CheckCreateState.activations)
 async def chk_create_finalize(message: Message, state: FSMContext, session: AsyncSession):
+    raw_input = safe_text(message)
+    if raw_input is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
     try:
-        activations = int(message.text.strip())
+        activations = int(raw_input)
         if activations <= 0:
             raise ValueError()
     except Exception:
@@ -1197,7 +1247,11 @@ async def chk_activate_start(query: CallbackQuery, state: FSMContext):
 
 @router.message(CheckRedeemState.code)
 async def chk_activate_finalize(message: Message, state: FSMContext, session: AsyncSession):
-    code = message.text.strip().upper()
+    raw_code = safe_text(message)
+    if raw_code is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
+    code = raw_code.upper()
     await state.clear()
     user_id = message.from_user.id
 
@@ -1326,8 +1380,12 @@ async def adm_coins(query: CallbackQuery, state: FSMContext):
 async def adm_get_uid(message: Message, state: FSMContext):
     if message.from_user.id not in ADMIN_IDS:
         return
+    raw = safe_text(message)
+    if raw is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
     try:
-        uid = int(message.text.strip())
+        uid = int(raw)
         await state.update_data(target_uid=uid)
         await message.answer("Enter GRAM coin amount to add/deduct (e.g. <code>5000</code> or <code>-1000</code>):", parse_mode=ParseMode.HTML)
         await state.set_state(AdminState.coin_amount)
@@ -1338,8 +1396,12 @@ async def adm_get_uid(message: Message, state: FSMContext):
 async def adm_apply_coins(message: Message, state: FSMContext, session: AsyncSession):
     if message.from_user.id not in ADMIN_IDS:
         return
+    raw = safe_text(message)
+    if raw is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
     try:
-        amount = Decimal(message.text.strip())
+        amount = Decimal(raw)
     except Exception:
         await message.answer("❌ Invalid amount.")
         return
@@ -1373,8 +1435,12 @@ async def adm_ban(query: CallbackQuery, state: FSMContext):
 async def adm_apply_ban(message: Message, state: FSMContext, session: AsyncSession):
     if message.from_user.id not in ADMIN_IDS:
         return
+    raw = safe_text(message)
+    if raw is None:
+        await message.answer(NON_TEXT_INPUT_MSG)
+        return
     try:
-        uid = int(message.text.strip())
+        uid = int(raw)
     except ValueError:
         await message.answer("❌ Invalid ID.")
         return
@@ -1444,6 +1510,31 @@ async def start_bot():
     dp.message.outer_middleware(DatabaseMiddleware())
     dp.callback_query.outer_middleware(DatabaseMiddleware())
     dp.include_router(router)
+
+    @dp.error()
+    async def global_error_handler(event: ErrorEvent):
+        """
+        Safety net: if any handler above raises an unhandled exception (bad
+        input, a Telegram API quirk, a network hiccup, etc.) this makes sure
+        the user gets a reply instead of the bot silently doing nothing.
+        """
+        logger.exception(f"Unhandled exception while processing update: {event.exception}")
+        update = event.update
+        chat_id = None
+        if update.message:
+            chat_id = update.message.chat.id
+        elif update.callback_query and update.callback_query.message:
+            chat_id = update.callback_query.message.chat.id
+
+        if chat_id:
+            try:
+                await bot.send_message(
+                    chat_id,
+                    "⚠️ Something went wrong processing that. Please try again, or send /start to reset."
+                )
+            except Exception:
+                pass
+        return True
 
     await init_db()
     logger.info("Database initialized successfully.")
