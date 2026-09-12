@@ -38,7 +38,7 @@ from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import ErrorEvent
 
-import uvicorn  # noqa: F401  (kept for deployment parity, used if serving fastapi_app)
+import uvicorn
 from fastapi import FastAPI
 
 
@@ -1492,6 +1492,10 @@ async def adm_cancel_camp(query: CallbackQuery, session: AsyncSession):
 
 fastapi_app = FastAPI(title="BoostGram Health Check")
 
+@fastapi_app.get("/")
+async def root():
+    return {"status": "active", "service": "BoostGramPromotionBot"}
+
 @fastapi_app.get("/health")
 async def health_check():
     return {"status": "active", "timestamp": datetime.now(timezone.utc).isoformat()}
@@ -1538,8 +1542,29 @@ async def start_bot():
 
     await init_db()
     logger.info("Database initialized successfully.")
+
+    # Render (and most PaaS "Web Service" plans) require the process to bind
+    # to a TCP port so their port-scanner detects a live service — a pure
+    # polling bot never opens a port on its own, which is what triggers the
+    # "no open ports detected" error. Fixing this by running a tiny FastAPI
+    # server (used for health checks) *alongside* the Telegram polling loop,
+    # bound to the $PORT Render injects.
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn_config = uvicorn.Config(
+        fastapi_app,
+        host="0.0.0.0",
+        port=port,
+        log_level="warning",
+    )
+    web_server = uvicorn.Server(uvicorn_config)
+
+    logger.info(f"Starting web server on 0.0.0.0:{port} (for Render port detection)...")
     logger.info("Starting bot in polling mode...")
-    await dp.start_polling(bot)
+
+    await asyncio.gather(
+        dp.start_polling(bot),
+        web_server.serve(),
+    )
 
 if __name__ == "__main__":
     try:
