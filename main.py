@@ -41,6 +41,8 @@ from aiogram.types import ErrorEvent
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse  # <--- এটি এখানে যোগ করুন
+
 
 
 # ==============================================================================
@@ -1509,7 +1511,9 @@ async def adm_cancel_camp(query: CallbackQuery, session: AsyncSession):
     await query.answer("Campaign cancelled.", show_alert=True)
     await query.message.edit_text("✅ Campaign has been deactivated.")
 
-
+                    "⚠️ Something went wrong processing that. Please try again, or send /start to reset."
+                )
+            except Exception:
 # ==============================================================================
 # SECTION 10: FASTAPI & APP INITIALIZATION
 # ==============================================================================
@@ -1580,9 +1584,7 @@ async def start_bot():
             try:
                 await bot.send_message(
                     chat_id,
-                    "⚠️ Something went wrong processing that. Please try again, or send /start to reset."
-                )
-            except Exception:
+
                 pass
 
         # --- Notify every admin with full diagnostic detail ---
