@@ -1517,128 +1517,159 @@ async def adm_cancel_camp(query: CallbackQuery, session: AsyncSession):
 
 fastapi_app = FastAPI(title="BoostGram Health Check")
 
-@fastapi_app.get("/")
+
+@fastapi_app.get("/", response_class=HTMLResponse)
 async def root():
-    return {"status": "active", "service": "BoostGramPromotionBot"}
+  """Serves the index.html file if present, otherwise returns a fallback text."""
+  try:
+    with open("index.html", "r", encoding="utf-8") as f:
+      return f.read()
+  except FileNotFoundError:
+    return """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Boost Gram - Telegram Bot</title>
+        </head>
+        <body style="background:#0f172a; color:#fff; text-align:center; padding:100px; font-family:Arial;">
+            <h1>Boost Gram 🚀</h1>
+            <p>The ultimate Telegram promotion bot is active!</p>
+        </body>
+        </html>
+        """
+
+
+@fastapi_app.get("/google8c808883d07580e1.html", response_class=HTMLResponse)
+async def google_verification():
+  """Serves the Google site verification file."""
+  try:
+    with open("google8c808883d07580e1.html", "r", encoding="utf-8") as f:
+      return f.read()
+  except FileNotFoundError:
+    return "google-site-verification: google8c808883d07580e1.html"
+
 
 @fastapi_app.get("/health")
 async def health_check():
-    return {"status": "active", "timestamp": datetime.now(timezone.utc).isoformat()}
+  return {
+      "status": "active",
+      "timestamp": datetime.now(timezone.utc).isoformat(),
+  }
+
 
 async def start_bot():
-    if not ADMIN_IDS:
-        logger.warning(
-            "ADMIN_IDS is empty — error alerts have nowhere to go! "
-            "Set ADMIN_IDS in your .env (comma-separated Telegram user IDs) to receive them."
-        )
-
-    bot = Bot(token=BOT_TOKEN)
-    storage = RedisStorage(redis=redis_client)
-    dp = Dispatcher(storage=storage)
-
-    class DatabaseMiddleware(BaseMiddleware):
-        async def __call__(self, handler, event, data):
-            async with AsyncSessionLocal() as session:
-                data["session"] = session
-                return await handler(event, data)
-
-    dp.message.outer_middleware(DatabaseMiddleware())
-    dp.callback_query.outer_middleware(DatabaseMiddleware())
-    dp.include_router(router)
-
-    @dp.error()
-    async def global_error_handler(event: ErrorEvent):
-        """
-        Safety net: if any handler above raises an unhandled exception (bad
-        input, a Telegram API quirk, a network hiccup, etc.) this makes sure
-        the user gets a reply instead of the bot silently doing nothing —
-        and every ADMIN gets the full traceback + context so the actual bug
-        can be found and fixed quickly.
-        """
-        exc = event.exception
-        logger.exception(f"Unhandled exception while processing update: {exc}")
-
-        update = event.update
-        chat_id = None
-        from_user = None
-        content_preview = ""
-        update_kind = "unknown"
-
-        if update.message:
-            update_kind = "message"
-            chat_id = update.message.chat.id
-            from_user = update.message.from_user
-            content_preview = update.message.text or update.message.content_type
-        elif update.callback_query:
-            update_kind = "callback_query"
-            from_user = update.callback_query.from_user
-            content_preview = update.callback_query.data or ""
-            if update.callback_query.message:
-                chat_id = update.callback_query.message.chat.id
-
-        # --- Notify the affected user with a generic, friendly message ---
-        if chat_id:
-            try:
-                await bot.send_message(
-                    chat_id,
-                    "⚠️ Something went wrong processing that. Please try again, or send /start to reset."
-                )
-            except Exception:
-                pass
-
-        # --- Notify every admin with full diagnostic detail ---
-        tb_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-        tb_text = tb_text[-3200:]  # keep well under Telegram's 4096-char message limit
-
-        who = "unknown"
-        if from_user:
-            uname = f"@{from_user.username}" if from_user.username else "no username"
-            who = f"{esc(from_user.first_name)} ({uname}) — ID <code>{from_user.id}</code>"
-
-        admin_report = (
-            f"🚨 <b>Bot Error</b>\n\n"
-            f"👤 User: {who}\n"
-            f"📍 Update type: <code>{esc(update_kind)}</code>\n"
-            f"💬 Content: <code>{esc(content_preview)[:300]}</code>\n"
-            f"❗ Exception: <code>{esc(type(exc).__name__)}: {esc(str(exc))[:300]}</code>\n\n"
-            f"<pre>{esc(tb_text)}</pre>"
-        )
-        plain_report = (
-            f"🚨 Bot Error\n\nUser: {who}\nUpdate: {update_kind}\n"
-            f"Content: {content_preview[:300]}\n\n{tb_text}"
-        )
-        await alert_admins(bot, admin_report, plain_report)
-
-        return True
-
-    await init_db()
-    logger.info("Database initialized successfully.")
-
-    # Render (and most PaaS "Web Service" plans) require the process to bind
-    # to a TCP port so their port-scanner detects a live service — a pure
-    # polling bot never opens a port on its own, which is what triggers the
-    # "no open ports detected" error. Fixing this by running a tiny FastAPI
-    # server (used for health checks) *alongside* the Telegram polling loop,
-    # bound to the $PORT Render injects.
-    port = int(os.getenv("PORT", "8000"))
-    uvicorn_config = uvicorn.Config(
-        fastapi_app,
-        host="0.0.0.0",
-        port=port,
-        log_level="warning",
+  if not ADMIN_IDS:
+    logger.warning(
+        "ADMIN_IDS is empty — error alerts have nowhere to go! "
+        "Set ADMIN_IDS in your .env (comma-separated Telegram user IDs) to"
+        " receive them."
     )
-    web_server = uvicorn.Server(uvicorn_config)
 
-    logger.info(f"Starting web server on 0.0.0.0:{port} (for Render port detection)...")
-    logger.info("Starting bot in polling mode...")
+  bot = Bot(token=BOT_TOKEN)
+  storage = RedisStorage(redis=redis_client)
+  dp = Dispatcher(storage=storage)
 
-    await asyncio.gather(
-        dp.start_polling(bot),
-        web_server.serve(),
+  class DatabaseMiddleware(BaseMiddleware):
+
+    async def __call__(self, handler, event, data):
+      async with AsyncSessionLocal() as session:
+        data["session"] = session
+        return await handler(event, data)
+
+  dp.message.outer_middleware(DatabaseMiddleware())
+  dp.callback_query.outer_middleware(DatabaseMiddleware())
+  dp.include_router(router)
+
+  @dp.error()
+  async def global_error_handler(event: ErrorEvent):
+    """Safety net: catches unhandled exceptions and notifies admins/users."""
+    exc = event.exception
+    logger.exception(f"Unhandled exception while processing update: {exc}")
+
+    update = event.update
+    chat_id = None
+    from_user = None
+    content_preview = ""
+    update_kind = "unknown"
+
+    if update.message:
+      update_kind = "message"
+      chat_id = update.message.chat.id
+      from_user = update.message.from_user
+      content_preview = update.message.text or update.message.content_type
+    elif update.callback_query:
+      update_kind = "callback_query"
+      from_user = update.callback_query.from_user
+      content_preview = update.callback_query.data or ""
+      if update.callback_query.message:
+        chat_id = update.callback_query.message.chat.id
+
+    # --- Notify the affected user with a generic, friendly message ---
+    if chat_id:
+      try:
+        await bot.send_message(
+            chat_id,
+            "⚠️ Something went wrong processing that. Please try again, or send"
+            " /start to reset.",
+        )
+      except Exception:
+        pass
+
+    # --- Notify every admin with full diagnostic detail ---
+    tb_text = "".join(
+        traceback.format_exception(type(exc), exc, exc.__traceback__)
     )
+    tb_text = tb_text[-3200:]  # keep well under Telegram's limit
+
+    who = "unknown"
+    if from_user:
+      uname = f"@{from_user.username}" if from_user.username else "no username"
+      who = (
+          f"{esc(from_user.first_name)} ({uname}) — ID"
+          f" <code>{from_user.id}</code>"
+      )
+
+    admin_report = (
+        f"🚨 <b>Bot Error</b>\n\n👤 User: {who}\n📍 Update type:"
+        f" <code>{esc(update_kind)}</code>\n💬 Content:"
+        f" <code>{esc(content_preview)[:300]}</code>\n❗ Exception:"
+        f" <code>{esc(type(exc).__name__)}: {esc(str(exc))[:300]}</code>\n\n<pre>{esc(tb_text)}</pre>"
+    )
+    plain_report = (
+        f"🚨 Bot Error\n\nUser: {who}\nUpdate: {update_kind}\nContent:"
+        f" {content_preview[:300]}\n\n{tb_text}"
+    )
+    await alert_admins(bot, admin_report, plain_report)
+
+    return True
+
+  await init_db()
+  logger.info("Database initialized successfully.")
+
+  port = int(os.getenv("PORT", "8000"))
+  uvicorn_config = uvicorn.Config(
+      fastapi_app,
+      host="0.0.0.0",
+      port=port,
+      log_level="warning",
+  )
+  web_server = uvicorn.Server(uvicorn_config)
+
+  logger.info(
+      f"Starting web server on 0.0.0.0:{port} (for Render port detection)..."
+  )
+  logger.info("Starting bot in polling mode...")
+
+  await asyncio.gather(
+      dp.start_polling(bot),
+      web_server.serve(),
+  )
+
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(start_bot())
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Bot stopped.")
+  try:
+    asyncio.run(start_bot())
+  except (KeyboardInterrupt, SystemExit):
+    logger.info("Bot stopped.")
+                                    
