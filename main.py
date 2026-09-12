@@ -41,6 +41,7 @@ from aiogram.types import ErrorEvent
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse  # <--- এটি এখানে যোগ করুন
 
 
 # ==============================================================================
