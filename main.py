@@ -6,6 +6,7 @@ import html
 import uuid
 import logging
 import asyncio
+import traceback
 from typing import Optional, Union
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -64,6 +65,20 @@ def safe_text(message: "Message") -> Optional[str]:
     return message.text.strip() if message.text else None
 
 NON_TEXT_INPUT_MSG = "⚠️ Please send this as a text message (not a photo/sticker/file)."
+
+async def alert_admins(bot: Bot, html_message: str, plain_message: Optional[str] = None):
+    """Send an HTML-formatted alert to every configured admin, falling back
+    to plain text if Telegram rejects the HTML (e.g. too long or malformed)."""
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, html_message, parse_mode=ParseMode.HTML)
+        except TelegramBadRequest:
+            try:
+                await bot.send_message(admin_id, (plain_message or html_message)[:4000])
+            except Exception as inner_e:
+                logger.error(f"Failed to notify admin {admin_id} even with plain text: {inner_e}")
+        except Exception as e:
+            logger.error(f"Failed to notify admin {admin_id} about error: {e}")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "BoostGramBot")
@@ -532,6 +547,15 @@ class TaskEngine:
         except Exception as e:
             await session.rollback()
             logger.error(f"Task verification error: {str(e)}")
+            tb_text = "".join(traceback.format_exception(type(e), e, e.__traceback__))[-3200:]
+            report = (
+                f"🚨 <b>Task Verification Error</b>\n\n"
+                f"👤 User ID: <code>{user_id}</code>\n"
+                f"📢 Campaign ID: <code>{esc(campaign_id)}</code>\n"
+                f"❗ Exception: <code>{esc(type(e).__name__)}: {esc(str(e))[:300]}</code>\n\n"
+                f"<pre>{esc(tb_text)}</pre>"
+            )
+            await alert_admins(bot, report)
             return False, "❌ An error occurred during verification."
         finally:
             try:
@@ -1501,6 +1525,12 @@ async def health_check():
     return {"status": "active", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 async def start_bot():
+    if not ADMIN_IDS:
+        logger.warning(
+            "ADMIN_IDS is empty — error alerts have nowhere to go! "
+            "Set ADMIN_IDS in your .env (comma-separated Telegram user IDs) to receive them."
+        )
+
     bot = Bot(token=BOT_TOKEN)
     storage = RedisStorage(redis=redis_client)
     dp = Dispatcher(storage=storage)
@@ -1520,16 +1550,32 @@ async def start_bot():
         """
         Safety net: if any handler above raises an unhandled exception (bad
         input, a Telegram API quirk, a network hiccup, etc.) this makes sure
-        the user gets a reply instead of the bot silently doing nothing.
+        the user gets a reply instead of the bot silently doing nothing —
+        and every ADMIN gets the full traceback + context so the actual bug
+        can be found and fixed quickly.
         """
-        logger.exception(f"Unhandled exception while processing update: {event.exception}")
+        exc = event.exception
+        logger.exception(f"Unhandled exception while processing update: {exc}")
+
         update = event.update
         chat_id = None
-        if update.message:
-            chat_id = update.message.chat.id
-        elif update.callback_query and update.callback_query.message:
-            chat_id = update.callback_query.message.chat.id
+        from_user = None
+        content_preview = ""
+        update_kind = "unknown"
 
+        if update.message:
+            update_kind = "message"
+            chat_id = update.message.chat.id
+            from_user = update.message.from_user
+            content_preview = update.message.text or update.message.content_type
+        elif update.callback_query:
+            update_kind = "callback_query"
+            from_user = update.callback_query.from_user
+            content_preview = update.callback_query.data or ""
+            if update.callback_query.message:
+                chat_id = update.callback_query.message.chat.id
+
+        # --- Notify the affected user with a generic, friendly message ---
         if chat_id:
             try:
                 await bot.send_message(
@@ -1538,6 +1584,30 @@ async def start_bot():
                 )
             except Exception:
                 pass
+
+        # --- Notify every admin with full diagnostic detail ---
+        tb_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        tb_text = tb_text[-3200:]  # keep well under Telegram's 4096-char message limit
+
+        who = "unknown"
+        if from_user:
+            uname = f"@{from_user.username}" if from_user.username else "no username"
+            who = f"{esc(from_user.first_name)} ({uname}) — ID <code>{from_user.id}</code>"
+
+        admin_report = (
+            f"🚨 <b>Bot Error</b>\n\n"
+            f"👤 User: {who}\n"
+            f"📍 Update type: <code>{esc(update_kind)}</code>\n"
+            f"💬 Content: <code>{esc(content_preview)[:300]}</code>\n"
+            f"❗ Exception: <code>{esc(type(exc).__name__)}: {esc(str(exc))[:300]}</code>\n\n"
+            f"<pre>{esc(tb_text)}</pre>"
+        )
+        plain_report = (
+            f"🚨 Bot Error\n\nUser: {who}\nUpdate: {update_kind}\n"
+            f"Content: {content_preview[:300]}\n\n{tb_text}"
+        )
+        await alert_admins(bot, admin_report, plain_report)
+
         return True
 
     await init_db()
