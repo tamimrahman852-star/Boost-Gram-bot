@@ -1540,6 +1540,24 @@ async def root():
         """
 
 
+@fastapi_app.get("/sitemap.xml", response_class=HTMLResponse)
+async def sitemap():
+  """Serves the sitemap.xml file for Google indexing."""
+  try:
+    with open("sitemap.xml", "r", encoding="utf-8") as f:
+      return f.read()
+  except FileNotFoundError:
+    return """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://boost-gram-bot.onrender.com/</loc>
+        <lastmod>2026-09-13T00:00:00+00:00</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+    </url>
+</urlset>"""
+
+
 @fastapi_app.get("/google8c808883d07580e1.html", response_class=HTMLResponse)
 async def google_verification():
   """Serves the Google site verification file."""
@@ -1672,4 +1690,6 @@ if __name__ == "__main__":
     asyncio.run(start_bot())
   except (KeyboardInterrupt, SystemExit):
     logger.info("Bot stopped.")
+
+
                                     
