@@ -8,20 +8,21 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
+# Project root path add kora holo
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-# Import metadata from main.py (where models live)
+# database.py file theke Base ebong DATABASE_URL import kora hochche
 try:
-    from main import Base, DATABASE_URL
+    from database import Base, DATABASE_URL
 except Exception as e:
-    print(f"❌ Failed to import main: {e}")
+    print(f"❌ Failed to import database module: {e}")
     raise
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Override with real DATABASE_URL
+# Database URL set kora
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 target_metadata = Base.metadata
 
