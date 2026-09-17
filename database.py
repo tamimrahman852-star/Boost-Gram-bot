@@ -54,8 +54,8 @@ class TransactionType(str, Enum):
 
 
 class CheckType(str, Enum):
-    SINGLE_USE = "single_use"
-    MULTI_USE = "multi_use"
+    SINGLE_USE = "SINGLE_USE"
+    MULTI_USE = "MULTI_USE"
 
 
 class RetentionStatus(str, Enum):
@@ -239,7 +239,13 @@ class Check(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
-    check_type: Mapped[CheckType] = mapped_column(SQLEnum(CheckType, name="checktype"), default=CheckType.MULTI_USE)
+    
+    # DB-er enum 'check_type_enum' er sathe EXACT match korano holo:
+    check_type: Mapped[CheckType] = mapped_column(
+        SQLEnum(CheckType, name="check_type_enum", create_type=False),
+        default=CheckType.MULTI_USE
+    )
+    
     created_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
     amount_per_activation: Mapped[Decimal] = mapped_column(Numeric(18, 4))
     max_activations: Mapped[int] = mapped_column(Integer)
