@@ -99,11 +99,19 @@ async def _show_task_list(query, session, task_type, page):
 
     done_sub = select(TaskCompletion.campaign_id).where(TaskCompletion.user_id == query.from_user.id)
     base = [
-        Campaign.task_type == TaskType(task_type),
         Campaign.status == CampaignStatus.ACTIVE,
         Campaign.completed_count < Campaign.max_completions,
         Campaign.id.not_in(done_sub),
     ]
+
+    # Fixed: Safely convert task_type string to TaskType Enum only when non-empty
+    if task_type:
+        try:
+            enum_tt = TaskType(task_type) if isinstance(task_type, str) else task_type
+            base.append(Campaign.task_type == enum_tt)
+        except ValueError:
+            pass  # Empty or invalid string skip filter
+
     if not (user and user.is_premium):
         base.append(Campaign.premium_only == False)
 
@@ -186,10 +194,11 @@ async def earn_verify(query: CallbackQuery, session, bot: Bot):
         await query.answer("⏳ Processing...", show_alert=True)
         return
     try:
-        ok, msg = await _process_task(session, bot, uid, cid)
+        ok, msg, current_task_type = await _process_task(session, bot, uid, cid)
         await query.answer(msg[:200], show_alert=True)
         if ok:
-            await _show_task_list(query, session, "", 0)
+            # Fixed: Pass the campaign's task type string back instead of empty string ""
+            await _show_task_list(query, session, current_task_type or "", 0)
     finally:
         await redis_client.delete(lock)
 
@@ -200,36 +209,40 @@ async def _process_task(session, bot, uid, cid):
             r = await session.execute(select(Campaign).where(Campaign.id == cid).with_for_update())
             c = r.scalar_one_or_none()
             if not c or c.status != CampaignStatus.ACTIVE:
-                return False, "❌ Task inactive."
+                return False, "❌ Task inactive.", None
+            
+            # Save task type value string for redirection
+            task_type_val = c.task_type.value if hasattr(c.task_type, "value") else str(c.task_type)
+
             if c.is_full:
                 c.status = CampaignStatus.COMPLETED
-                return False, t("en", "task_limit")
+                return False, t("en", "task_limit"), task_type_val
 
             ru = await session.execute(select(User).where(User.id == uid).with_for_update())
             user = ru.scalar_one_or_none()
             if not user or user.is_blocked:
-                return False, "❌ Account issue."
+                return False, "❌ Account issue.", task_type_val
 
             rc = await session.execute(select(TaskCompletion).where(
                 TaskCompletion.user_id == uid, TaskCompletion.campaign_id == cid
             ))
             if rc.scalar_one_or_none():
-                return False, t(user.language, "task_already")
+                return False, t(user.language, "task_already"), task_type_val
 
             if c.premium_only and not user.is_premium:
-                return False, t(user.language, "task_premium_only")
+                return False, t(user.language, "task_premium_only"), task_type_val
 
             if c.task_type in VERIFIABLE_TASKS:
                 target = c.target_chat_id or (f"@{c.target_username}" if c.target_username else None)
                 if not target:
-                    return False, "❌ Misconfigured."
+                    return False, "❌ Misconfigured.", task_type_val
                 try:
                     m = await bot.get_chat_member(target, uid)
                     if m.status not in (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR,
                                         ChatMemberStatus.CREATOR, ChatMemberStatus.RESTRICTED):
-                        return False, t(user.language, "task_failed")
+                        return False, t(user.language, "task_failed"), task_type_val
                 except (TelegramBadRequest, TelegramForbiddenError):
-                    return False, t(user.language, "task_failed")
+                    return False, t(user.language, "task_failed"), task_type_val
 
             reward = c.reward_per_user
             xp = int((reward / 1000) * BusinessRules.XP_PER_1000_COINS)
@@ -264,11 +277,11 @@ async def _process_task(session, bot, uid, cid):
             await _referral_tiers(session, uid, reward, tx.id)
 
         await session.commit()
-        return True, t(user.language, "task_verified", reward=reward, xp=xp)
+        return True, t(user.language, "task_verified", reward=reward, xp=xp), task_type_val
     except Exception as e:
         await session.rollback()
         logger.exception(f"Task error: {e}")
-        return False, t("en", "error_generic")
+        return False, t("en", "error_generic"), None
 
 
 async def _referral_tiers(session, earner_id, amount, tx_id):
