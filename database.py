@@ -21,6 +21,11 @@ class Base(DeclarativeBase):
     pass
 
 
+# Helper to force lowercase values for PostgreSQL Enum types
+def enum_values(x):
+    return [e.value for e in x]
+
+
 class TaskType(str, Enum):
     CHANNEL_SUB = "channel_sub"
     GROUP_JOIN = "group_join"
@@ -54,8 +59,8 @@ class TransactionType(str, Enum):
 
 
 class CheckType(str, Enum):
-    SINGLE_USE = "SINGLE_USE"
-    MULTI_USE = "MULTI_USE"
+    SINGLE_USE = "single_use"
+    MULTI_USE = "multi_use"
 
 
 class RetentionStatus(str, Enum):
@@ -139,7 +144,9 @@ class Campaign(Base):
     advertiser_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
 
     title: Mapped[str] = mapped_column(String(255))
-    task_type: Mapped[TaskType] = mapped_column(SQLEnum(TaskType, name="tasktype"))
+    task_type: Mapped[TaskType] = mapped_column(
+        SQLEnum(TaskType, name="tasktype", values_callable=enum_values, create_type=False)
+    )
 
     target_chat_id: Mapped[Optional[int]] = mapped_column(BigInteger)
     target_username: Mapped[Optional[str]] = mapped_column(String(64))
@@ -160,7 +167,10 @@ class Campaign(Base):
     spent_budget: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))
     refunded_budget: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))
 
-    status: Mapped[CampaignStatus] = mapped_column(SQLEnum(CampaignStatus, name="campaignstatus"), default=CampaignStatus.ACTIVE)
+    status: Mapped[CampaignStatus] = mapped_column(
+        SQLEnum(CampaignStatus, name="campaignstatus", values_callable=enum_values, create_type=False),
+        default=CampaignStatus.ACTIVE
+    )
 
     retention_days: Mapped[int] = mapped_column(Integer, default=7)
     requires_retention_check: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -195,7 +205,10 @@ class TaskCompletion(Base):
     reward: Mapped[Decimal] = mapped_column(Numeric(18, 4))
     xp_earned: Mapped[int] = mapped_column(Integer, default=0)
 
-    retention_status: Mapped[RetentionStatus] = mapped_column(SQLEnum(RetentionStatus, name="retentionstatus"), default=RetentionStatus.PENDING)
+    retention_status: Mapped[RetentionStatus] = mapped_column(
+        SQLEnum(RetentionStatus, name="retentionstatus", values_callable=enum_values, create_type=False),
+        default=RetentionStatus.PENDING
+    )
     retention_deadline: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     retention_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     penalty_applied: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -218,7 +231,9 @@ class Transaction(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
 
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
-    type: Mapped[TransactionType] = mapped_column(SQLEnum(TransactionType, name="transactiontype"))
+    type: Mapped[TransactionType] = mapped_column(
+        SQLEnum(TransactionType, name="transactiontype", values_callable=enum_values, create_type=False)
+    )
     description: Mapped[str] = mapped_column(String(255))
 
     reference_id: Mapped[Optional[str]] = mapped_column(String(36))
@@ -240,9 +255,8 @@ class Check(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
     
-    # DB-er enum 'check_type_enum' er sathe EXACT match korano holo:
     check_type: Mapped[CheckType] = mapped_column(
-        SQLEnum(CheckType, name="check_type_enum", create_type=False),
+        SQLEnum(CheckType, name="check_type_enum", values_callable=enum_values, create_type=False),
         default=CheckType.MULTI_USE
     )
     
@@ -336,7 +350,9 @@ class Notification(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
-    type: Mapped[NotificationType] = mapped_column(SQLEnum(NotificationType, name="notificationtype"))
+    type: Mapped[NotificationType] = mapped_column(
+        SQLEnum(NotificationType, name="notificationtype", values_callable=enum_values, create_type=False)
+    )
     title: Mapped[str] = mapped_column(String(255))
     message: Mapped[str] = mapped_column(Text)
     data: Mapped[Optional[str]] = mapped_column(Text)
