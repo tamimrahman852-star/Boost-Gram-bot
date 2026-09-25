@@ -174,14 +174,12 @@ async def link_request_confirm(query: CallbackQuery):
     await query.answer()
 
 
-@router.callback_query(F.data.in__{"promote:link:skip", "promote:link:request:yes", "promote:link:back"})
+@router.callback_query(F.data.in_({"promote:link:skip", "promote:link:request:yes", "promote:link:back"}))
 async def handle_link_choices(query: CallbackQuery, state: FSMContext):
     if query.data == "promote:link:back":
-        # Return to link type selection
         await handle_shared_chat_from_callback(query, state)
         return
 
-    # Proceed to Audience Menu
     await show_audience_menu(query, state)
 
 
@@ -301,12 +299,11 @@ async def back_to_audience_main(query: CallbackQuery, state: FSMContext):
     await show_audience_menu(query, state)
 
 
-@router.callback_query(F.data.in__{"promote:aud:type:all", "promote:aud:type:premium"})
+@router.callback_query(F.data.in_({"promote:aud:type:all", "promote:aud:type:premium"}))
 async def audience_type_chosen(query: CallbackQuery, state: FSMContext):
     min_price = 1400 if query.data == "promote:aud:type:premium" else 750
     await state.update_data(min_price=min_price)
     
-    # Move to language selection menu
     await show_language_menu(query, state)
 
 
