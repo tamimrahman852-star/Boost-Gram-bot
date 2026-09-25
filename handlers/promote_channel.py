@@ -20,9 +20,8 @@ class PromoteChannelStates(StatesGroup):
     waiting_for_link_type = State()
     waiting_for_audience = State()
     waiting_for_audience_type = State()
-    waiting_for_language = State()
+    waiting_for_country = State()
     waiting_for_reward_price = State()
-    waiting_for_quantity = State()
 
 
 # ============================================================
@@ -245,18 +244,12 @@ async def show_audience_menu(query: CallbackQuery, state: FSMContext):
     await query.answer()
 
 
+# ============================================================
+# 5. "Sobaike onumoti din" -> Audience Type Menu (All vs Premium)
+# ============================================================
+
 @router.callback_query(F.data == "promote:ch:aud:all")
 async def audience_all(query: CallbackQuery, state: FSMContext):
-    await state.update_data(min_price=750)
-    await ask_reward_price(query, state)
-
-
-# ============================================================
-# 5. Select Audience Type (All users vs Telegram Premium)
-# ============================================================
-
-@router.callback_query(F.data == "promote:ch:aud:select")
-async def audience_select_type(query: CallbackQuery, state: FSMContext):
     await state.set_state(PromoteChannelStates.waiting_for_audience_type)
     text = (
         "1️⃣ <b>সব ব্যবহারকারী</b>\n"
@@ -304,15 +297,16 @@ async def audience_type_chosen(query: CallbackQuery, state: FSMContext):
     min_price = 1400 if query.data == "promote:aud:type:premium" else 750
     await state.update_data(min_price=min_price)
     
-    await show_language_menu(query, state)
+    await ask_reward_price(query, state)
 
 
 # ============================================================
-# 6. Language Selection Menu
+# 6. "Dorshok nirbacon korun" -> Country/Language Selection Menu
 # ============================================================
 
-async def show_language_menu(query: CallbackQuery, state: FSMContext):
-    await state.set_state(PromoteChannelStates.waiting_for_language)
+@router.callback_query(F.data == "promote:ch:aud:select")
+async def audience_select_country(query: CallbackQuery, state: FSMContext):
+    await state.set_state(PromoteChannelStates.waiting_for_country)
     data = await state.get_data()
     selected_langs = data.get("selected_langs", [])
 
@@ -320,11 +314,11 @@ async def show_language_menu(query: CallbackQuery, state: FSMContext):
 
     text = (
         f"• দর্শক: {langs_display}\n\n"
-        "🌐 <b>এক বা একাধিক ভাষা বেছে নিন</b>\n"
+        "🌐 <b>এক বা একাধিক ভাষা বা দেশ বেছে নিন</b>\n"
         "💡 অডিয়েন্স ফিল্টার প্রতি সম্পাদনায় ন্যূনতম মূল্যে +100 GRAM যোগ করে।"
     )
 
-    languages = [
+    countries = [
         ("🇺🇦 Україн...", "lang:uk"), ("🇷🇺 Русский", "lang:ru"), ("🇬🇧 English", "lang:en"),
         ("🇩🇪 Deutsch", "lang:de"), ("🇨🇳 中文", "lang:zh"), ("🇸🇦 العربية", "lang:ar"),
         ("🇮🇷 فارسی", "lang:fa"), ("🇪🇸 Español", "lang:es"), ("🇮🇩 Bahasa", "lang:id"),
@@ -335,7 +329,7 @@ async def show_language_menu(query: CallbackQuery, state: FSMContext):
 
     keyboard_rows = []
     row = []
-    for name, code in languages:
+    for name, code in countries:
         is_selected = name in selected_langs
         btn_text = f"✅ {name}" if is_selected else name
         row.append(InlineKeyboardButton(text=btn_text, callback_data=code))
@@ -354,7 +348,7 @@ async def show_language_menu(query: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("lang:"))
-async def toggle_language(query: CallbackQuery, state: FSMContext):
+async def toggle_country(query: CallbackQuery, state: FSMContext):
     action = query.data.split(":")[1]
     data = await state.get_data()
     selected_langs = data.get("selected_langs", [])
@@ -362,7 +356,7 @@ async def toggle_language(query: CallbackQuery, state: FSMContext):
     if action == "save":
         if selected_langs:
             await state.update_data(filters_added=100)
-        await ask_reward_price(query, state)
+        await audience_all(query, state) # Go to price / tier selection next
         return
 
     lang_map = {
@@ -382,7 +376,7 @@ async def toggle_language(query: CallbackQuery, state: FSMContext):
             selected_langs.append(lang_name)
         await state.update_data(selected_langs=selected_langs)
 
-    await show_language_menu(query, state)
+    await audience_select_country(query, state)
 
 
 # ============================================================
@@ -409,7 +403,7 @@ async def ask_reward_price(query: CallbackQuery, state: FSMContext):
             [
                 InlineKeyboardButton(
                     text="← ফিরে যান",
-                    callback_data="promote:ch:aud:select",
+                    callback_data="promote:aud:back_to_main",
                 )
             ]
         ]
