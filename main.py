@@ -17,6 +17,9 @@ from handlers.start import router as start_router
 from handlers.cabinet import router as cabinet_router
 from handlers.earnings import router as earnings_router
 from handlers.promote import router as promote_router
+from handlers.promote_channel import router as promote_channel_router
+from handlers.promote_group import router as promote_group_router
+from handlers.promote_my_tasks import router as promote_my_tasks_router
 from handlers.checks import router as checks_router
 from handlers.static import router as static_router
 from handlers.admin import router as admin_router
@@ -43,6 +46,9 @@ async def main():
     dp.include_router(cabinet_router)
     dp.include_router(earnings_router)
     dp.include_router(promote_router)
+    dp.include_router(promote_channel_router)
+    dp.include_router(promote_group_router)
+    dp.include_router(promote_my_tasks_router)
     dp.include_router(checks_router)
     dp.include_router(static_router)
     dp.include_router(admin_router)
