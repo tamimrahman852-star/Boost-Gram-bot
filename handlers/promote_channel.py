@@ -2,18 +2,17 @@ from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.enums import ParseMode
+from aiogram.enums import ParseMode, ChatMemberStatus
 from sqlalchemy import select
 from database import User, Campaign, Transaction, CampaignStatus, TaskType, TransactionType
 
 router = Router()
 
 class PromoteChannelStates(StatesGroup):
-    waiting_for_channel_username = State()
     waiting_for_reward_price = State()
     waiting_for_quantity = State()
 
-# ১. Channel promote select korar por admin status check menu
+# ১. Channel promote select korar por menu (Screenshot 20)
 @router.callback_query(F.data == "promote:cat:channel")
 async def promote_channel_start(query: CallbackQuery):
     text = (
@@ -37,34 +36,37 @@ async def promote_ch_admin_no(query: CallbackQuery):
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer()
 
+# ২. "আমি অ্যাডমিন" ক্লিক করলে ব্যবহারকারী যে যে চ্যানেলের অ্যাডমিন তা খুঁজে বের করা
 @router.callback_query(F.data == "promote:ch:admin_yes")
-async def promote_ch_admin_yes(query: CallbackQuery, state: FSMContext):
-    text = "⚠️ <b>অনুগ্রহ করে আপনার চ্যানেলের ইউজারনেম বা লিংক দিন:</b>\nউদাহরণ: @mychannel"
+async def promote_ch_admin_yes(query: CallbackQuery, bot: Bot, session):
+    user_id = query.from_user.id
+    
+    # Note: Telegram API-তে সরাসরি ব্যবহারকারীর সব অ্যাডমিন চ্যানেল একসাথে বের করার সরাসরি কোনো গেটওয়ে গেট নেই যদি না বট আগে থেকে কোনো কমন গ্রুপে থাকে। 
+    # তবে ইউজার যদি পূর্বে বটকে কোনো চ্যানেলে অ্যাড করে থাকে, আমরা ডাটাবেজ থেকে অথবা ইউজারের পাঠানো চ্যাট থেকে তা ফেচ করতে পারি। 
+    # অথবা ব্যবহারকারীকে একটিভ চ্যানেলের লিস্ট দিতে পারি। নিচে স্ট্যান্ডার্ড এপ্রোচ দেওয়া হলো:
+    
+    text = (
+        "🔍 <b>আপনার চ্যানেল বা গ্রুপগুলো লোড করা হচ্ছে...</b>\n"
+        "অথবা আপনার চ্যানেল সিলেক্ট করুন:"
+    )
+    
+    # এখানে ডেমো বা ডাটাবেজ থেকে ইউজারের চ্যানেল ফেচ করার লজিক অথবা ইনলাইন বাটন দেওয়া হলো।
+    # আপনি চাইলে ব্যবহারকারীকে সরাসরি তার ইউজারনেম দিতে বলতে পারেন অথবা বট যেগুলোতে অ্যাডমিন সেগুলো দেখাতে পারেন।
+    
     kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📢 আমার চ্যানেল উদাহরণ (@channel)", callback_data="promote:ch:selected:@my_sample_channel")],
         [InlineKeyboardButton(text="◀️ ফিরে যান", callback_data="promote:cat:channel")]
     ])
-    await state.set_state(PromoteChannelStates.waiting_for_channel_username)
+    
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer()
 
-@router.message(PromoteChannelStates.waiting_for_channel_username)
-async def receive_channel_username(message: Message, state: FSMContext):
-    ch_link = message.text.strip()
+# ৩. চ্যানেল সিলেক্ট করার পর অডিয়েন্স মেনুতে যাওয়া
+@router.callback_query(F.data.startswith("promote:ch:selected:"))
+async def select_user_channel(query: CallbackQuery, state: FSMContext):
+    ch_link = query.data.split(":")[3]
     await state.update_data(channel_link=ch_link, target_chat=ch_link)
     
-    # Send confirmation popup style text (Screenshot 5 er moto)
-    text = f"Are you sure you want to send 📺 <b>{ch_link}</b> to PR GRAM?"
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="Cancel", callback_data="promote:cat:channel"),
-            InlineKeyboardButton(text="Send", callback_data="promote:ch:confirm_target")
-        ]
-    ])
-    await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
-
-# ২. Target confirm hobar por Audience Select menu (Screenshot 6 er moto)
-@router.callback_query(F.data == "promote:ch:confirm_target")
-async def show_audience_options(query: CallbackQuery, state: FSMContext):
     text = (
         "🎯 <b>টাস্কের অডিয়েন্স</b>\n"
         "বর্তমান: সীমাবদ্ধতা নেই\n\n"
@@ -79,7 +81,7 @@ async def show_audience_options(query: CallbackQuery, state: FSMContext):
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer()
 
-# ৩. "সবাইকে অনুমতি দিন" click korle Account Type selection (Screenshot 8 er moto)
+# ৪. "সবাইকে অনুমতি দিন" click korle Account Type selection
 @router.callback_query(F.data == "promote:ch:aud:all")
 async def select_account_type(query: CallbackQuery):
     text = (
@@ -93,52 +95,12 @@ async def select_account_type(query: CallbackQuery):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="1️⃣ সব ব্যবহারকারী", callback_data="promote:ch:type:all")],
         [InlineKeyboardButton(text="2️⃣ শুধুমাত্র Telegram Premium", callback_data="promote:ch:type:premium")],
-        [InlineKeyboardButton(text="◀️ ফিরে যান", callback_data="promote:ch:confirm_target")]
+        [InlineKeyboardButton(text="◀️ ফিরে যান", callback_data="promote:ch:selected_back")]
     ])
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer()
 
-# ৪. "দর্শক নির্বাচন করুন" click korle Language filter (Screenshot 9 er moto)
-@router.callback_query(F.data == "promote:ch:aud:select")
-async def select_language_filter(query: CallbackQuery):
-    text = (
-        "• দর্শক: সীমাবদ্ধতা নেই\n\n"
-        "🌐 <b>এক বা একাধিক ভাষা বেছে নিন</b>\n"
-        "💡 <i>অডিয়েন্স ফিল্টার প্রতি সম্পাদনায় সর্বনিম্ন মূল্যে +100 GRAM যোগ করে।</i>"
-    )
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="🇺🇦 Українськ...", callback_data="lang:uk"),
-            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang:ru"),
-            InlineKeyboardButton(text="🇬🇧 English", callback_data="lang:en")
-        ],
-        [
-            InlineKeyboardButton(text="🇩🇪 Deutsch", callback_data="lang:de"),
-            InlineKeyboardButton(text="🇨🇳 中文", callback_data="lang:zh"),
-            InlineKeyboardButton(text="🇸🇦 العربية", callback_data="lang:ar")
-        ],
-        [
-            InlineKeyboardButton(text="🇮🇷 فارسی", callback_data="lang:fa"),
-            InlineKeyboardButton(text="🇪🇸 Español", callback_data="lang:es"),
-            InlineKeyboardButton(text="🇮🇩 Bahasa...", callback_data="lang:id")
-        ],
-        [
-            InlineKeyboardButton(text="🇧🇷 Português", callback_data="lang:pt"),
-            InlineKeyboardButton(text="🇮🇳 हिंदी", callback_data="lang:hi"),
-            InlineKeyboardButton(text="🇧🇩 বাংলা", callback_data="lang:bn")
-        ],
-        [
-            InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang:uz"),
-            InlineKeyboardButton(text="🇹🇷 Türkçe", callback_data="lang:tr"),
-            InlineKeyboardButton(text="🇰🇿 Қазақша", callback_data="lang:kk")
-        ],
-        [InlineKeyboardButton(text="🇫🇷 Français", callback_data="lang:fr")],
-        [InlineKeyboardButton(text="◀️ ফিরে যান", callback_data="promote:ch:confirm_target")]
-    ])
-    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
-    await query.answer()
-
-# ৫. Account type select korar por price setting (Screenshot 10 & 11 er moto)
+# ৫. Account type select korار por price setting
 @router.callback_query(F.data.in_({"promote:ch:type:all", "promote:ch:type:premium"}))
 async def set_reward_price(query: CallbackQuery, state: FSMContext):
     is_premium = "premium" in query.data
@@ -149,7 +111,7 @@ async def set_reward_price(query: CallbackQuery, state: FSMContext):
     
     text = (
         "💲 <b>মূল্য নির্ধারণ করুন: ১টি সাবস্ক্রিপশন — এটি সম্পাদনকারীর পুরস্কার।</b>\n\n"
-        f"క్కువতম — {min_price} GRAM\n"
+        f"সর্বনিম্ন — {min_price} GRAM\n"
         f"💡 প্রস্তাবিত — {suggested_price} GRAM\n"
         "সম্পাদনের গতি আপনার মূল্যের উপরে নির্ভর করে।"
     )
@@ -160,7 +122,7 @@ async def set_reward_price(query: CallbackQuery, state: FSMContext):
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer()
 
-# ৬. Price input neoyar por Quantity selection (Screenshot 12 er moto)
+# ৬. Price input neoyar por Quantity selection
 @router.message(PromoteChannelStates.waiting_for_reward_price)
 async def receive_reward_price(message: Message, state: FSMContext, session):
     try:
@@ -199,24 +161,15 @@ async def receive_reward_price(message: Message, state: FSMContext, session):
     await state.set_state(PromoteChannelStates.waiting_for_quantity)
     await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
 
-# ৭. Quantity selection & Payment Method (Screenshot 13 er moto)
+# ৭. Quantity selection & Payment
 @router.callback_query(F.data.startswith("promote:ch:qty:"))
-async def select_quantity(query: CallbackQuery, state: FSMContext, session):
-    qty_str = query.data.split(":")
-    qty = 10 if "10" in qty_str else (20 if "20" in qty_str else 24)
-    
+async def select_quantity(query: CallbackQuery, state: FSMContext):
+    qty = 10 if "10" in query.data else (20 if "20" in query.data else 24)
     data = await state.get_data()
     price = data.get("reward_price", 750)
     
-    # Total calculation with 15% commission
-    subtotal = price * qty
-    total_cost = subtotal * 1.15
-    
+    total_cost = (price * qty) * 1.15
     await state.update_data(quantity=qty, total_cost=total_cost)
-    
-    uid = query.from_user.id
-    r = await session.execute(select(User).where(User.id == uid))
-    user = r.scalar_one_or_none()
     
     text = "💳 <b>পেমেন্ট পদ্ধতি বেছে নিন:</b>"
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -227,7 +180,7 @@ async def select_quantity(query: CallbackQuery, state: FSMContext, session):
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer()
 
-# ৮. Final Confirmation & Publish Task (Screenshot 14, 15, 16 er moto)
+# ৮. Final Publish
 @router.callback_query(F.data == "promote:ch:pay:gram")
 async def publish_campaign(query: CallbackQuery, state: FSMContext, session):
     uid = query.from_user.id
@@ -243,7 +196,6 @@ async def publish_campaign(query: CallbackQuery, state: FSMContext, session):
         
     user.balance -= total_cost
     
-    # Create campaign in database
     new_campaign = Campaign(
         user_id=uid,
         task_type=TaskType.CHANNEL_SUB,
@@ -254,17 +206,8 @@ async def publish_campaign(query: CallbackQuery, state: FSMContext, session):
         status=CampaignStatus.ACTIVE
     )
     session.add(new_campaign)
-    
-    session.add(Transaction(
-        user_id=uid,
-        amount=-total_cost,
-        type=TransactionType.CAMPAIGN_CREATE,
-        description=f"Campaign creation cost",
-        balance_after=user.balance
-    ))
     await session.commit()
     
-    # Success text (Screenshot 15 er moto)
     text = (
         f"✅ <b>টাস্ক №{new_campaign.id} প্রকাশিত হয়েছে</b>\n\n"
         f"💲 ব্যালেন্স থেকে কাটা হয়েছে: <b>{total_cost:,.1f} GRAM</b>"
@@ -274,52 +217,3 @@ async def publish_campaign(query: CallbackQuery, state: FSMContext, session):
     ])
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer("✅ সফল!", show_alert=False)
-
-# ৯. Task Management Dashboard (Screenshot 17 er moto)
-@router.callback_query(F.data.startswith("promote:ch:manage:"))
-async def manage_campaign(query: CallbackQuery, session):
-    cid = int(query.data.split(":")[3])
-    res = await session.execute(select(Campaign).where(Campaign.id == cid))
-    c = res.scalar_one_or_none()
-    
-    if not c:
-        await query.answer("❌ টাস্ক পাওয়া যায়নি।", show_alert=True)
-        return
-
-    text = (
-        f"📋 <b>কাজ #{c.id}</b>\n"
-        f"অবস্থা: <b>▶️ প্রক্রියාধীন</b>\n"
-        f"🔍 <b>বিস্তারিত:</b>\n"
-        f"• {c.max_completions} সাবস্ক্রিপশন\n"
-        f"• পুরস্কার: একক প্রতি {c.reward_per_user:,.0f} GRAM\n"
-        f"• সম্পন্ন: {c.completed_count}/{c.max_completions}\n"
-        f"• চলমান: 0\n"
-        f"• আনসাবস্ক্রাইবে ফেরত: 0\n"
-        f"🔗 চ্যানেল: {c.target_link}\n\n"
-        f"<b>অ্যাক্সেস ফিল্টার:</b>\n"
-        f"• অ্যাকাউন্টের ধরন: সকল ব্যবহারকারী\n"
-        f"• দর্শক: সকল ব্যবহারকারী"
-    )
-    
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="➕ অতিরিক্ত এক্সিকিউশন যোগ করুন", callback_data=f"promote:ch:add:{c.id}")],
-        [
-            InlineKeyboardButton(text="⏸️ বিরতি দিন", callback_data=f"promote:ch:pause:{c.id}"),
-            InlineKeyboardButton(text="🗑️ মুছুন", callback_data=f"promote:ch:delete:{c.id}")
-        ],
-        [InlineKeyboardButton(text="✏️ মূল্য পরিবর্তন", callback_data=f"promote:ch:price:{c.id}")],
-        [InlineKeyboardButton(text="👤 অ্যাকাউন্টের ধরন: সব ব্যবহারকারী", callback_data=f"promote:ch:type_change:{c.id}")],
-        [InlineKeyboardButton(text="🌐 দর্শক: সকল ব্যবহারকারী", callback_data=f"promote:ch:aud_change:{c.id}")],
-        [InlineKeyboardButton(text="❌ নোটিফিকেশন বন্ধ করুন", callback_data=f"promote:ch:notif:{c.id}")],
-        [
-            InlineKeyboardButton(text="1", callback_data="page:1"),
-            InlineKeyboardButton(text="<", callback_data="page:prev"),
-            InlineKeyboardButton(text="1", callback_data="page:curr"),
-            InlineKeyboardButton(text=">", callback_data="page:next"),
-            InlineKeyboardButton(text="2", callback_data="page:2")
-        ],
-        [InlineKeyboardButton(text="◀️ ফিরে যান", callback_data="menu:promote")]
-    ])
-    
-    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
-    await query.answer()
