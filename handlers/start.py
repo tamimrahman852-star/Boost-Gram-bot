@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from aiogram import Router
 from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram import Bot
@@ -11,7 +11,6 @@ from aiogram import Bot
 from config import BOT_USERNAME, BusinessRules
 from database import User, Transaction, TransactionType
 from localization import t
-from keyboards import main_menu
 from helpers import esc
 
 router = Router()
@@ -83,9 +82,21 @@ async def cmd_start(message: Message, session, bot: Bot, state: FSMContext):
         await _redeem_check_deeplink(message, session, check_code)
         return
 
+    # Base menu-r moto same reply keyboard ekhaneo use kora holo jate start korlei menu button gulo chole ashe
+    kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="💰 আয়"), KeyboardButton(text="📢 প্রচার করুন")],
+            [KeyboardButton(text="🎫 চেক"), KeyboardButton(text="👤 আমার কেবিনেট")],
+            [KeyboardButton(text="🛡️ সাবস্ক্রিপশন চেক"), KeyboardButton(text="📊 আমাদের বট ও প...")],
+            [KeyboardButton(text="🔗 দরকারি লিংক"), KeyboardButton(text="ℹ️ নির্দেশিকা")]
+        ],
+        resize_keyboard=True
+    ]
+
+    welcome_text = t(user.language, "welcome", bot_name=esc(BOT_USERNAME), first_name=esc(message.from_user.first_name))
+    
     await message.answer(
-        t(user.language, "welcome", bot_name=esc(BOT_USERNAME),
-          first_name=esc(message.from_user.first_name)),
-        reply_markup=main_menu(user.language),
+        welcome_text,
+        reply_markup=kb,
         parse_mode=ParseMode.HTML,
     )
