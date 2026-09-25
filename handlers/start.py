@@ -82,16 +82,16 @@ async def cmd_start(message: Message, session, bot: Bot, state: FSMContext):
         await _redeem_check_deeplink(message, session, check_code)
         return
 
-    # Base menu-r moto same reply keyboard ekhaneo use kora holo jate start korlei menu button gulo chole ashe
+    # Base menu reply keyboard
     kb = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="💰 আয়"), KeyboardButton(text="📢 প্রচার করুন")],
             [KeyboardButton(text="🎫 চেক"), KeyboardButton(text="👤 আমার কেবিনেট")],
-            [KeyboardButton(text="🛡️ সাবস্ক্রিপশন চেক"), KeyboardButton(text="📊 আমাদের বট ও প...")],
+            [KeyboardButton(text="🛡️ সাবস্ক্রিপশন চেক"), KeyboardButton(text="📊 আমাদের বট ও পরিসংখ্যান")],
             [KeyboardButton(text="🔗 দরকারি লিংক"), KeyboardButton(text="ℹ️ নির্দেশিকা")]
         ],
         resize_keyboard=True
-    ]
+    )
 
     welcome_text = t(user.language, "welcome", bot_name=esc(BOT_USERNAME), first_name=esc(message.from_user.first_name))
     
