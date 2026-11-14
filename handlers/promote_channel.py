@@ -75,33 +75,47 @@ async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_cha
         f"👤 <b>I'm not an admin</b> — pick any public {kind_en}, or just send its <code>@username</code> / link\n\n"
         "⚠️ In both cases the bot must be an <b>admin</b> there (with invite permission), otherwise members cannot be verified.",
     )
-    bot_rights = _no_rights(can_manage_chat=True, can_invite_users=True)
-    admin_btn = KeyboardButton(
-        text=L(lang, "🏠 আমি অ্যাডমিন", "🏠 I'm an admin"),
-        request_chat=KeyboardButtonRequestChat(
-            request_id=REQ_CHANNEL if is_channel else REQ_GROUP,
-            chat_is_channel=is_channel,
-            # Telegram requires bot rights to be a subset of the user's rights
-            user_administrator_rights=_no_rights(can_manage_chat=True, can_invite_users=True),
-            bot_administrator_rights=bot_rights,
-            bot_is_member=True,
-        ),
-    )
-    any_btn = KeyboardButton(
-        text=L(lang, "👤 আমি অ্যাডমিন নই", "👤 I'm not an admin"),
-        request_chat=KeyboardButtonRequestChat(
-            request_id=REQ_CHANNEL_ANY if is_channel else REQ_GROUP_ANY,
-            chat_is_channel=is_channel,
-            chat_has_username=True,
-            bot_administrator_rights=bot_rights,
-            bot_is_member=True,
-        ),
-    )
-    kb = ReplyKeyboardMarkup(
-        keyboard=[[admin_btn], [any_btn], [KeyboardButton(text=L(lang, "❌ বাতিল", "❌ Cancel"))]],
-        resize_keyboard=True,
-    )
-    await query.message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    cancel = [KeyboardButton(text=L(lang, "❌ বাতিল", "❌ Cancel"))]
+    admin_text = L(lang, "🏠 আমি অ্যাডমিন", "🏠 I'm an admin")
+    any_text = L(lang, "👤 আমি অ্যাডমিন নই", "👤 I'm not an admin")
+    admin_id = REQ_CHANNEL if is_channel else REQ_GROUP
+    any_id = REQ_CHANNEL_ANY if is_channel else REQ_GROUP_ANY
+
+    def keyboards():
+        # Telegram is strict about the combinations of right-requirements (bot rights must be a
+        # subset of the user's rights, etc). Try the strictest layout first and fall back to
+        # simpler ones instead of crashing: admin status is verified through the API anyway.
+        rights = _no_rights(can_manage_chat=True, can_invite_users=True)
+        yield [
+            [KeyboardButton(text=admin_text, request_chat=KeyboardButtonRequestChat(
+                request_id=admin_id, chat_is_channel=is_channel,
+                user_administrator_rights=rights, bot_administrator_rights=rights, bot_is_member=True))],
+            [KeyboardButton(text=any_text, request_chat=KeyboardButtonRequestChat(
+                request_id=any_id, chat_is_channel=is_channel, chat_has_username=True, bot_is_member=True))],
+            cancel,
+        ]
+        yield [
+            [KeyboardButton(text=admin_text, request_chat=KeyboardButtonRequestChat(
+                request_id=admin_id, chat_is_channel=is_channel))],
+            [KeyboardButton(text=any_text, request_chat=KeyboardButtonRequestChat(
+                request_id=any_id, chat_is_channel=is_channel))],
+            cancel,
+        ]
+        yield [cancel]   # last resort: user types @username / link
+
+    sent = False
+    for rows in keyboards():
+        try:
+            await query.message.answer(
+                text, reply_markup=ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True),
+                parse_mode=ParseMode.HTML)
+            sent = True
+            break
+        except TelegramBadRequest as e:
+            logger.warning(f"Chat picker keyboard rejected by Telegram ({e}); trying a simpler one")
+    if not sent:
+        await query.answer("❌ Error", show_alert=True)
+        return
     await query.answer()
 
 
