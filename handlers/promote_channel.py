@@ -156,17 +156,38 @@ async def handle_shared_chat(message: Message, state: FSMContext, session, bot: 
         link=link, task_type=task_type.value, premium=False,
     )
     await message.answer("✅", reply_markup=main_menu(lang))
+    rl = TaskPricing.get(task_type.value, False)
+    rp = TaskPricing.get(task_type.value, True)
     text = L(
         lang,
-        f"✅ <b>{esc(chat.title)}</b> সফলভাবে যোগ হয়েছে।\n\n🎯 <b>কারা এই টাস্ক করতে পারবে?</b>",
-        f"✅ <b>{esc(chat.title)}</b> added.\n\n🎯 <b>Who can complete this task?</b>",
+        f"🎯 <b>টাস্কের অডিয়েন্স</b> — {esc(chat.title)}\n\n"
+        f"<b>1️⃣ সব ব্যবহারকারী</b>\nসকল ব্যবহারকারীর মধ্যে বিস্তৃত পৌঁছানো।\n💡 সর্বনিম্ন মূল্য: {rl['min']:,} GRAM/ইউনিট।\n\n"
+        f"<b>2️⃣ শুধু Telegram Premium</b>\nশুধু Premium ব্যবহারকারীদের দেখানো হবে — আরও মানসম্মত অডিয়েন্স।\n💡 সর্বনিম্ন মূল্য: {rp['min']:,} GRAM/ইউনিট।",
+        f"🎯 <b>Task audience</b> — {esc(chat.title)}\n\n"
+        f"<b>1️⃣ All users</b>\nWide reach across all users.\n💡 Minimum price: {rl['min']:,} GRAM/unit.\n\n"
+        f"<b>2️⃣ Telegram Premium only</b>\nShown only to Premium users — a higher-quality audience.\n💡 Minimum price: {rp['min']:,} GRAM/unit.",
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=L(lang, "🌍 সব ব্যবহারকারী", "🌍 All users"), callback_data="promote:aud:all")],
-        [InlineKeyboardButton(text=L(lang, "⭐ শুধু Telegram Premium (২x মূল্য)", "⭐ Telegram Premium only (2x price)"), callback_data="promote:aud:premium")],
-        [InlineKeyboardButton(text=L(lang, "◀️ বাতিল", "◀️ Cancel"), callback_data="menu:promote")],
+        [InlineKeyboardButton(text=L(lang, "1️⃣ সব ব্যবহারকারী", "1️⃣ All users"), callback_data="promote:aud:all")],
+        [InlineKeyboardButton(text=L(lang, "2️⃣ শুধুমাত্র Telegram Premium", "2️⃣ Telegram Premium only"), callback_data="promote:aud:premium")],
+        [InlineKeyboardButton(text=L(lang, "◀️ ফিরে যান", "◀️ Back"), callback_data="menu:promote")],
     ])
     await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+
+
+async def _reply(ev, text: str, kb=None):
+    """Edit the message for callbacks, send a new one for text input."""
+    if isinstance(ev, CallbackQuery):
+        await ev.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+        await ev.answer()
+    else:
+        await ev.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+
+
+def _back_kb(lang: str, extra=None):
+    rows = list(extra or [])
+    rows.append([InlineKeyboardButton(text=L(lang, "◀️ ফিরে যান", "◀️ Back"), callback_data="menu:promote")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 @router.callback_query(F.data.in_({"promote:aud:all", "promote:aud:premium"}))
@@ -184,24 +205,73 @@ async def audience_chosen(query: CallbackQuery, state: FSMContext, session):
     text = L(
         lang,
         f"💲 <b>প্রতিটি সাবস্ক্রাইবারের জন্য পুরস্কার (GRAM) লিখুন</b>\n\n"
-        f"ন্যূনতম: <b>{rules['min']:,}</b>\nপ্রস্তাবিত: <b>{rules['suggested']:,}</b>\nসর্বোচ্চ: <b>{rules['max']:,}</b>\n\n"
-        "💡 পুরস্কার যত বেশি, টাস্ক তত দ্রুত সম্পন্ন হবে।",
+        f"ন্যূনতম: <b>{rules['min']:,}</b> · প্রস্তাবিত: <b>{rules['suggested']:,}</b> · সর্বোচ্চ: <b>{rules['max']:,}</b>\n\n"
+        "💡 পুরস্কার যত বেশি, টাস্ক তত দ্রুত সম্পন্ন হবে। নিচের বাটন চাপুন অথবা সংখ্যা লিখুন।",
         f"💲 <b>Enter the reward (GRAM) per subscriber</b>\n\n"
-        f"Minimum: <b>{rules['min']:,}</b>\nSuggested: <b>{rules['suggested']:,}</b>\nMaximum: <b>{rules['max']:,}</b>\n\n"
-        "💡 Higher rewards get completed faster.",
+        f"Min: <b>{rules['min']:,}</b> · Suggested: <b>{rules['suggested']:,}</b> · Max: <b>{rules['max']:,}</b>\n\n"
+        "💡 Higher rewards get completed faster. Tap a button or type a number.",
     )
-    await query.message.edit_text(text, parse_mode=ParseMode.HTML)
-    await query.answer()
+    kb = _back_kb(lang, [[
+        InlineKeyboardButton(text=f"{rules['min']:,}", callback_data=f"promote:price:{rules['min']}"),
+        InlineKeyboardButton(text=f"⭐ {rules['suggested']:,}", callback_data=f"promote:price:{rules['suggested']}"),
+    ]])
+    await _reply(query, text, kb)
+
+
+def _max_slots(balance: Decimal, reward: Decimal) -> int:
+    per_slot = reward * (1 + BusinessRules.PLATFORM_COMMISSION)
+    if per_slot <= 0:
+        return 0
+    return int(min(BusinessRules.CAMPAIGN_MAX_SLOTS, math.floor(balance / per_slot)))
+
+
+async def _ask_slots(ev, state: FSMContext, user, reward: Decimal):
+    lang = user.language if user else "bn"
+    await state.update_data(reward=str(reward))
+    await state.set_state(CampaignCreateState.slots)
+    bal = user.balance if user else Decimal(0)
+    mx = _max_slots(bal, reward)
+    pct = BusinessRules.PLATFORM_COMMISSION * 100
+    text = L(
+        lang,
+        f"ℹ️ টাস্ক তৈরির কমিশন — <b>{pct:.0f}%</b>\n\n"
+        f"<blockquote>💲 সাবস্ক্রিপশনের মূল্য — {reward:,.0f} GRAM\n💰 আপনার ব্যালেন্স — {bal:,.1f} GRAM</blockquote>\n"
+        "✏️ <b>সংখ্যা লিখুন: কতজন সাবস্ক্রাইবার চান</b>",
+        f"ℹ️ Task creation commission — <b>{pct:.0f}%</b>\n\n"
+        f"<blockquote>💲 Price per subscriber — {reward:,.0f} GRAM\n💰 Your balance — {bal:,.1f} GRAM</blockquote>\n"
+        "✏️ <b>Enter how many subscribers you want</b>",
+    )
+    extra = []
+    if mx >= BusinessRules.CAMPAIGN_MIN_SLOTS:
+        extra.append([InlineKeyboardButton(
+            text=L(lang, f"{mx:,} (আপনার ব্যালেন্সের সর্বোচ্চ সীমা)", f"{mx:,} (max for your balance)"),
+            callback_data=f"promote:qty:{mx}")])
+    else:
+        text += L(lang, "\n\n⚠️ ব্যালেন্স কম। প্রথমে ব্যালেন্স টপ-আপ করুন।", "\n\n⚠️ Not enough balance. Please top up first.")
+    await _reply(ev, text, _back_kb(lang, extra))
+
+
+@router.callback_query(F.data.startswith("promote:price:"))
+async def price_button(query: CallbackQuery, state: FSMContext, session):
+    data = await state.get_data()
+    if "task_type" not in data:
+        await query.answer("Session expired.", show_alert=True)
+        return
+    reward = Decimal(query.data.split(":")[2])
+    ok, msg = TaskPricing.validate(data["task_type"], reward, data.get("premium", False))
+    if not ok:
+        await query.answer(f"❌ {msg}", show_alert=True)
+        return
+    await _ask_slots(query, state, await _get_user(session, query.from_user.id), reward)
 
 
 @router.message(CampaignCreateState.reward)
 async def got_reward(message: Message, state: FSMContext, session):
     user = await _get_user(session, message.from_user.id)
     lang = user.language if user else "bn"
-    raw = safe_text(message)
     data = await state.get_data()
     try:
-        reward = Decimal((raw or "").replace(",", ""))
+        reward = Decimal((safe_text(message) or "").replace(",", ""))
         if not reward.is_finite() or reward != reward.to_integral_value():
             raise InvalidOperation
     except InvalidOperation:
@@ -211,13 +281,7 @@ async def got_reward(message: Message, state: FSMContext, session):
     if not ok:
         await message.answer(f"❌ {msg}")
         return
-    await state.update_data(reward=str(reward))
-    await state.set_state(CampaignCreateState.slots)
-    await message.answer(L(
-        lang,
-        f"👥 <b>কতজন ব্যবহারকারী চান?</b>\n\n{BusinessRules.CAMPAIGN_MIN_SLOTS} থেকে {BusinessRules.CAMPAIGN_MAX_SLOTS:,} এর মধ্যে লিখুন।",
-        f"👥 <b>How many users do you want?</b>\n\nSend a number between {BusinessRules.CAMPAIGN_MIN_SLOTS} and {BusinessRules.CAMPAIGN_MAX_SLOTS:,}.",
-    ), parse_mode=ParseMode.HTML)
+    await _ask_slots(message, state, user, reward)
 
 
 def _cost(reward: Decimal, slots: int):
@@ -226,19 +290,8 @@ def _cost(reward: Decimal, slots: int):
     return budget, fee, budget + fee
 
 
-@router.message(CampaignCreateState.slots)
-async def got_slots(message: Message, state: FSMContext, session):
-    user = await _get_user(session, message.from_user.id)
+async def _show_ready(ev, state: FSMContext, user, slots: int):
     lang = user.language if user else "bn"
-    raw = safe_text(message)
-    try:
-        slots = int(raw or "")
-        if not BusinessRules.CAMPAIGN_MIN_SLOTS <= slots <= BusinessRules.CAMPAIGN_MAX_SLOTS:
-            raise ValueError
-    except ValueError:
-        await message.answer(L(lang, f"❌ {BusinessRules.CAMPAIGN_MIN_SLOTS}–{BusinessRules.CAMPAIGN_MAX_SLOTS:,} এর মধ্যে একটি সংখ্যা দিন।",
-                               f"❌ Send a number between {BusinessRules.CAMPAIGN_MIN_SLOTS} and {BusinessRules.CAMPAIGN_MAX_SLOTS:,}."))
-        return
     data = await state.get_data()
     reward = Decimal(data["reward"])
     budget, fee, total = _cost(reward, slots)
@@ -246,22 +299,45 @@ async def got_slots(message: Message, state: FSMContext, session):
     await state.set_state(None)
     text = L(
         lang,
-        f"🧾 <b>ক্যাম্পেইন সারসংক্ষেপ</b>\n\n📢 {esc(data['title'])}\n"
-        f"💲 প্রতি ইউজার: <b>{reward:,.0f}</b> GRAM\n👥 ইউজার: <b>{slots:,}</b>\n"
-        f"💰 বাজেট: <b>{budget:,.0f}</b>\n🏷 প্ল্যাটফর্ম ফি ({BusinessRules.PLATFORM_COMMISSION * 100:.0f}%): <b>{fee:,.0f}</b>\n"
-        f"➖ <b>মোট কাটা হবে: {total:,.0f} GRAM</b>\n\n"
-        f"আপনার ব্যালেন্স: {(user.balance if user else 0):,.0f} GRAM",
-        f"🧾 <b>Campaign summary</b>\n\n📢 {esc(data['title'])}\n"
-        f"💲 Per user: <b>{reward:,.0f}</b> GRAM\n👥 Users: <b>{slots:,}</b>\n"
-        f"💰 Budget: <b>{budget:,.0f}</b>\n🏷 Platform fee ({BusinessRules.PLATFORM_COMMISSION * 100:.0f}%): <b>{fee:,.0f}</b>\n"
-        f"➖ <b>Total charge: {total:,.0f} GRAM</b>\n\n"
-        f"Your balance: {(user.balance if user else 0):,.0f} GRAM",
+        f"✅ <b>প্রকাশের জন্য সব প্রস্তুত</b>\n\n📢 {esc(data['title'])}\n"
+        f"👥 সাবস্ক্রাইবার: <b>{slots:,}</b> × <b>{reward:,.0f}</b> GRAM = {budget:,.0f}\n"
+        f"🏷 কমিশন ({BusinessRules.PLATFORM_COMMISSION * 100:.0f}%): {fee:,.0f}\n"
+        f"💲 <b>মোট কাটা হবে: {total:,.0f} GRAM</b>\n\nপোস্ট করতে «কাজ প্রকাশ করুন» চাপুন।",
+        f"✅ <b>Ready to publish</b>\n\n📢 {esc(data['title'])}\n"
+        f"👥 Subscribers: <b>{slots:,}</b> × <b>{reward:,.0f}</b> GRAM = {budget:,.0f}\n"
+        f"🏷 Commission ({BusinessRules.PLATFORM_COMMISSION * 100:.0f}%): {fee:,.0f}\n"
+        f"💲 <b>Total charge: {total:,.0f} GRAM</b>\n\nTap “Publish task” to post it.",
     )
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=L(lang, "✅ নিশ্চিত করুন ও পেমেন্ট", "✅ Confirm & pay"), callback_data="promote:confirm")],
-        [InlineKeyboardButton(text=L(lang, "❌ বাতিল", "❌ Cancel"), callback_data="menu:promote")],
-    ])
-    await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    kb = _back_kb(lang, [[InlineKeyboardButton(text=L(lang, "কাজ প্রকাশ করুন", "Publish task"), callback_data="promote:confirm")]])
+    await _reply(ev, text, kb)
+
+
+@router.callback_query(F.data.startswith("promote:qty:"))
+async def qty_button(query: CallbackQuery, state: FSMContext, session):
+    data = await state.get_data()
+    if "reward" not in data:
+        await query.answer("Session expired.", show_alert=True)
+        return
+    slots = int(query.data.split(":")[2])
+    if not BusinessRules.CAMPAIGN_MIN_SLOTS <= slots <= BusinessRules.CAMPAIGN_MAX_SLOTS:
+        await query.answer("❌", show_alert=True)
+        return
+    await _show_ready(query, state, await _get_user(session, query.from_user.id), slots)
+
+
+@router.message(CampaignCreateState.slots)
+async def got_slots(message: Message, state: FSMContext, session):
+    user = await _get_user(session, message.from_user.id)
+    lang = user.language if user else "bn"
+    try:
+        slots = int(safe_text(message) or "")
+        if not BusinessRules.CAMPAIGN_MIN_SLOTS <= slots <= BusinessRules.CAMPAIGN_MAX_SLOTS:
+            raise ValueError
+    except ValueError:
+        await message.answer(L(lang, f"❌ {BusinessRules.CAMPAIGN_MIN_SLOTS}–{BusinessRules.CAMPAIGN_MAX_SLOTS:,} এর মধ্যে একটি সংখ্যা দিন।",
+                               f"❌ Send a number between {BusinessRules.CAMPAIGN_MIN_SLOTS} and {BusinessRules.CAMPAIGN_MAX_SLOTS:,}."))
+        return
+    await _show_ready(message, state, user, slots)
 
 
 @router.callback_query(F.data == "promote:confirm")
@@ -301,6 +377,7 @@ async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
             await query.answer(L(lang, "❌ এই চ্যাটের ক্যাম্পেইন আগে থেকেই আছে।", "❌ A campaign for this chat already exists."), show_alert=True)
             return
 
+        await query.message.edit_text(L(lang, "⏳ কাজ তৈরি হচ্ছে, দয়া করে অপেক্ষা করুন...", "⏳ Creating your task, please wait..."))
         c = Campaign(
             advertiser_id=uid, title=data["title"], task_type=TaskType(data["task_type"]),
             target_chat_id=data["chat_id"], target_username=data.get("username"),
@@ -319,14 +396,15 @@ async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
         ))
         await session.commit()
         await state.clear()
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=L(lang, "📋 আমার কাজ", "📋 My tasks"), callback_data="promote:my_tasks")],
+            [InlineKeyboardButton(text=L(lang, "◀️ ফিরে যান", "◀️ Back"), callback_data="menu:promote")],
+        ])
         await query.message.edit_text(L(
             lang,
-            f"🚀 <b>ক্যাম্পেইন চালু হয়েছে!</b>\n\n📢 {esc(data['title'])}\n👥 {slots:,} জন · 💲 {reward:,.0f} GRAM\n\n"
-            "‘📋 আমার ক্যাম্পেইন’ থেকে অগ্রগতি দেখুন ও ম্যানেজ করুন।",
-            f"🚀 <b>Campaign is live!</b>\n\n📢 {esc(data['title'])}\n👥 {slots:,} users · 💲 {reward:,.0f} GRAM\n\n"
-            "Track and manage it under ‘📋 My campaigns’.",
-        ), parse_mode=ParseMode.HTML)
-        await query.answer("✅")
+            f"✅ <b>টাস্ক №{c.id[:8].upper()} প্রকাশিত হয়েছে</b>\n💲 ব্যালেন্স থেকে কাটা হয়েছে: {total:,.1f} GRAM",
+            f"✅ <b>Task №{c.id[:8].upper()} published</b>\n💲 Deducted from balance: {total:,.1f} GRAM",
+        ), reply_markup=kb, parse_mode=ParseMode.HTML)
     except Exception as e:
         await session.rollback()
         logger.exception(f"Campaign create failed: {e}")

@@ -17,6 +17,8 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "BoostGramBot")
 DATABASE_URL = os.getenv("DATABASE_URL")
 REDIS_URL = os.getenv("REDIS_URL")
 ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "")
+# Optional banner (GIF/MP4/PNG URL or Telegram file_id) shown with the welcome message
+WELCOME_MEDIA_URL = os.getenv("WELCOME_MEDIA_URL", "")
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "")
 if not ENCRYPTION_KEY:
     # Do not crash a running deployment, but make the weakness very visible.
@@ -57,7 +59,7 @@ class BusinessRules:
     MAX_TASKS_PER_DAY = 100            # per user, rolling 24h
     RISK_BLOCK_SCORE = 50              # risk_score >= this => cannot do tasks / withdraw
     MAX_PENDING_WITHDRAWALS = 1
-    CAMPAIGN_MIN_SLOTS = 10
+    CAMPAIGN_MIN_SLOTS = 1
     CAMPAIGN_MAX_SLOTS = 10000
     CHECK_MAX_AMOUNT = Decimal("1000000")
     CHECK_MAX_PASSWORD_ATTEMPTS = 5

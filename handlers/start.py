@@ -7,7 +7,7 @@ from aiogram.types import Message
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 
-from config import BOT_USERNAME
+from config import BOT_USERNAME, WELCOME_MEDIA_URL, logger
 from database import User
 from localization import L10N, t
 from keyboards import main_menu
@@ -66,11 +66,21 @@ async def cmd_start(message: Message, session, bot: Bot, state: FSMContext):
     # (see services.settle_referrals). Paying on /start was trivially farmable.
     await session.commit()
 
-    await message.answer(
-        t(user.language, "welcome", bot_name=esc(BOT_USERNAME), first_name=esc(message.from_user.first_name)),
-        reply_markup=main_menu(user.language),
-        parse_mode=ParseMode.HTML,
-    )
+    welcome = t(user.language, "welcome", bot_name=esc(BOT_USERNAME), first_name=esc(message.from_user.first_name))
+    kb = main_menu(user.language)
+    sent = False
+    if WELCOME_MEDIA_URL and len(welcome) <= 1024:
+        # Banner is optional; any failure falls back to plain text.
+        for method in (message.answer_animation, message.answer_photo):
+            try:
+                kw = {"animation" if method == message.answer_animation else "photo": WELCOME_MEDIA_URL}
+                await method(caption=welcome, reply_markup=kb, parse_mode=ParseMode.HTML, **kw)
+                sent = True
+                break
+            except Exception as e:
+                logger.debug(f"welcome media via {method.__name__} failed: {e}")
+    if not sent:
+        await message.answer(welcome, reply_markup=kb, parse_mode=ParseMode.HTML)
 
     if check_code:
         from handlers.checks import _redeem_check_deeplink

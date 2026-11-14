@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy import select, func
 from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, PreCheckoutQuery, LabeledPrice
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, PreCheckoutQuery, LabeledPrice
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
@@ -314,15 +314,62 @@ async def wd_details(message: Message, session, state: FSMContext, bot: Bot):
             pass
 
 
+TOPUP_PACKAGES = (50, 100, 250, 750, 1499, 2499)
+
+
+def _pkg_kb(lang: str) -> InlineKeyboardMarkup:
+    rate = int(BusinessRules.STAR_TO_COIN_RATE)
+    rows = [[InlineKeyboardButton(text=f"{n * rate:,} GRAM = {n}⭐", callback_data=f"cab:pkg:{n}")] for n in TOPUP_PACKAGES]
+    rows.append([InlineKeyboardButton(text=L(lang, "⭐ কাস্টম পরিমাণ", "⭐ Custom amount"), callback_data="cab:pkg:custom")])
+    rows.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="cab:back")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _send_invoice(bot, chat_id: int, n: int):
+    coins = n * int(BusinessRules.STAR_TO_COIN_RATE)
+    await bot.send_invoice(
+        chat_id=chat_id, title="GRAM Top-Up", description=f"{coins:,} GRAM",
+        payload=f"topup_{n}", currency="XTR",
+        prices=[LabeledPrice(label=f"{coins:,} GRAM", amount=n)],
+    )
+
+
 @router.callback_query(F.data == "cab:replenish")
 async def cab_top(query: CallbackQuery, session, state: FSMContext):
     user = await get_user(session, query.from_user.id)
     lang = user.language if user else "en"
-    await query.message.answer(
-        f"⭐ <b>Top-up with Stars</b>\n\n1 Star = <code>{BusinessRules.STAR_TO_COIN_RATE:,.0f}</code> GRAM\n\nSend stars amount:",
-        parse_mode=ParseMode.HTML,
-    )
-    await state.set_state(TopUpState.stars)
+    await state.clear()
+    await query.message.edit_text(
+        L(lang, "⭐ <b>ব্যালেন্স টপ-আপ</b>\n\nTelegram Stars দিয়ে পেমেন্ট করুন। একটি প্যাকেজ বেছে নিন:",
+                "⭐ <b>Top up balance</b>\n\nPay with Telegram Stars. Choose a package:"),
+        reply_markup=_pkg_kb(lang), parse_mode=ParseMode.HTML)
+    await query.answer()
+
+
+@router.callback_query(F.data.startswith("cab:pkg:"))
+async def cab_pkg(query: CallbackQuery, session, state: FSMContext):
+    user = await get_user(session, query.from_user.id)
+    lang = user.language if user else "en"
+    if not user or user.is_blocked:
+        await query.answer()
+        return
+    choice = query.data.split(":")[2]
+    if choice == "custom":
+        await query.message.answer(
+            L(lang, f"⭐ কত Stars দিতে চান? (১ Star = {int(BusinessRules.STAR_TO_COIN_RATE):,} GRAM)\n১–১০০০০ এর মধ্যে সংখ্যা পাঠান:",
+                    f"⭐ How many Stars? (1 Star = {int(BusinessRules.STAR_TO_COIN_RATE):,} GRAM)\nSend a number from 1 to 10000:"))
+        await state.set_state(TopUpState.stars)
+        await query.answer()
+        return
+    try:
+        n = int(choice)
+    except ValueError:
+        await query.answer()
+        return
+    if n not in TOPUP_PACKAGES:
+        await query.answer("❌", show_alert=True)
+        return
+    await _send_invoice(query.bot, query.message.chat.id, n)
     await query.answer()
 
 
@@ -339,12 +386,7 @@ async def topup(message: Message, state: FSMContext):
         await message.answer("❌ 1-10000.")
         return
     await state.clear()
-    await message.bot.send_invoice(
-        chat_id=message.chat.id, title="GRAM Top-Up",
-        description=f"{n * int(BusinessRules.STAR_TO_COIN_RATE):,} GRAM",
-        payload=f"topup_{n}", currency="XTR",
-        prices=[LabeledPrice(label=f"{n * int(BusinessRules.STAR_TO_COIN_RATE):,} GRAM", amount=n)],
-    )
+    await _send_invoice(message.bot, message.chat.id, n)
 
 
 def _parse_topup_payload(payload: str):
