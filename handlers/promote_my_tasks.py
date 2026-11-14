@@ -150,15 +150,16 @@ async def campaign_action(query: CallbackQuery, session):
         return
 
     if action == "cancel":
+        camp_id, refund = c.id, _remaining(c)   # read BEFORE rollback (it expires ORM objects)
         await session.rollback()
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=L(lang, "✅ হ্যাঁ, মুছুন", "✅ Yes, delete"), callback_data=f"promote:mng:cancelok:{c.id}")],
-            [InlineKeyboardButton(text=L(lang, "◀️ না", "◀️ No"), callback_data=f"promote:ch:manage:{c.id}")],
+            [InlineKeyboardButton(text=L(lang, "✅ হ্যাঁ, মুছুন", "✅ Yes, delete"), callback_data=f"promote:mng:cancelok:{camp_id}")],
+            [InlineKeyboardButton(text=L(lang, "◀️ না", "◀️ No"), callback_data=f"promote:ch:manage:{camp_id}")],
         ])
         await query.message.edit_text(L(
             lang,
-            f"🛑 কাজটি মুছলে <b>{_remaining(c):,.0f} GRAM</b> ফেরত পাবেন। (প্ল্যাটফর্ম কমিশন ফেরতযোগ্য নয়)",
-            f"🛑 Deleting refunds <b>{_remaining(c):,.0f} GRAM</b>. (The platform commission is non-refundable.)"),
+            f"🛑 কাজটি মুছলে <b>{refund:,.0f} GRAM</b> ফেরত পাবেন। (প্ল্যাটফর্ম কমিশন ফেরতযোগ্য নয়)",
+            f"🛑 Deleting refunds <b>{refund:,.0f} GRAM</b>. (The platform commission is non-refundable.)"),
             reply_markup=kb, parse_mode=ParseMode.HTML)
         await query.answer()
         return

@@ -103,10 +103,12 @@ async def chk_final(message: Message, session, state: FSMContext):
         await session.rollback()
         await message.answer(t("en", "not_started"))
         return
-    if user.is_blocked or user.balance < total:
+    # NOTE: rollback() expires every ORM object; read what we need BEFORE it.
+    lang, bal, blocked = user.language, user.balance, user.is_blocked
+    if blocked or bal < total:
         await session.rollback()
         await message.answer(
-            t(user.language, "promote_insufficient", required=total, balance=user.balance),
+            t(lang, "promote_insufficient", required=total, balance=bal),
             parse_mode=ParseMode.HTML,
         )
         return

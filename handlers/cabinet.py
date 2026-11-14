@@ -274,14 +274,15 @@ async def wd_details(message: Message, session, state: FSMContext, bot: Bot):
             await session.rollback()
             await message.answer("❌ Not allowed.")
             return
+        lang = user.language   # read before any rollback (rollback expires ORM objects)
         if await pending_withdrawals(session, uid) >= BusinessRules.MAX_PENDING_WITHDRAWALS:
             await session.rollback()
-            await message.answer(L(user.language, "⏳ আগের উইথড্র শেষ না হওয়া পর্যন্ত নতুন অনুরোধ করা যাবে না।",
+            await message.answer(L(lang, "⏳ আগের উইথড্র শেষ না হওয়া পর্যন্ত নতুন অনুরোধ করা যাবে না।",
                                    "⏳ Wait until your previous withdrawal is processed."))
             return
         if amount > await withdrawable(session, user):
             await session.rollback()
-            await message.answer(t(user.language, "wd_insufficient"))
+            await message.answer(t(lang, "wd_insufficient"))
             return
         # Funds are held (deducted) now. total_withdrawn only grows when an admin
         # approves; a rejection refunds the held amount.
@@ -297,18 +298,19 @@ async def wd_details(message: Message, session, state: FSMContext, bot: Bot):
             description=f"Withdrawal: {method}", reference_id=wd.id,
             reference_type="withdrawal", balance_after=user.balance,
         ))
+        wd_id, u_name, u_level, u_tasks, u_risk = wd.id, user.first_name, user.level, user.completed_tasks_count, user.risk_score
         await session.commit()
     finally:
         await redis_client.delete(lock)
 
-    await message.answer(t(user.language, "wd_submitted", amount=amount), parse_mode=ParseMode.HTML)
+    await message.answer(t(lang, "wd_submitted", amount=amount), parse_mode=ParseMode.HTML)
     from keyboards import withdrawal_review_kb
     for aid in ADMIN_IDS:
         try:
             await bot.send_message(aid,
-                f"💸 <b>Withdrawal</b>\n\n👤 <code>{uid}</code> ({esc(user.first_name)})\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n📝 <code>{esc(details[:200])}</code>\n"
-                f"📊 Level {user.level} · tasks {user.completed_tasks_count} · risk {user.risk_score}",
-                reply_markup=withdrawal_review_kb(wd.id),
+                f"💸 <b>Withdrawal</b>\n\n👤 <code>{uid}</code> ({esc(u_name)})\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n📝 <code>{esc(details[:200])}</code>\n"
+                f"📊 Level {u_level} · tasks {u_tasks} · risk {u_risk}",
+                reply_markup=withdrawal_review_kb(wd_id),
                 parse_mode=ParseMode.HTML)
         except Exception:
             pass
