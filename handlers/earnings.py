@@ -50,11 +50,7 @@ async def _render_categories(message, session, user, edit=False):
         )
         counts[key] = r.scalar() or 0
 
-    text = L(
-        user.language,
-        "💰 <b>টাস্কের ধরন বেছে নিন</b>\n\nটাস্ক সম্পন্ন করে GRAM কয়েন আয় করুন:",
-        "💰 <b>Select Task Category</b>\n\nComplete tasks to earn GRAM coins:",
-    )
+    text = t(user.language, "earn_choose")
     kb = category_kb(user.language, counts)
     if edit:
         try:
@@ -96,77 +92,116 @@ async def earn_category(query: CallbackQuery, session):
     await query.answer()
 
 
-async def _show_task_list(query, session, task_type, page):
-    user = await get_user(session, query.from_user.id)
-    lang = user.language if user else "en"
-
-    done_sub = select(TaskCompletion.campaign_id).where(TaskCompletion.user_id == query.from_user.id)
+def _task_filters(uid: int, user, task_type):
+    done_sub = select(TaskCompletion.campaign_id).where(TaskCompletion.user_id == uid)
     base = [
         Campaign.status == CampaignStatus.ACTIVE,
         Campaign.completed_count < Campaign.max_completions,
         Campaign.id.not_in(done_sub),
-        Campaign.advertiser_id != query.from_user.id,
+        Campaign.advertiser_id != uid,
         Campaign.task_type.in_([TaskType(x) for x in BusinessRules.EARNABLE_TASK_TYPES]),
     ]
-
-    # Fixed: Safely convert task_type string to TaskType Enum only when non-empty
     if task_type:
         try:
-            enum_tt = TaskType(task_type) if isinstance(task_type, str) else task_type
-            base.append(Campaign.task_type == enum_tt)
+            base.append(Campaign.task_type == (TaskType(task_type) if isinstance(task_type, str) else task_type))
         except ValueError:
-            pass  # Empty or invalid string skip filter
-
+            pass
     if not (user and user.is_premium):
-        base.append(Campaign.premium_only == False)
+        base.append(Campaign.premium_only == False)  # noqa: E712
+    return base
 
-    total_res = await session.execute(select(func.count(Campaign.id)).where(*base))
-    total = total_res.scalar() or 0
-    pages = max(1, (total + BusinessRules.TASKS_PAGE_SIZE - 1) // BusinessRules.TASKS_PAGE_SIZE)
 
-    stmt = (
-        select(Campaign)
-        .where(*base)
-        .order_by(Campaign.created_at.desc())
-        .offset(page * BusinessRules.TASKS_PAGE_SIZE)
-        .limit(BusinessRules.TASKS_PAGE_SIZE)
-    )
-    r = await session.execute(stmt)
-    items = r.scalars().all()
+async def _page_items(session, uid, user, task_type, page):
+    base = _task_filters(uid, user, task_type)
+    total = (await session.execute(select(func.count(Campaign.id)).where(*base))).scalar() or 0
+    size = BusinessRules.TASKS_PAGE_SIZE
+    pages = max(1, (total + size - 1) // size)
+    page = min(max(page, 0), pages - 1)
+    items = (await session.execute(
+        select(Campaign).where(*base).order_by(Campaign.reward_per_user.desc(), Campaign.created_at.desc())
+        .offset(page * size).limit(size))).scalars().all()
+    return items, total, pages, page
+
+
+def _open_link(c) -> str:
+    link = c.target_link or (f"https://t.me/{c.target_username}" if c.target_username else None)
+    return link if link and link.startswith("http") else f"https://t.me/{BOT_USERNAME}"
+
+
+async def _show_task_list(query, session, task_type, page):
+    user = await get_user(session, query.from_user.id)
+    lang = user.language if user else "en"
+    items, total, pages, page = await _page_items(session, query.from_user.id, user, task_type, page)
 
     buttons = []
     for c in items:
+        verb = "Join" if c.task_type == TaskType.GROUP_JOIN else "Subscribe"
+        verb = {"Join": "জয়েন", "Subscribe": "সাবস্ক্রাইব"}[verb] if lang == "bn" else verb
         star = "⭐ " if c.premium_only else ""
-        buttons.append([InlineKeyboardButton(
-            text=f"{star}{c.title[:30]} · +{c.reward_per_user:,.0f}",
-            callback_data=f"earn:view:{c.id}",
-        )])
-
+        buttons.append([
+            InlineKeyboardButton(text=f"💲 {star}+{c.reward_per_user:,.0f} | {verb} ↗", url=_open_link(c)),
+            InlineKeyboardButton(text="🔄 " + L(lang, "যাচাই", "Check"), callback_data=f"earn:verify:{c.id}"),
+        ])
     if items:
         if pages > 1:
-            nav = []
-            if page > 0:
-                nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"earn:page:{task_type}:{page-1}"))
-            nav.append(InlineKeyboardButton(text=f"{page+1}/{pages}", callback_data="noop"))
-            if page < pages - 1:
-                nav.append(InlineKeyboardButton(text="➡️", callback_data=f"earn:page:{task_type}:{page+1}"))
-            buttons.append(nav)
-
+            buttons.append([
+                InlineKeyboardButton(text="1", callback_data=f"earn:page:{task_type}:0"),
+                InlineKeyboardButton(text="<", callback_data=f"earn:page:{task_type}:{max(page - 1, 0)}"),
+                InlineKeyboardButton(text=str(page + 1), callback_data="noop"),
+                InlineKeyboardButton(text=">", callback_data=f"earn:page:{task_type}:{min(page + 1, pages - 1)}"),
+                InlineKeyboardButton(text=str(pages), callback_data=f"earn:page:{task_type}:{pages - 1}"),
+            ])
+        buttons.append([InlineKeyboardButton(text="🚩 " + L(lang, "রিপোর্ট", "Report"), callback_data=f"earn:rpt:{task_type}:{page}")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="earn:back")])
     text = (
-        L(lang, f"🎯 <b>উপলব্ধ টাস্ক</b> ({total})", f"🎯 <b>Available Tasks</b> ({total})")
+        L(lang, "🎯 <b>উপলব্ধ টাস্ক</b>\n\nচ্যানেল/গ্রুপে যোগ দিতে বাটনে চাপুন, তারপর <b>যাচাই</b> চাপুন।\n"
+                f"⚠️ কমপক্ষে {BusinessRules.RETENTION_DAYS} দিন থাকতে হবে।",
+                "🎯 <b>Available tasks</b>\n\nTap the button to join, then press <b>Check</b>.\n"
+                f"⚠️ You must stay for at least {BusinessRules.RETENTION_DAYS} days.")
         if items else t(lang, "no_tasks")
     )
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
     try:
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode=ParseMode.HTML)
+        await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     except TelegramBadRequest:
-        await query.message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode=ParseMode.HTML)
+        await query.message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
 
 
 @router.callback_query(F.data.startswith("earn:page:"))
 async def earn_page(query: CallbackQuery, session):
-    _, _, tt, p = query.data.split(":")
-    await _show_task_list(query, session, tt, int(p))
+    try:
+        _, _, tt, p = query.data.split(":")
+        await _show_task_list(query, session, tt, int(p))
+    except ValueError:
+        pass
+    await query.answer()
+
+
+@router.callback_query(F.data == "earn:soon")
+async def earn_soon(query: CallbackQuery, session):
+    user = await get_user(session, query.from_user.id)
+    lang = user.language if user else "en"
+    await query.answer(L(lang, "🔜 এই ধরনের টাস্ক নিরাপদে যাচাই করার ব্যবস্থা তৈরি হলে চালু হবে।",
+                         "🔜 This task type will open once it can be verified securely."), show_alert=True)
+
+
+@router.callback_query(F.data.startswith("earn:rpt:"))
+async def earn_report_menu(query: CallbackQuery, session):
+    try:
+        _, _, tt, p = query.data.split(":")
+        page = int(p)
+    except ValueError:
+        await query.answer()
+        return
+    user = await get_user(session, query.from_user.id)
+    lang = user.language if user else "en"
+    items, _, _, page = await _page_items(session, query.from_user.id, user, tt, page)
+    rows = [[InlineKeyboardButton(text=f"🚩 {c.title[:28]} · +{c.reward_per_user:,.0f}", callback_data=f"earn:report:{c.id}")] for c in items]
+    rows.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data=f"earn:page:{tt}:{page}")])
+    await query.message.edit_text(
+        L(lang, "🚩 <b>কোন টাস্কটি রিপোর্ট করবেন?</b>\nশুধু ভুয়া বা বিভ্রান্তিকর টাস্ক রিপোর্ট করুন।",
+                "🚩 <b>Which task do you want to report?</b>\nOnly report fake or misleading tasks."),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode=ParseMode.HTML)
     await query.answer()
 
 
@@ -216,13 +251,21 @@ async def earn_verify(query: CallbackQuery, session, bot: Bot):
     uid = query.from_user.id
     lock = f"lock:task:{uid}:{cid}"
     if not await redis_client.set(lock, "1", nx=True, ex=15):
-        await query.answer("⏳ Processing...", show_alert=True)
+        await query.answer("⏳", show_alert=False)
         return
     try:
-        ok, msg, current_task_type = await _process_task(session, bot, uid, cid)
-        await query.answer(msg[:200], show_alert=True)
+        ok, msg, _tt = await _process_task(session, bot, uid, cid)
+        user = await get_user(session, uid)
+        lang = user.language if user else "en"
         if ok:
-            await _show_task_list(query, session, current_task_type or "", 0)
+            await query.answer()
+            await query.message.answer(msg, parse_mode=ParseMode.HTML)
+            await _render_categories(query.message, session, user, edit=False)
+        elif msg == t(lang, "task_failed"):
+            await query.answer()
+            await query.message.answer(msg)
+        else:
+            await query.answer(msg[:200], show_alert=True)
     finally:
         await redis_client.delete(lock)
 
@@ -334,7 +377,7 @@ async def _process_task(session, bot, uid, cid):
         pipe.incr(day_key)
         pipe.expire(day_key, 86400)
         await pipe.execute()
-        return True, t(lang, "task_verified", reward=reward, xp=xp), task_type_val
+        return True, t(lang, "task_completed", tid=cid[:8].upper(), reward=reward, balance=user.balance), task_type_val
     except Exception as e:
         await session.rollback()
         logger.exception(f"Task error: {e}")
