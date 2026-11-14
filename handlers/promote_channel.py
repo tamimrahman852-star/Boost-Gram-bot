@@ -5,6 +5,7 @@ The bot verifies with Telegram that (a) the user really is an admin of the chat 
 (b) the bot is an admin there, otherwise nobody could be verified later.
 """
 import math
+import re
 from decimal import Decimal, InvalidOperation
 
 from aiogram import Router, F, Bot
@@ -28,7 +29,8 @@ from helpers import esc, safe_text, L, CampaignCreateState
 router = Router()
 
 CANCEL_TEXTS = {"❌ বাতিল", "❌ Cancel"}
-REQ_CHANNEL, REQ_GROUP = 1, 2
+REQ_CHANNEL, REQ_GROUP, REQ_CHANNEL_ANY, REQ_GROUP_ANY = 1, 2, 3, 4
+_USERNAME_RE = re.compile(r"^(?:https?://)?(?:t(?:elegram)?\.me/)?@?([A-Za-z][A-Za-z0-9_]{3,31})/?$")
 
 
 def _no_rights(**on) -> ChatAdministratorRights:
@@ -57,29 +59,46 @@ async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_cha
         await query.answer(L(lang, f"সর্বোচ্চ {BusinessRules.MAX_ACTIVE_CAMPAIGNS}টি সক্রিয় ক্যাম্পেইন চালানো যায়।",
                                f"Maximum {BusinessRules.MAX_ACTIVE_CAMPAIGNS} active campaigns allowed."), show_alert=True)
         return
+    # While this step is open, a typed @username / t.me link is also accepted.
+    await state.set_state(CampaignCreateState.target)
+    await state.update_data(is_channel=is_channel)
+
     kind_bn, kind_en = ("চ্যানেল", "channel") if is_channel else ("গ্রুপ", "group")
     text = L(
         lang,
-        f"📢 <b>প্রচারের জন্য {kind_bn} বেছে নিন</b>\n\n"
-        f"১) নিচের বাটনে চাপুন এবং আপনার {kind_bn} সিলেক্ট করুন\n"
-        "২) বটকে সেই চ্যাটে <b>অ্যাডমিন</b> বানান (ইনভাইট পারমিশনসহ) — নাহলে সদস্য যাচাই করা যাবে না",
-        f"📢 <b>Choose the {kind_en} to promote</b>\n\n"
-        f"1) Tap the button below and pick your {kind_en}\n"
-        "2) Make the bot an <b>admin</b> there (with invite permission) — otherwise members cannot be verified",
+        f"📢 <b>প্রমোশনের জন্য {kind_bn} বেছে নিন</b> (বটকে অ্যাডমিন হতে হবে)\n\n"
+        f"🏠 <b>আমি অ্যাডমিন</b> — আপনি যে {kind_bn}-এর অ্যাডমিন সেটি বেছে নিন\n"
+        f"👤 <b>আমি অ্যাডমিন নই</b> — যেকোনো পাবলিক {kind_bn} বেছে নিন, অথবা সরাসরি <code>@username</code> / লিংক পাঠান\n\n"
+        "⚠️ দুই ক্ষেত্রেই বটকে সেই চ্যাটে <b>অ্যাডমিন</b> (ইনভাইট পারমিশনসহ) বানাতে হবে, নাহলে সদস্য যাচাই করা যাবে না।",
+        f"📢 <b>Choose a {kind_en} to promote</b> (the bot must be an admin there)\n\n"
+        f"🏠 <b>I'm an admin</b> — pick a {kind_en} you administer\n"
+        f"👤 <b>I'm not an admin</b> — pick any public {kind_en}, or just send its <code>@username</code> / link\n\n"
+        "⚠️ In both cases the bot must be an <b>admin</b> there (with invite permission), otherwise members cannot be verified.",
     )
-    pick = KeyboardButton(
-        text=L(lang, f"🏠 আমার {kind_bn} বেছে নিন", f"🏠 Pick my {kind_en}"),
+    bot_rights = _no_rights(can_manage_chat=True, can_invite_users=True)
+    admin_btn = KeyboardButton(
+        text=L(lang, "🏠 আমি অ্যাডমিন", "🏠 I'm an admin"),
         request_chat=KeyboardButtonRequestChat(
             request_id=REQ_CHANNEL if is_channel else REQ_GROUP,
             chat_is_channel=is_channel,
             # Telegram requires bot rights to be a subset of the user's rights
             user_administrator_rights=_no_rights(can_manage_chat=True, can_invite_users=True),
-            bot_administrator_rights=_no_rights(can_manage_chat=True, can_invite_users=True),
+            bot_administrator_rights=bot_rights,
+            bot_is_member=True,
+        ),
+    )
+    any_btn = KeyboardButton(
+        text=L(lang, "👤 আমি অ্যাডমিন নই", "👤 I'm not an admin"),
+        request_chat=KeyboardButtonRequestChat(
+            request_id=REQ_CHANNEL_ANY if is_channel else REQ_GROUP_ANY,
+            chat_is_channel=is_channel,
+            chat_has_username=True,
+            bot_administrator_rights=bot_rights,
             bot_is_member=True,
         ),
     )
     kb = ReplyKeyboardMarkup(
-        keyboard=[[pick], [KeyboardButton(text=L(lang, "❌ বাতিল", "❌ Cancel"))]],
+        keyboard=[[admin_btn], [any_btn], [KeyboardButton(text=L(lang, "❌ বাতিল", "❌ Cancel"))]],
         resize_keyboard=True,
     )
     await query.message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
@@ -104,24 +123,21 @@ async def cancel_flow(message: Message, state: FSMContext, session):
     await message.answer(L(lang, "🏠 প্রধান মেনু", "🏠 Main menu"), reply_markup=main_menu(lang))
 
 
-@router.message(F.chat_shared)
-async def handle_shared_chat(message: Message, state: FSMContext, session, bot: Bot):
-    shared = message.chat_shared
-    if shared.request_id not in (REQ_CHANNEL, REQ_GROUP):
-        return
+async def _process_target(message: Message, state: FSMContext, session, bot: Bot,
+                          chat_id: int, task_type: TaskType, require_user_admin: bool):
+    """Common pipeline for a chosen chat. The BOT must always be admin there (otherwise
+    nobody can be verified later). Anyone may promote any such chat: the advertiser pays,
+    and the chat owner has implicitly agreed by making the bot an admin."""
     uid = message.from_user.id
     user = await _get_user(session, uid)
     if not user or user.is_blocked:
         return
     lang = user.language
-    chat_id = shared.chat_id
-    task_type = TaskType.CHANNEL_SUB if shared.request_id == REQ_CHANNEL else TaskType.GROUP_JOIN
 
-    # --- verify with Telegram, never trust the client ---
     try:
         chat = await bot.get_chat(chat_id)
         me = await bot.get_chat_member(chat_id, bot.id)
-        who = await bot.get_chat_member(chat_id, uid)
+        who = await bot.get_chat_member(chat_id, uid) if require_user_admin else None
     except (TelegramBadRequest, TelegramForbiddenError):
         await message.answer(L(lang, "❌ বট এই চ্যাটে অ্যাডমিন নয়। বটকে অ্যাডমিন বানিয়ে আবার চেষ্টা করুন।",
                                "❌ The bot is not an admin in that chat. Add it as admin and try again."))
@@ -130,9 +146,9 @@ async def handle_shared_chat(message: Message, state: FSMContext, session, bot: 
         await message.answer(L(lang, "❌ বটকে চ্যাটে অ্যাডমিন বানান, তারপর আবার চেষ্টা করুন।",
                                "❌ Please make the bot an admin of that chat, then try again."))
         return
-    if who.status not in (ChatMemberStatus.CREATOR, ChatMemberStatus.ADMINISTRATOR):
-        await message.answer(L(lang, "❌ শুধুমাত্র চ্যাটের অ্যাডমিন প্রচার করতে পারেন।",
-                               "❌ Only chat admins can promote it."))
+    if require_user_admin and who.status not in (ChatMemberStatus.CREATOR, ChatMemberStatus.ADMINISTRATOR):
+        await message.answer(L(lang, "❌ আপনি এই চ্যাটের অ্যাডমিন নন। “আমি অ্যাডমিন নই” অপশন ব্যবহার করুন।",
+                               "❌ You are not an admin of that chat. Use the “I'm not an admin” option."))
         return
     dup = (await session.execute(select(Campaign.id).where(
         Campaign.target_chat_id == chat_id,
@@ -151,6 +167,7 @@ async def handle_shared_chat(message: Message, state: FSMContext, session, bot: 
                                    "❌ The bot needs the 'invite users' permission."))
             return
 
+    await state.set_state(None)
     await state.update_data(
         chat_id=chat_id, title=(chat.title or "Chat")[:200], username=chat.username,
         link=link, task_type=task_type.value, premium=False,
@@ -173,6 +190,46 @@ async def handle_shared_chat(message: Message, state: FSMContext, session, bot: 
         [InlineKeyboardButton(text=L(lang, "◀️ ফিরে যান", "◀️ Back"), callback_data="menu:promote")],
     ])
     await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+
+
+@router.message(F.chat_shared)
+async def handle_shared_chat(message: Message, state: FSMContext, session, bot: Bot):
+    shared = message.chat_shared
+    rid = shared.request_id
+    if rid not in (REQ_CHANNEL, REQ_GROUP, REQ_CHANNEL_ANY, REQ_GROUP_ANY):
+        return
+    task_type = TaskType.CHANNEL_SUB if rid in (REQ_CHANNEL, REQ_CHANNEL_ANY) else TaskType.GROUP_JOIN
+    await _process_target(message, state, session, bot, shared.chat_id, task_type,
+                          require_user_admin=rid in (REQ_CHANNEL, REQ_GROUP))
+
+
+@router.message(CampaignCreateState.target, F.text)
+async def typed_target(message: Message, state: FSMContext, session, bot: Bot):
+    """Let users promote any public channel/group by sending its @username or t.me link."""
+    user = await _get_user(session, message.from_user.id)
+    lang = user.language if user else "bn"
+    data = await state.get_data()
+    is_channel = data.get("is_channel", True)
+    m = _USERNAME_RE.match((message.text or "").strip())
+    if not m:
+        await message.answer(L(lang, "❌ সঠিক <code>@username</code> বা <code>t.me/username</code> লিংক পাঠান (শুধু পাবলিক চ্যাট)।",
+                               "❌ Send a valid <code>@username</code> or <code>t.me/username</code> link (public chats only)."),
+                             parse_mode=ParseMode.HTML)
+        return
+    try:
+        chat = await bot.get_chat("@" + m.group(1))
+    except (TelegramBadRequest, TelegramForbiddenError):
+        await message.answer(L(lang, "❌ এই নামে কোনো পাবলিক চ্যানেল/গ্রুপ পাওয়া যায়নি।",
+                               "❌ No public channel/group was found with that name."))
+        return
+    ok_type = chat.type == "channel" if is_channel else chat.type in ("group", "supergroup")
+    if not ok_type:
+        await message.answer(L(lang, f"❌ এটি {'চ্যানেল' if is_channel else 'গ্রুপ'} নয়। সঠিক ধরন বেছে নিন।",
+                               f"❌ That is not a {'channel' if is_channel else 'group'}."))
+        return
+    await _process_target(message, state, session, bot, chat.id,
+                          TaskType.CHANNEL_SUB if is_channel else TaskType.GROUP_JOIN,
+                          require_user_admin=False)
 
 
 async def _reply(ev, text: str, kb=None):

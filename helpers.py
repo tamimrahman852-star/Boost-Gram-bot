@@ -82,6 +82,7 @@ class CheckRedeemState(StatesGroup):
 
 
 class CampaignCreateState(StatesGroup):
+    target = State()
     reward = State()
     slots = State()
 
