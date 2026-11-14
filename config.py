@@ -17,7 +17,11 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "BoostGramBot")
 DATABASE_URL = os.getenv("DATABASE_URL")
 REDIS_URL = os.getenv("REDIS_URL")
 ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "")
-ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "default-key-change-me")
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "")
+if not ENCRYPTION_KEY:
+    # Do not crash a running deployment, but make the weakness very visible.
+    logger.critical("ENCRYPTION_KEY is not set! Using an insecure fallback. Set a long random value in your environment.")
+    ENCRYPTION_KEY = "insecure-fallback-change-me"
 PORT = int(os.getenv("PORT", "8000"))
 
 if not BOT_TOKEN or not DATABASE_URL or not REDIS_URL:
@@ -48,6 +52,20 @@ class BusinessRules:
     RETENTION_DAYS = 7
     TASKS_PAGE_SIZE = 5
     MAX_ACTIVE_CAMPAIGNS = 10
+
+    # --- Anti-fraud limits ---
+    MAX_TASKS_PER_DAY = 100            # per user, rolling 24h
+    RISK_BLOCK_SCORE = 50              # risk_score >= this => cannot do tasks / withdraw
+    MAX_PENDING_WITHDRAWALS = 1
+    CAMPAIGN_MIN_SLOTS = 10
+    CAMPAIGN_MAX_SLOTS = 10000
+    CHECK_MAX_AMOUNT = Decimal("1000000")
+    CHECK_MAX_PASSWORD_ATTEMPTS = 5
+    RATE_LIMIT_PER_SECOND = 5          # global per-user update throttle
+
+    # Only task types that the bot can really verify through the Telegram API.
+    # Everything else would pay out without any proof, so it is disabled.
+    EARNABLE_TASK_TYPES = ("channel_sub", "group_join")
 
 
 class TaskPricing:

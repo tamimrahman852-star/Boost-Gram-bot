@@ -1,448 +1,334 @@
-from aiogram import Router, F
+"""Campaign creation for channels and groups.
+
+Flow: pick chat -> audience -> reward per user -> number of users -> confirm & pay.
+The bot verifies with Telegram that (a) the user really is an admin of the chat and
+(b) the bot is an admin there, otherwise nobody could be verified later.
+"""
+import math
+from decimal import Decimal, InvalidOperation
+
+from aiogram import Router, F, Bot
 from aiogram.types import (
-    CallbackQuery,
-    Message,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-    KeyboardButtonRequestChat,
+    CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton,
+    ReplyKeyboardMarkup, KeyboardButton, KeyboardButtonRequestChat,
 )
 from aiogram.types.chat_administrator_rights import ChatAdministratorRights
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.enums import ParseMode
+from aiogram.enums import ParseMode, ChatMemberStatus
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from sqlalchemy import select, func
+
+from config import BusinessRules, TaskPricing, logger
+from database import (
+    User, Campaign, Transaction, CampaignStatus, TaskType, TransactionType, redis_client,
+)
+from keyboards import main_menu
+from helpers import esc, safe_text, L, CampaignCreateState
 
 router = Router()
 
-
-class PromoteChannelStates(StatesGroup):
-    waiting_for_link_type = State()
-    waiting_for_audience = State()
-    waiting_for_audience_type = State()
-    waiting_for_country = State()
-    waiting_for_reward_price = State()
+CANCEL_TEXTS = {"❌ বাতিল", "❌ Cancel"}
+REQ_CHANNEL, REQ_GROUP = 1, 2
 
 
-# ============================================================
-# 1. Channel promotion menu (Start)
-# ============================================================
+def _no_rights(**on) -> ChatAdministratorRights:
+    base = dict(
+        is_anonymous=False, can_manage_chat=False, can_delete_messages=False,
+        can_manage_video_chats=False, can_restrict_members=False, can_promote_members=False,
+        can_change_info=False, can_invite_users=False, can_post_stories=False,
+        can_edit_stories=False, can_delete_stories=False,
+    )
+    base.update(on)
+    return ChatAdministratorRights(**base)
+
+
+async def _get_user(session, uid):
+    return (await session.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+
+
+async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_channel: bool):
+    await state.clear()
+    user = await _get_user(session, query.from_user.id)
+    lang = user.language if user else "bn"
+    active = (await session.execute(select(func.count(Campaign.id)).where(
+        Campaign.advertiser_id == query.from_user.id,
+        Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).scalar() or 0
+    if active >= BusinessRules.MAX_ACTIVE_CAMPAIGNS:
+        await query.answer(L(lang, f"সর্বোচ্চ {BusinessRules.MAX_ACTIVE_CAMPAIGNS}টি সক্রিয় ক্যাম্পেইন চালানো যায়।",
+                               f"Maximum {BusinessRules.MAX_ACTIVE_CAMPAIGNS} active campaigns allowed."), show_alert=True)
+        return
+    kind_bn, kind_en = ("চ্যানেল", "channel") if is_channel else ("গ্রুপ", "group")
+    text = L(
+        lang,
+        f"📢 <b>প্রচারের জন্য {kind_bn} বেছে নিন</b>\n\n"
+        f"১) নিচের বাটনে চাপুন এবং আপনার {kind_bn} সিলেক্ট করুন\n"
+        "২) বটকে সেই চ্যাটে <b>অ্যাডমিন</b> বানান (ইনভাইট পারমিশনসহ) — নাহলে সদস্য যাচাই করা যাবে না",
+        f"📢 <b>Choose the {kind_en} to promote</b>\n\n"
+        f"1) Tap the button below and pick your {kind_en}\n"
+        "2) Make the bot an <b>admin</b> there (with invite permission) — otherwise members cannot be verified",
+    )
+    pick = KeyboardButton(
+        text=L(lang, f"🏠 আমার {kind_bn} বেছে নিন", f"🏠 Pick my {kind_en}"),
+        request_chat=KeyboardButtonRequestChat(
+            request_id=REQ_CHANNEL if is_channel else REQ_GROUP,
+            chat_is_channel=is_channel,
+            user_administrator_rights=_no_rights(can_manage_chat=True),
+            bot_administrator_rights=_no_rights(can_manage_chat=True, can_invite_users=True),
+            bot_is_member=True,
+        ),
+    )
+    kb = ReplyKeyboardMarkup(
+        keyboard=[[pick], [KeyboardButton(text=L(lang, "❌ বাতিল", "❌ Cancel"))]],
+        resize_keyboard=True,
+    )
+    await query.message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    await query.answer()
+
 
 @router.callback_query(F.data == "promote:cat:channel")
-async def promote_channel_start(query: CallbackQuery, state: FSMContext):
+async def promote_channel_start(query: CallbackQuery, state: FSMContext, session):
+    await _start_picker(query, state, session, True)
+
+
+@router.callback_query(F.data == "promote:cat:group")
+async def promote_group_start(query: CallbackQuery, state: FSMContext, session):
+    await _start_picker(query, state, session, False)
+
+
+@router.message(F.text.in_(CANCEL_TEXTS))
+async def cancel_flow(message: Message, state: FSMContext, session):
     await state.clear()
-    
-    text = (
-        "📢 <b>Promotion-er jonno chat ba channel beche nin</b>\n\n"
-        "Nicher button theke apnar channel ba group select korun."
-    )
+    user = await _get_user(session, message.from_user.id)
+    lang = user.language if user else "bn"
+    await message.answer(L(lang, "🏠 প্রধান মেনু", "🏠 Main menu"), reply_markup=main_menu(lang))
 
-    admin_rights = ChatAdministratorRights(
-        is_anonymous=False,
-        can_manage_chat=True,
-        can_delete_messages=True,
-        can_manage_video_chats=True,
-        can_restrict_members=True,
-        can_promote_members=False,
-        can_change_info=True,
-        can_invite_users=True,
-        can_post_stories=True,
-        can_edit_stories=True,
-        can_delete_stories=True,
-    )
-
-    reply_kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text="🏠 Ami admin",
-                    request_chat=KeyboardButtonRequestChat(
-                        request_id=1,
-                        chat_is_channel=True,
-                        user_administrator_rights=admin_rights,
-                    ),
-                )
-            ],
-            [
-                KeyboardButton(
-                    text="👁️ Ami admin noi",
-                    request_chat=KeyboardButtonRequestChat(
-                        request_id=2,
-                        chat_is_channel=True,
-                    ),
-                )
-            ],
-            [
-                KeyboardButton(text="◀️ Fire jan")
-            ],
-        ],
-        resize_keyboard=True,
-    )
-
-    await query.message.answer(
-        text,
-        reply_markup=reply_kb,
-        parse_mode=ParseMode.HTML,
-    )
-    await query.answer()
-
-
-# ============================================================
-# 2. Channel selected from Telegram popup -> Link Type Menu
-# ============================================================
 
 @router.message(F.chat_shared)
-async def handle_shared_chat(message: Message, state: FSMContext):
-    chat_id = message.chat_shared.chat_id
+async def handle_shared_chat(message: Message, state: FSMContext, session, bot: Bot):
+    shared = message.chat_shared
+    if shared.request_id not in (REQ_CHANNEL, REQ_GROUP):
+        return
+    uid = message.from_user.id
+    user = await _get_user(session, uid)
+    if not user or user.is_blocked:
+        return
+    lang = user.language
+    chat_id = shared.chat_id
+    task_type = TaskType.CHANNEL_SUB if shared.request_id == REQ_CHANNEL else TaskType.GROUP_JOIN
+
+    # --- verify with Telegram, never trust the client ---
+    try:
+        chat = await bot.get_chat(chat_id)
+        me = await bot.get_chat_member(chat_id, bot.id)
+        who = await bot.get_chat_member(chat_id, uid)
+    except (TelegramBadRequest, TelegramForbiddenError):
+        await message.answer(L(lang, "❌ বট এই চ্যাটে অ্যাডমিন নয়। বটকে অ্যাডমিন বানিয়ে আবার চেষ্টা করুন।",
+                               "❌ The bot is not an admin in that chat. Add it as admin and try again."))
+        return
+    if me.status != ChatMemberStatus.ADMINISTRATOR:
+        await message.answer(L(lang, "❌ বটকে চ্যাটে অ্যাডমিন বানান, তারপর আবার চেষ্টা করুন।",
+                               "❌ Please make the bot an admin of that chat, then try again."))
+        return
+    if who.status not in (ChatMemberStatus.CREATOR, ChatMemberStatus.ADMINISTRATOR):
+        await message.answer(L(lang, "❌ শুধুমাত্র চ্যাটের অ্যাডমিন প্রচার করতে পারেন।",
+                               "❌ Only chat admins can promote it."))
+        return
+    dup = (await session.execute(select(Campaign.id).where(
+        Campaign.target_chat_id == chat_id,
+        Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).first()
+    if dup:
+        await message.answer(L(lang, "❌ এই চ্যাটের জন্য ইতিমধ্যে একটি সক্রিয় ক্যাম্পেইন আছে।",
+                               "❌ This chat already has an active campaign."))
+        return
+
+    link = f"https://t.me/{chat.username}" if chat.username else chat.invite_link
+    if not link:
+        try:
+            link = (await bot.create_chat_invite_link(chat_id, name="BoostGram")).invite_link
+        except (TelegramBadRequest, TelegramForbiddenError):
+            await message.answer(L(lang, "❌ বটের ইনভাইট লিংক তৈরির পারমিশন নেই।",
+                                   "❌ The bot needs the 'invite users' permission."))
+            return
 
     await state.update_data(
-        channel_link=str(chat_id),
-        target_chat=chat_id,
-        min_price=750,
-        filters_added=0,
+        chat_id=chat_id, title=(chat.title or "Chat")[:200], username=chat.username,
+        link=link, task_type=task_type.value, premium=False,
     )
-    await state.set_state(PromoteChannelStates.waiting_for_link_type)
-
-    text = (
-        "🟢 <b>চ্যানেল সফলভাবে যোগ করা হয়েছে।</b>\n\n"
-        "<b>লিঙ্কের ধরন বেছে নিন:</b>\n"
-        "🔘 <b>সাধারণ</b> — সদস্যরা সাথে সাথে যোগ দেয় (\"এড়িয়ে যান\" চাপুন)।\n"
-        "🔘 <b>অনুরোধসহ</b> — যারা যোগ দেয় প্রত্যেককে আপনি অনুমোদন করেন।"
+    await message.answer("✅", reply_markup=main_menu(lang))
+    text = L(
+        lang,
+        f"✅ <b>{esc(chat.title)}</b> সফলভাবে যোগ হয়েছে।\n\n🎯 <b>কারা এই টাস্ক করতে পারবে?</b>",
+        f"✅ <b>{esc(chat.title)}</b> added.\n\n🎯 <b>Who can complete this task?</b>",
     )
-
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="> এড়িয়ে যান",
-                    callback_data="promote:link:skip",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="+ অনুরোধসহ লিঙ্ক",
-                    callback_data="promote:link:request",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="← ফিরে যান",
-                    callback_data="promote:cat:channel",
-                )
-            ],
-        ]
-    )
-
-    await message.answer(
-        text,
-        reply_markup=kb,
-        parse_mode=ParseMode.HTML,
-    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=L(lang, "🌍 সব ব্যবহারকারী", "🌍 All users"), callback_data="promote:aud:all")],
+        [InlineKeyboardButton(text=L(lang, "⭐ শুধু Telegram Premium (২x মূল্য)", "⭐ Telegram Premium only (2x price)"), callback_data="promote:aud:premium")],
+        [InlineKeyboardButton(text=L(lang, "◀️ বাতিল", "◀️ Cancel"), callback_data="menu:promote")],
+    ])
+    await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
 
 
-# ============================================================
-# 3. Link Type: Request Confirmation
-# ============================================================
-
-@router.callback_query(F.data == "promote:link:request")
-async def link_request_confirm(query: CallbackQuery):
-    text = (
-        "<b>জয়েন-রিকোয়েস্ট লিঙ্ক তৈরি করবেন?</b>\n\n"
-        "• সদস্যরা কেবল আপনার অনুমোদনের পরে যোগ দেয়।\n"
-        "• জয়েন রিকোয়েস্ট পাঠানোর সাথেই সাথেই সম্পাদককারী পেমেন্ট পান।"
-    )
-
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="✅ হ্যাঁ, নিশ্চিত করছি",
-                    callback_data="promote:link:request:yes",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="← ফিরে যান",
-                    callback_data="promote:link:back",
-                )
-            ],
-        ]
-    )
-
-    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
-    await query.answer()
-
-
-@router.callback_query(F.data.in_({"promote:link:skip", "promote:link:request:yes", "promote:link:back"}))
-async def handle_link_choices(query: CallbackQuery, state: FSMContext):
-    if query.data == "promote:link:back":
-        await handle_shared_chat_from_callback(query, state)
+@router.callback_query(F.data.in_({"promote:aud:all", "promote:aud:premium"}))
+async def audience_chosen(query: CallbackQuery, state: FSMContext, session):
+    data = await state.get_data()
+    if "chat_id" not in data:
+        await query.answer("Session expired.", show_alert=True)
         return
-
-    await show_audience_menu(query, state)
-
-
-async def handle_shared_chat_from_callback(query: CallbackQuery, state: FSMContext):
-    text = (
-        "<b>লিঙ্কের ধরন বেছে নিন:</b>\n"
-        "🔘 <b>সাধারণ</b> — সদস্যরা সাথে সাথে যোগ দেয় (\"এড়িয়ে যান\" চাপুন)।\n"
-        "🔘 <b>অনুরোধসহ</b> — যারা যোগ দেয় প্রত্যেককে আপনি অনুমোদন করেন।"
+    user = await _get_user(session, query.from_user.id)
+    lang = user.language if user else "bn"
+    premium = query.data.endswith("premium")
+    await state.update_data(premium=premium)
+    rules = TaskPricing.get(data["task_type"], premium)
+    await state.set_state(CampaignCreateState.reward)
+    text = L(
+        lang,
+        f"💲 <b>প্রতিটি সাবস্ক্রাইবারের জন্য পুরস্কার (GRAM) লিখুন</b>\n\n"
+        f"ন্যূনতম: <b>{rules['min']:,}</b>\nপ্রস্তাবিত: <b>{rules['suggested']:,}</b>\nসর্বোচ্চ: <b>{rules['max']:,}</b>\n\n"
+        "💡 পুরস্কার যত বেশি, টাস্ক তত দ্রুত সম্পন্ন হবে।",
+        f"💲 <b>Enter the reward (GRAM) per subscriber</b>\n\n"
+        f"Minimum: <b>{rules['min']:,}</b>\nSuggested: <b>{rules['suggested']:,}</b>\nMaximum: <b>{rules['max']:,}</b>\n\n"
+        "💡 Higher rewards get completed faster.",
     )
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="> এড়িয়ে যান", callback_data="promote:link:skip")],
-            [InlineKeyboardButton(text="+ অনুরোধসহ লিঙ্ক", callback_data="promote:link:request")],
-            [InlineKeyboardButton(text="← ফিরে যান", callback_data="promote:cat:channel")],
-        ]
-    )
-    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    await query.message.edit_text(text, parse_mode=ParseMode.HTML)
     await query.answer()
 
 
-# ============================================================
-# 4. Task Audience Menu
-# ============================================================
-
-async def show_audience_menu(query: CallbackQuery, state: FSMContext):
-    await state.set_state(PromoteChannelStates.waiting_for_audience)
+@router.message(CampaignCreateState.reward)
+async def got_reward(message: Message, state: FSMContext, session):
+    user = await _get_user(session, message.from_user.id)
+    lang = user.language if user else "bn"
+    raw = safe_text(message)
     data = await state.get_data()
-    filters_added = data.get("filters_added", 0)
-
-    filter_note = f"\n💡 অডিয়েন্স ফিল্টার প্রতি সম্পাদনায় ন্যূনতম মূল্যে +{filters_added} GRAM যোগ করে।" if filters_added > 0 else ""
-
-    text = (
-        "🎯 <b>টাস্কের অডিয়েন্স</b>\n"
-        "বর্তমান: সীমাবদ্ধতা নেই\n\n"
-        "টাস্কটি কারা দেখতে পাবে তা বেছে নিন:"
-        f"{filter_note}"
-    )
-
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🌍 সবাইকে অনুমতি দিন",
-                    callback_data="promote:ch:aud:all",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🎯 দর্শক নির্বাচন করুন",
-                    callback_data="promote:ch:aud:select",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="← ফিরে যান",
-                    callback_data="promote:link:back",
-                )
-            ],
-        ]
-    )
-
-    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
-    await query.answer()
-
-
-# ============================================================
-# 5. "Sobaike onumoti din" -> Audience Type Menu (All vs Premium)
-# ============================================================
-
-@router.callback_query(F.data == "promote:ch:aud:all")
-async def audience_all(query: CallbackQuery, state: FSMContext):
-    await state.set_state(PromoteChannelStates.waiting_for_audience_type)
-    text = (
-        "1️⃣ <b>সব ব্যবহারকারী</b>\n"
-        "সকল PR GRAM ব্যবহারকারীর মধ্যে বিস্তৃত পৌঁছানো।\n"
-        "💡 সর্বনিম্ন মূল্য: 750 GRAM/ইউনিট।\n\n"
-        "2️⃣ <b>শুধু Telegram Premium</b>\n"
-        "শুধু Telegram Premium ব্যবহারকারীদের দেখানো হবে — আরও মানসম্মত অডিয়েন্স।\n"
-        "💡 সর্বনিম্ন মূল্য: 1,400 GRAM/ইউনিট।"
-    )
-
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="1️⃣ সব ব্যবহারকারী",
-                    callback_data="promote:aud:type:all",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="2️⃣ শুধুমাত্র Telegram Premium",
-                    callback_data="promote:aud:type:premium",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="← ফিরে যান",
-                    callback_data="promote:aud:back_to_main",
-                )
-            ],
-        ]
-    )
-
-    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
-    await query.answer()
-
-
-@router.callback_query(F.data == "promote:aud:back_to_main")
-async def back_to_audience_main(query: CallbackQuery, state: FSMContext):
-    await show_audience_menu(query, state)
-
-
-@router.callback_query(F.data.in_({"promote:aud:type:all", "promote:aud:type:premium"}))
-async def audience_type_chosen(query: CallbackQuery, state: FSMContext):
-    min_price = 1400 if query.data == "promote:aud:type:premium" else 750
-    await state.update_data(min_price=min_price)
-    
-    await ask_reward_price(query, state)
-
-
-# ============================================================
-# 6. "Dorshok nirbacon korun" -> Country/Language Selection Menu
-# ============================================================
-
-@router.callback_query(F.data == "promote:ch:aud:select")
-async def audience_select_country(query: CallbackQuery, state: FSMContext):
-    await state.set_state(PromoteChannelStates.waiting_for_country)
-    data = await state.get_data()
-    selected_langs = data.get("selected_langs", [])
-
-    langs_display = ", ".join(selected_langs) if selected_langs else "সীমাবদ্ধতা নেই"
-
-    text = (
-        f"• দর্শক: {langs_display}\n\n"
-        "🌐 <b>এক বা একাধিক ভাষা বা দেশ বেছে নিন</b>\n"
-        "💡 অডিয়েন্স ফিল্টার প্রতি সম্পাদনায় ন্যূনতম মূল্যে +100 GRAM যোগ করে।"
-    )
-
-    countries = [
-        ("🇺🇦 Україн...", "lang:uk"), ("🇷🇺 Русский", "lang:ru"), ("🇬🇧 English", "lang:en"),
-        ("🇩🇪 Deutsch", "lang:de"), ("🇨🇳 中文", "lang:zh"), ("🇸🇦 العربية", "lang:ar"),
-        ("🇮🇷 فارسی", "lang:fa"), ("🇪🇸 Español", "lang:es"), ("🇮🇩 Bahasa", "lang:id"),
-        ("🇧🇷 Portug...", "lang:pt"), ("🇮🇳 हिंदी", "lang:hi"), ("🇧🇩 বাংলা", "lang:bn"),
-        ("🇺🇿 O'zbek...", "lang:uz"), ("🇹🇷 Türkçe", "lang:tr"), ("🇰🇿 Қазақ...", "lang:kk"),
-        ("🇫🇷 Français", "lang:fr")
-    ]
-
-    keyboard_rows = []
-    row = []
-    for name, code in countries:
-        is_selected = name in selected_langs
-        btn_text = f"✅ {name}" if is_selected else name
-        row.append(InlineKeyboardButton(text=btn_text, callback_data=code))
-        if len(row) == 3:
-            keyboard_rows.append(row)
-            row = []
-    if row:
-        keyboard_rows.append(row)
-
-    keyboard_rows.append([InlineKeyboardButton(text="✅ সংরক্ষণ করুন ও চালিয়ে যান", callback_data="lang:save")])
-    keyboard_rows.append([InlineKeyboardButton(text="← ফিরে যান", callback_data="promote:aud:back_to_main")])
-
-    kb = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
-    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
-    await query.answer()
-
-
-@router.callback_query(F.data.startswith("lang:"))
-async def toggle_country(query: CallbackQuery, state: FSMContext):
-    action = query.data.split(":")[1]
-    data = await state.get_data()
-    selected_langs = data.get("selected_langs", [])
-
-    if action == "save":
-        if selected_langs:
-            await state.update_data(filters_added=100)
-        await audience_all(query, state) # Go to price / tier selection next
+    try:
+        reward = Decimal((raw or "").replace(",", ""))
+        if not reward.is_finite() or reward != reward.to_integral_value():
+            raise InvalidOperation
+    except InvalidOperation:
+        await message.answer(L(lang, "❌ একটি পূর্ণ সংখ্যা লিখুন।", "❌ Send a whole number."))
         return
-
-    lang_map = {
-        "uk": "🇺🇦 Українська", "ru": "🇷🇺 Русский", "en": "🇬🇧 English",
-        "de": "🇩🇪 Deutsch", "zh": "🇨🇳 中文", "ar": "🇸🇦 العربية",
-        "fa": "🇮🇷 فارسی", "es": "🇪🇸 Español", "id": "🇮🇩 Bahasa Indonesia",
-        "pt": "🇧🇷 Português", "hi": "🇮🇳 हिंदी", "bn": "🇧🇩 বাংলা",
-        "uz": "🇺🇿 O'zbekcha", "tr": "🇹🇷 Türkçe", "kk": "🇰🇿 Қазақча",
-        "fr": "🇫🇷 Français"
-    }
-
-    lang_name = lang_map.get(action)
-    if lang_name:
-        if lang_name in selected_langs:
-            selected_langs.remove(lang_name)
-        else:
-            selected_langs.append(lang_name)
-        await state.update_data(selected_langs=selected_langs)
-
-    await audience_select_country(query, state)
+    ok, msg = TaskPricing.validate(data["task_type"], reward, data.get("premium", False))
+    if not ok:
+        await message.answer(f"❌ {msg}")
+        return
+    await state.update_data(reward=str(reward))
+    await state.set_state(CampaignCreateState.slots)
+    await message.answer(L(
+        lang,
+        f"👥 <b>কতজন ব্যবহারকারী চান?</b>\n\n{BusinessRules.CAMPAIGN_MIN_SLOTS} থেকে {BusinessRules.CAMPAIGN_MAX_SLOTS:,} এর মধ্যে লিখুন।",
+        f"👥 <b>How many users do you want?</b>\n\nSend a number between {BusinessRules.CAMPAIGN_MIN_SLOTS} and {BusinessRules.CAMPAIGN_MAX_SLOTS:,}.",
+    ), parse_mode=ParseMode.HTML)
 
 
-# ============================================================
-# 7. Reward Price Input State
-# ============================================================
+def _cost(reward: Decimal, slots: int):
+    budget = reward * slots
+    fee = (budget * BusinessRules.PLATFORM_COMMISSION).to_integral_value(rounding="ROUND_UP")
+    return budget, fee, budget + fee
 
-async def ask_reward_price(query: CallbackQuery, state: FSMContext):
-    await state.set_state(PromoteChannelStates.waiting_for_reward_price)
+
+@router.message(CampaignCreateState.slots)
+async def got_slots(message: Message, state: FSMContext, session):
+    user = await _get_user(session, message.from_user.id)
+    lang = user.language if user else "bn"
+    raw = safe_text(message)
+    try:
+        slots = int(raw or "")
+        if not BusinessRules.CAMPAIGN_MIN_SLOTS <= slots <= BusinessRules.CAMPAIGN_MAX_SLOTS:
+            raise ValueError
+    except ValueError:
+        await message.answer(L(lang, f"❌ {BusinessRules.CAMPAIGN_MIN_SLOTS}–{BusinessRules.CAMPAIGN_MAX_SLOTS:,} এর মধ্যে একটি সংখ্যা দিন।",
+                               f"❌ Send a number between {BusinessRules.CAMPAIGN_MIN_SLOTS} and {BusinessRules.CAMPAIGN_MAX_SLOTS:,}."))
+        return
     data = await state.get_data()
-    min_p = data.get("min_price", 750)
-    filters_add = data.get("filters_added", 0)
-    total_min = min_p + filters_add
-    suggested = total_min + 150
-
-    text = (
-        "💲 <b>মূল্য নির্ধারণ করুন: ১টি সাবস্ক্রিপশন — এটি সম্পাদককারীর পুরস্কার।</b>\n\n"
-        f"নিউজ / ন্যূনতম — {total_min} GRAM\n"
-        f"💡 প্রস্তাবিত — {suggested} GRAM\n"
-        "সম্পাদনার গতি আপনার মূল্যের উপর নির্ভর করে।"
+    reward = Decimal(data["reward"])
+    budget, fee, total = _cost(reward, slots)
+    await state.update_data(slots=slots)
+    await state.set_state(None)
+    text = L(
+        lang,
+        f"🧾 <b>ক্যাম্পেইন সারসংক্ষেপ</b>\n\n📢 {esc(data['title'])}\n"
+        f"💲 প্রতি ইউজার: <b>{reward:,.0f}</b> GRAM\n👥 ইউজার: <b>{slots:,}</b>\n"
+        f"💰 বাজেট: <b>{budget:,.0f}</b>\n🏷 প্ল্যাটফর্ম ফি ({BusinessRules.PLATFORM_COMMISSION * 100:.0f}%): <b>{fee:,.0f}</b>\n"
+        f"➖ <b>মোট কাটা হবে: {total:,.0f} GRAM</b>\n\n"
+        f"আপনার ব্যালেন্স: {(user.balance if user else 0):,.0f} GRAM",
+        f"🧾 <b>Campaign summary</b>\n\n📢 {esc(data['title'])}\n"
+        f"💲 Per user: <b>{reward:,.0f}</b> GRAM\n👥 Users: <b>{slots:,}</b>\n"
+        f"💰 Budget: <b>{budget:,.0f}</b>\n🏷 Platform fee ({BusinessRules.PLATFORM_COMMISSION * 100:.0f}%): <b>{fee:,.0f}</b>\n"
+        f"➖ <b>Total charge: {total:,.0f} GRAM</b>\n\n"
+        f"Your balance: {(user.balance if user else 0):,.0f} GRAM",
     )
-
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="← ফিরে যান",
-                    callback_data="promote:aud:back_to_main",
-                )
-            ]
-        ]
-    )
-
-    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
-    await query.answer()
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=L(lang, "✅ নিশ্চিত করুন ও পেমেন্ট", "✅ Confirm & pay"), callback_data="promote:confirm")],
+        [InlineKeyboardButton(text=L(lang, "❌ বাতিল", "❌ Cancel"), callback_data="menu:promote")],
+    ])
+    await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
 
 
-# ============================================================
-# 8. Back button for Main Menu
-# ============================================================
+@router.callback_query(F.data == "promote:confirm")
+async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
+    uid = query.from_user.id
+    lock = f"lock:campaign:{uid}"
+    if not await redis_client.set(lock, "1", nx=True, ex=20):
+        await query.answer("⏳", show_alert=True)
+        return
+    try:
+        data = await state.get_data()
+        if not {"chat_id", "reward", "slots", "task_type"} <= data.keys():
+            await query.answer("Session expired.", show_alert=True)
+            return
+        r = await session.execute(select(User).where(User.id == uid).with_for_update())
+        user = r.scalar_one_or_none()
+        if not user or user.is_blocked:
+            await session.rollback()
+            await query.answer("❌", show_alert=True)
+            return
+        lang = user.language
+        reward, slots, premium = Decimal(data["reward"]), int(data["slots"]), bool(data.get("premium"))
+        ok, msg = TaskPricing.validate(data["task_type"], reward, premium)
+        if not ok or not BusinessRules.CAMPAIGN_MIN_SLOTS <= slots <= BusinessRules.CAMPAIGN_MAX_SLOTS:
+            await session.rollback()
+            await query.answer("❌ Invalid.", show_alert=True)
+            return
+        budget, fee, total = _cost(reward, slots)
+        if user.balance < total:
+            await session.rollback()
+            await query.answer(L(lang, f"❌ ব্যালেন্স কম। দরকার {total:,.0f} GRAM।", f"❌ Insufficient balance. Need {total:,.0f} GRAM."), show_alert=True)
+            return
+        if (await session.execute(select(Campaign.id).where(
+                Campaign.target_chat_id == data["chat_id"],
+                Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).first():
+            await session.rollback()
+            await query.answer(L(lang, "❌ এই চ্যাটের ক্যাম্পেইন আগে থেকেই আছে।", "❌ A campaign for this chat already exists."), show_alert=True)
+            return
 
-@router.message(F.text == "◀️ Fire jan")
-async def back_to_main_menu(message: Message, state: FSMContext):
-    await state.clear()
-    kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(text="💰 Ai"),
-                KeyboardButton(text="📢 Prochar korun"),
-            ],
-            [
-                KeyboardButton(text="🎫 Check"),
-                KeyboardButton(text="👤 Amar cabinet"),
-            ],
-            [
-                KeyboardButton(text="🛡️ Subscription check"),
-                KeyboardButton(text="📊 Amader bot o porisongkhan"),
-            ],
-            [
-                KeyboardButton(text="🔗 Dorkari link"),
-                KeyboardButton(text="ℹ️ Nirdeshika"),
-            ],
-        ],
-        resize_keyboard=True,
-    )
-
-    await message.answer(
-        "🏠 Prodan menu:",
-        reply_markup=kb,
-    )
+        c = Campaign(
+            advertiser_id=uid, title=data["title"], task_type=TaskType(data["task_type"]),
+            target_chat_id=data["chat_id"], target_username=data.get("username"),
+            target_link=data.get("link"), target_title=data["title"],
+            premium_only=premium, reward_per_user=reward, base_reward=reward,
+            max_completions=slots, total_budget=budget,
+            retention_days=BusinessRules.RETENTION_DAYS, requires_retention_check=True,
+        )
+        session.add(c)
+        await session.flush()
+        user.balance -= total
+        session.add(Transaction(
+            user_id=uid, amount=-total, type=TransactionType.CAMPAIGN_PAYMENT,
+            description=f"Campaign: {data['title']} (fee {fee:,.0f})"[:255],
+            reference_id=c.id, reference_type="campaign", balance_after=user.balance,
+        ))
+        await session.commit()
+        await state.clear()
+        await query.message.edit_text(L(
+            lang,
+            f"🚀 <b>ক্যাম্পেইন চালু হয়েছে!</b>\n\n📢 {esc(data['title'])}\n👥 {slots:,} জন · 💲 {reward:,.0f} GRAM\n\n"
+            "‘📋 আমার ক্যাম্পেইন’ থেকে অগ্রগতি দেখুন ও ম্যানেজ করুন।",
+            f"🚀 <b>Campaign is live!</b>\n\n📢 {esc(data['title'])}\n👥 {slots:,} users · 💲 {reward:,.0f} GRAM\n\n"
+            "Track and manage it under ‘📋 My campaigns’.",
+        ), parse_mode=ParseMode.HTML)
+        await query.answer("✅")
+    except Exception as e:
+        await session.rollback()
+        logger.exception(f"Campaign create failed: {e}")
+        await query.answer("❌ Error", show_alert=True)
+    finally:
+        await redis_client.delete(lock)

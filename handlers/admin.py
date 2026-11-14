@@ -6,9 +6,12 @@ from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 
-from config import ADMIN_IDS
+from aiogram import Bot
+from config import ADMIN_IDS, logger
+from datetime import datetime, timezone
 from database import User, FraudReport, WithdrawalRequest, Campaign, Transaction, CampaignStatus, TransactionType
-from keyboards import admin_kb
+from keyboards import admin_kb, withdrawal_review_kb
+from localization import t
 from helpers import AdminState
 
 router = Router()
@@ -16,7 +19,7 @@ router = Router()
 
 @router.message(Command("admin"))
 async def admin_cmd(message: Message, session):
-    if message.from_user.id not in ADMIN_IDS:
+    if message.from_user.id not in ADMIN_IDS or message.chat.type != "private":
         await message.answer("❌ Not authorized.")
         return
     r = await session.execute(select(func.count(FraudReport.id)).where(FraudReport.status == "pending"))
@@ -70,16 +73,65 @@ async def adm_wds(query: CallbackQuery, session):
     if query.from_user.id not in ADMIN_IDS:
         await query.answer()
         return
-    r = await session.execute(select(WithdrawalRequest).where(WithdrawalRequest.status == "pending").limit(10))
+    r = await session.execute(select(WithdrawalRequest).where(WithdrawalRequest.status == "pending").order_by(WithdrawalRequest.created_at).limit(10))
     wds = r.scalars().all()
     if not wds:
         await query.message.edit_text("✅ No pending.", reply_markup=admin_kb())
     else:
-        lines = ["💸 <b>Pending</b>\n"]
+        await query.message.edit_text(f"💸 <b>Pending withdrawals</b> ({len(wds)})", reply_markup=admin_kb(), parse_mode=ParseMode.HTML)
         for w in wds:
-            lines.append(f"• <code>{w.user_id}</code> — {w.amount:,.0f}")
-        await query.message.edit_text("\n".join(lines), reply_markup=admin_kb(), parse_mode=ParseMode.HTML)
+            await query.message.answer(
+                f"👤 <code>{w.user_id}</code>\n💰 <code>{w.amount:,.0f}</code>\n💳 {w.payment_method}\n📝 <code>{(w.payment_details or '')[:200]}</code>",
+                reply_markup=withdrawal_review_kb(w.id), parse_mode=ParseMode.HTML)
     await query.answer()
+
+
+@router.callback_query(F.data.startswith("adm:wd:"))
+async def adm_wd_review(query: CallbackQuery, session, bot: Bot):
+    if query.from_user.id not in ADMIN_IDS:
+        await query.answer()
+        return
+    _, _, action, wd_id = query.data.split(":", 3)
+    r = await session.execute(select(WithdrawalRequest).where(WithdrawalRequest.id == wd_id).with_for_update())
+    wd = r.scalar_one_or_none()
+    # status is re-checked under the row lock => no double approval / double refund
+    if not wd or wd.status != "pending":
+        await session.rollback()
+        await query.answer("Already processed.", show_alert=True)
+        return
+    ru = await session.execute(select(User).where(User.id == wd.user_id).with_for_update())
+    user = ru.scalar_one_or_none()
+    wd.processed_by = query.from_user.id
+    wd.processed_at = datetime.now(timezone.utc)
+    if action == "ok":
+        wd.status = "approved"
+        if user:
+            user.total_withdrawn += wd.amount
+        note = "✅ Approved"
+        user_msg = f"✅ Your withdrawal of {wd.amount:,.0f} GRAM was approved and will be paid soon."
+    else:
+        wd.status = "rejected"
+        if user:
+            user.balance += wd.amount
+            session.add(Transaction(
+                user_id=user.id, amount=wd.amount, type=TransactionType.ADMIN_ADJUSTMENT,
+                description="Withdrawal rejected - refund", reference_id=wd.id,
+                reference_type="withdrawal", balance_after=user.balance,
+            ))
+        note = "❌ Rejected & refunded"
+        user_msg = f"❌ Your withdrawal of {wd.amount:,.0f} GRAM was rejected. The amount was returned to your balance."
+    await session.commit()
+    logger.info(f"Admin {query.from_user.id} {note} withdrawal {wd_id}")
+    try:
+        await query.message.edit_text(f"{query.message.text}\n\n<b>{note}</b>", parse_mode=ParseMode.HTML)
+    except Exception:
+        pass
+    if user:
+        try:
+            await bot.send_message(user.id, user_msg)
+        except Exception:
+            pass
+    await query.answer(note)
 
 
 @router.callback_query(F.data == "adm:coins")
@@ -112,6 +164,8 @@ async def adm_amt(message: Message, session, state: FSMContext):
         return
     try:
         amt = Decimal((message.text or "").strip())
+        if not amt.is_finite() or abs(amt) > Decimal("100000000"):
+            raise ValueError()
     except Exception:
         await message.answer("❌ Invalid.")
         return
@@ -129,6 +183,7 @@ async def adm_amt(message: Message, session, state: FSMContext):
             description="Admin", balance_after=u.balance,
         ))
     await session.commit()
+    logger.warning(f"ADMIN BALANCE ADJUST by {message.from_user.id}: {amt} -> {data['uid']}")
     await message.answer(f"✅ {amt:+,.0f} GRAM → {data['uid']}", parse_mode=ParseMode.HTML)
 
 

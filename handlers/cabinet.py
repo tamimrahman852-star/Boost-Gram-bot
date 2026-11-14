@@ -10,7 +10,9 @@ from config import BOT_USERNAME, BusinessRules, ADMIN_IDS
 from database import User, TaskCompletion, Campaign, WithdrawalRequest, Transaction, TransactionType
 from localization import L10N, t
 from keyboards import cabinet_kb, back_to_cabinet_kb, language_kb, main_menu, withdraw_method_kb
-from helpers import esc, level_emoji, TopUpState, WithdrawState, safe_text
+from helpers import esc, level_emoji, TopUpState, WithdrawState, safe_text, L
+from services import withdrawable, pending_withdrawals
+from database import redis_client
 
 router = Router()
 
@@ -166,26 +168,38 @@ async def cab_tasks(query: CallbackQuery, session):
     await query.answer()
 
 
+ALLOWED_WD_METHODS = {"usdt_trc20", "usdt_erc20", "bank", "mobile"}
+
+
 @router.callback_query(F.data == "cab:withdraw")
 async def cab_wd(query: CallbackQuery, session, state: FSMContext):
     user = await get_user(session, query.from_user.id)
     if not user:
         await query.answer()
         return
+    lang = user.language
+    if user.is_blocked or user.risk_score >= BusinessRules.RISK_BLOCK_SCORE:
+        await query.answer(L(lang, "❌ আপনার অ্যাকাউন্টে উইথড্র বন্ধ আছে।", "❌ Withdrawals are disabled for your account."), show_alert=True)
+        return
     if not user.can_withdraw:
         await query.message.edit_text(
-            t(user.language, "wd_locked",
-              required=BusinessRules.WITHDRAWAL_MIN_LEVEL, current=user.level),
-            reply_markup=back_to_cabinet_kb(user.language),
+            t(lang, "wd_locked", required=BusinessRules.WITHDRAWAL_MIN_LEVEL, current=user.level),
+            reply_markup=back_to_cabinet_kb(lang),
             parse_mode=ParseMode.HTML,
         )
         await query.answer()
         return
+    if await pending_withdrawals(session, user.id) >= BusinessRules.MAX_PENDING_WITHDRAWALS:
+        await query.answer(L(lang, "⏳ আপনার একটি উইথড্র আগে থেকেই পেন্ডিং আছে।", "⏳ You already have a pending withdrawal."), show_alert=True)
+        return
+    available = await withdrawable(session, user)
     await query.message.edit_text(
-        t(user.language, "wd_prompt",
+        t(lang, "wd_prompt",
           min=BusinessRules.WITHDRAWAL_MIN_AMOUNT,
           max=BusinessRules.WITHDRAWAL_MAX_AMOUNT,
-          balance=user.balance),
+          balance=available)
+        + L(lang, "\n\nℹ️ ৭ দিনের রিটেনশন পিরিয়ডের মধ্যে থাকা আয় উইথড্র করা যায় না।",
+                  "\n\nℹ️ Rewards still inside the 7-day retention window cannot be withdrawn."),
         parse_mode=ParseMode.HTML,
     )
     await state.set_state(WithdrawState.amount)
@@ -196,12 +210,17 @@ async def cab_wd(query: CallbackQuery, session, state: FSMContext):
 async def wd_amt(message: Message, session, state: FSMContext):
     raw = safe_text(message)
     user = await get_user(session, message.from_user.id)
-    lang = user.language if user else "en"
+    if not user:
+        await state.clear()
+        return
+    lang = user.language
     if not raw:
         await message.answer(t(lang, "text_only"))
         return
     try:
-        v = Decimal(raw)
+        v = Decimal(raw.replace(",", ""))
+        if not v.is_finite():
+            raise ValueError()
     except Exception:
         await message.answer("❌ Invalid.")
         return
@@ -211,7 +230,7 @@ async def wd_amt(message: Message, session, state: FSMContext):
               min=BusinessRules.WITHDRAWAL_MIN_AMOUNT,
               max=BusinessRules.WITHDRAWAL_MAX_AMOUNT))
         return
-    if v > user.balance:
+    if v > await withdrawable(session, user):
         await message.answer(t(lang, "wd_insufficient"))
         return
     await state.update_data(amount=str(v))
@@ -222,6 +241,9 @@ async def wd_amt(message: Message, session, state: FSMContext):
 @router.callback_query(WithdrawState.method, F.data.startswith("wd:m:"))
 async def wd_method(query: CallbackQuery, session, state: FSMContext):
     m = query.data.split(":")[2]
+    if m not in ALLOWED_WD_METHODS:
+        await query.answer("❌", show_alert=True)
+        return
     await state.update_data(method=m)
     user = await get_user(session, query.from_user.id)
     lang = user.language if user else "en"
@@ -233,7 +255,7 @@ async def wd_method(query: CallbackQuery, session, state: FSMContext):
 @router.message(WithdrawState.details)
 async def wd_details(message: Message, session, state: FSMContext, bot: Bot):
     details = safe_text(message)
-    if not details:
+    if not details or len(details) < 5:
         await message.answer("❌ Send details.")
         return
     data = await state.get_data()
@@ -242,28 +264,51 @@ async def wd_details(message: Message, session, state: FSMContext, bot: Bot):
     method = data["method"]
     uid = message.from_user.id
 
-    async with session.begin_nested():
+    lock = f"lock:wd:{uid}"
+    if not await redis_client.set(lock, "1", nx=True, ex=20):
+        return
+    try:
         r = await session.execute(select(User).where(User.id == uid).with_for_update())
         user = r.scalar_one_or_none()
-        if not user or user.balance < amount:
-            await message.answer("❌ Insufficient.")
+        if not user or user.is_blocked or user.risk_score >= BusinessRules.RISK_BLOCK_SCORE:
+            await session.rollback()
+            await message.answer("❌ Not allowed.")
             return
+        if await pending_withdrawals(session, uid) >= BusinessRules.MAX_PENDING_WITHDRAWALS:
+            await session.rollback()
+            await message.answer(L(user.language, "⏳ আগের উইথড্র শেষ না হওয়া পর্যন্ত নতুন অনুরোধ করা যাবে না।",
+                                   "⏳ Wait until your previous withdrawal is processed."))
+            return
+        if amount > await withdrawable(session, user):
+            await session.rollback()
+            await message.answer(t(user.language, "wd_insufficient"))
+            return
+        # Funds are held (deducted) now. total_withdrawn only grows when an admin
+        # approves; a rejection refunds the held amount.
         user.balance -= amount
-        user.total_withdrawn += amount
-        session.add(WithdrawalRequest(
+        wd = WithdrawalRequest(
             user_id=uid, amount=amount,
             payment_method=method, payment_details=details[:500],
-        ))
+        )
+        session.add(wd)
+        await session.flush()
         session.add(Transaction(
             user_id=uid, amount=-amount, type=TransactionType.WITHDRAWAL,
-            description=f"Withdrawal: {method}", balance_after=user.balance,
+            description=f"Withdrawal: {method}", reference_id=wd.id,
+            reference_type="withdrawal", balance_after=user.balance,
         ))
-    await session.commit()
+        await session.commit()
+    finally:
+        await redis_client.delete(lock)
+
     await message.answer(t(user.language, "wd_submitted", amount=amount), parse_mode=ParseMode.HTML)
+    from keyboards import withdrawal_review_kb
     for aid in ADMIN_IDS:
         try:
             await bot.send_message(aid,
-                f"💸 <b>Withdrawal</b>\n\n👤 <code>{uid}</code> ({esc(user.first_name)})\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n📝 <code>{esc(details[:200])}</code>",
+                f"💸 <b>Withdrawal</b>\n\n👤 <code>{uid}</code> ({esc(user.first_name)})\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n📝 <code>{esc(details[:200])}</code>\n"
+                f"📊 Level {user.level} · tasks {user.completed_tasks_count} · risk {user.risk_score}",
+                reply_markup=withdrawal_review_kb(wd.id),
                 parse_mode=ParseMode.HTML)
         except Exception:
             pass
@@ -302,28 +347,48 @@ async def topup(message: Message, state: FSMContext):
     )
 
 
+def _parse_topup_payload(payload: str):
+    try:
+        kind, n = payload.split("_", 1)
+        n = int(n)
+        if kind != "topup" or n <= 0 or n > 10000:
+            return None
+        return n
+    except Exception:
+        return None
+
+
 @router.pre_checkout_query()
-async def pre_checkout(q: PreCheckoutQuery):
+async def pre_checkout(q: PreCheckoutQuery, session):
+    stars = _parse_topup_payload(q.invoice_payload)
+    u = await get_user(session, q.from_user.id)
+    if stars is None or q.currency != "XTR" or q.total_amount != stars or not u or u.is_blocked:
+        await q.answer(ok=False, error_message="Payment cannot be processed.")
+        return
     await q.answer(ok=True)
 
 
 @router.message(F.successful_payment)
 async def paid(message: Message, session):
     p = message.successful_payment
-    try:
-        stars = int(p.invoice_payload.split("_")[1])
-    except Exception:
+    stars = _parse_topup_payload(p.invoice_payload)
+    if stars is None or p.currency != "XTR" or p.total_amount != stars:
+        return
+    # Idempotency: never credit the same Telegram charge twice
+    if not await redis_client.set(f"paid:{p.telegram_payment_charge_id}", "1", nx=True):
         return
     coins = Decimal(stars) * BusinessRules.STAR_TO_COIN_RATE
     uid = message.from_user.id
-    async with session.begin_nested():
-        r = await session.execute(select(User).where(User.id == uid).with_for_update())
-        u = r.scalar_one_or_none()
-        if u:
-            u.balance += coins
-            session.add(Transaction(
-                user_id=uid, amount=coins, type=TransactionType.STAR_TOPUP,
-                description=f"{stars} Stars", balance_after=u.balance,
-            ))
+    r = await session.execute(select(User).where(User.id == uid).with_for_update())
+    u = r.scalar_one_or_none()
+    if not u:
+        await redis_client.delete(f"paid:{p.telegram_payment_charge_id}")
+        return
+    u.balance += coins
+    session.add(Transaction(
+        user_id=uid, amount=coins, type=TransactionType.STAR_TOPUP,
+        description=f"{stars} Stars", reference_id=p.telegram_payment_charge_id[:36],
+        reference_type="stars", balance_after=u.balance,
+    ))
     await session.commit()
     await message.answer(f"✅ +<code>{coins:,.0f}</code> GRAM", parse_mode=ParseMode.HTML)

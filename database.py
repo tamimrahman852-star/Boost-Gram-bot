@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 import redis.asyncio as aioredis
 
 from config import DATABASE_URL, REDIS_URL, BusinessRules
-from helpers import hash_sensitive
+from helpers import hash_sensitive, hash_password
 
 
 class Base(DeclarativeBase):
@@ -282,7 +282,11 @@ class Check(Base):
     def verify_password(self, pw: str) -> bool:
         if not self.requires_password:
             return True
-        return hmac.compare_digest(hash_sensitive(pw), self.password_hash or "")
+        stored = self.password_hash or ""
+        if stored.startswith("h2$"):
+            return hmac.compare_digest(hash_password(pw, self.code), stored)
+        # legacy unsalted hashes created before the security update
+        return hmac.compare_digest(hash_sensitive(pw), stored)
 
 
 class CheckActivation(Base):

@@ -1,16 +1,16 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import select
-from aiogram import Router
+from aiogram import Router, Bot
 from aiogram.filters import CommandStart
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
-from aiogram import Bot
 
-from config import BOT_USERNAME, BusinessRules
-from database import User, Transaction, TransactionType
-from localization import t
+from config import BOT_USERNAME
+from database import User
+from localization import L10N, t
+from keyboards import main_menu
 from helpers import esc
 
 router = Router()
@@ -26,10 +26,12 @@ async def get_or_create_user(session, tg_user, referrer_id=None):
         u.is_premium = tg_user.is_premium or False
         u.last_active_at = datetime.now(timezone.utc)
         return u, False
+    lang = tg_user.language_code if tg_user.language_code in L10N.T else "en"
     u = User(
         id=tg_user.id, username=tg_user.username,
         first_name=tg_user.first_name, last_name=tg_user.last_name,
         is_premium=tg_user.is_premium or False,
+        language=lang,
         referral_code=uuid.uuid4().hex[:8],
         referred_by=referrer_id,
     )
@@ -47,56 +49,29 @@ async def cmd_start(message: Message, session, bot: Bot, state: FSMContext):
     check_code = None
 
     if len(args) > 1:
-        payload = args[1].strip()
+        payload = args[1].strip()[:64]
         if payload.startswith("ref_"):
             rc = payload[4:]
             r = await session.execute(select(User).where(User.referral_code == rc))
             ref_user = r.scalar_one_or_none()
-            if ref_user and ref_user.id != uid:
+            if ref_user and ref_user.id != uid and not ref_user.is_blocked:
                 referrer_id = ref_user.id
         elif payload.startswith("check_"):
             check_code = payload[6:].upper()
 
     user, is_new = await get_or_create_user(session, message.from_user, referrer_id)
 
-    if is_new and referrer_id:
-        rr = await session.execute(select(User).where(User.id == referrer_id).with_for_update())
-        ref = rr.scalar_one_or_none()
-        if ref:
-            ref.balance += BusinessRules.REFERRAL_BASE_REWARD
-            ref.total_earned += BusinessRules.REFERRAL_BASE_REWARD
-            ref.referral_earnings += BusinessRules.REFERRAL_BASE_REWARD
-            ref.add_xp(BusinessRules.REFERRAL_XP_BASE)
-            session.add(Transaction(
-                user_id=ref.id,
-                amount=BusinessRules.REFERRAL_BASE_REWARD,
-                type=TransactionType.REFERRAL_REWARD,
-                description="Referral bonus",
-                balance_after=ref.balance,
-            ))
-
+    # NOTE: referral rewards are NOT paid here any more. They are paid once the
+    # invited user completes a task and stays for the retention period
+    # (see services.settle_referrals). Paying on /start was trivially farmable.
     await session.commit()
+
+    await message.answer(
+        t(user.language, "welcome", bot_name=esc(BOT_USERNAME), first_name=esc(message.from_user.first_name)),
+        reply_markup=main_menu(user.language),
+        parse_mode=ParseMode.HTML,
+    )
 
     if check_code:
         from handlers.checks import _redeem_check_deeplink
-        await _redeem_check_deeplink(message, session, check_code)
-        return
-
-    # Base menu reply keyboard
-    kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="💰 আয়"), KeyboardButton(text="📢 প্রচার করুন")],
-            [KeyboardButton(text="🎫 চেক"), KeyboardButton(text="👤 আমার কেবিনেট")],
-            [KeyboardButton(text="🛡️ সাবস্ক্রিপশন চেক"), KeyboardButton(text="📊 আমাদের বট ও পরিসংখ্যান")],
-            [KeyboardButton(text="🔗 দরকারি লিংক"), KeyboardButton(text="ℹ️ নির্দেশিকা")]
-        ],
-        resize_keyboard=True
-    )
-
-    welcome_text = t(user.language, "welcome", bot_name=esc(BOT_USERNAME), first_name=esc(message.from_user.first_name))
-    
-    await message.answer(
-        welcome_text,
-        reply_markup=kb,
-        parse_mode=ParseMode.HTML,
-    )
+        await _redeem_check_deeplink(message, session, check_code, state)

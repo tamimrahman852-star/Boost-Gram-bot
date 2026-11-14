@@ -1,13 +1,16 @@
 import asyncio
+import time
 import traceback
 import uvicorn
+from sqlalchemy import select
 
 from aiogram import Bot, Dispatcher, BaseMiddleware
-from aiogram.types import BotCommand, ErrorEvent
+from aiogram.types import BotCommand, ErrorEvent, Message, CallbackQuery
 from aiogram.fsm.storage.redis import RedisStorage
 
-from config import BOT_TOKEN, PORT, logger
-from database import AsyncSessionLocal, redis_client
+from config import BOT_TOKEN, PORT, ADMIN_IDS, BusinessRules, logger
+from database import AsyncSessionLocal, redis_client, User
+from localization import L10N
 from helpers import alert_admins, esc
 from web import fastapi_app
 from workers import retention_worker
@@ -32,6 +35,54 @@ class DBSessionMiddleware(BaseMiddleware):
             return await handler(event, data)
 
 
+MENU_TEXTS = {
+    v for lang in L10N.T.values() for k, v in lang.items() if k.startswith("menu_")
+} | {"❌ বাতিল", "❌ Cancel"}
+
+
+class GuardMiddleware(BaseMiddleware):
+    """Runs for every message/callback:
+    1. per-user flood limit (stops scripts hammering the bot)
+    2. blocked users are cut off completely (admins excepted)
+    3. tapping a main-menu button always aborts a half-finished input flow
+    """
+
+    async def __call__(self, handler, event, data):
+        tg_user = data.get("event_from_user")
+        if tg_user is None:
+            return await handler(event, data)
+        uid = tg_user.id
+
+        key = f"rl:{uid}:{int(time.time())}"
+        hits = await redis_client.incr(key)
+        if hits == 1:
+            await redis_client.expire(key, 3)
+        if hits > BusinessRules.RATE_LIMIT_PER_SECOND:
+            if isinstance(event, CallbackQuery) and hits == BusinessRules.RATE_LIMIT_PER_SECOND + 1:
+                try:
+                    await event.answer("⚠️ Too fast!", show_alert=False)
+                except Exception:
+                    pass
+            return None
+
+        if uid not in ADMIN_IDS:
+            session = data["session"]
+            blocked = (await session.execute(select(User.is_blocked).where(User.id == uid))).scalar()
+            if blocked:
+                if isinstance(event, Message):
+                    await event.answer("🚫 Your account is blocked.")
+                elif isinstance(event, CallbackQuery):
+                    await event.answer("🚫 Your account is blocked.", show_alert=True)
+                return None
+
+        if isinstance(event, Message) and event.text in MENU_TEXTS:
+            state = data.get("state")
+            if state is not None:
+                await state.clear()
+
+        return await handler(event, data)
+
+
 async def main():
     storage = RedisStorage(redis=redis_client)
     bot = Bot(token=BOT_TOKEN)
@@ -40,6 +91,9 @@ async def main():
     # Middleware registration
     dp.message.outer_middleware(DBSessionMiddleware())
     dp.callback_query.outer_middleware(DBSessionMiddleware())
+    dp.pre_checkout_query.outer_middleware(DBSessionMiddleware())
+    dp.message.outer_middleware(GuardMiddleware())
+    dp.callback_query.outer_middleware(GuardMiddleware())
 
     # Routers registration
     dp.include_router(start_router)
@@ -53,10 +107,7 @@ async def main():
     dp.include_router(static_router)
     dp.include_router(admin_router)
 
-    await bot.set_my_commands([
-        BotCommand(command="start", description="🚀 Start"),
-        BotCommand(command="admin", description="👑 Admin"),
-    ])
+    await bot.set_my_commands([BotCommand(command="start", description="🚀 Start")])
 
     @dp.error()
     async def on_error(event: ErrorEvent):
@@ -66,7 +117,7 @@ async def main():
         return True
 
     # Start background retention worker
-    asyncio.create_task(retention_worker(bot))
+    worker_task = asyncio.create_task(retention_worker(bot))  # noqa: F841 (keep reference)
 
     # Start FastAPI server in background or via uvicorn runner
     uv_config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=PORT, log_level="warning")

@@ -1,12 +1,13 @@
 import html
 import hashlib
+import hmac
 from typing import Optional
 from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.types import Message
 from aiogram.fsm.state import State, StatesGroup
 
-from config import ADMIN_IDS
+from config import ADMIN_IDS, ENCRYPTION_KEY
 
 
 def esc(v) -> str:
@@ -15,6 +16,23 @@ def esc(v) -> str:
 
 def hash_sensitive(data: str) -> str:
     return hashlib.sha256(data.encode()).hexdigest()
+
+
+def hash_password(pw: str, salt: str) -> str:
+    """Salted, keyed hash for check passwords (replaces bare SHA-256)."""
+    digest = hmac.new(
+        ENCRYPTION_KEY.encode(), f"{salt}:{pw}".encode(), hashlib.sha256
+    ).hexdigest()
+    return f"h2${digest}"
+
+
+def L(lang: str, bn: str, en: str) -> str:
+    """Tiny helper for strings that exist only in Bangla and English."""
+    return bn if lang == "bn" else en
+
+
+def fmt(n) -> str:
+    return f"{n:,.0f}"
 
 
 def safe_text(message: Message) -> Optional[str]:
@@ -61,6 +79,11 @@ class CheckCreateState(StatesGroup):
 class CheckRedeemState(StatesGroup):
     code = State()
     password = State()
+
+
+class CampaignCreateState(StatesGroup):
+    reward = State()
+    slots = State()
 
 class WithdrawState(StatesGroup):
     amount = State()

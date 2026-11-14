@@ -48,7 +48,8 @@ def back_to_cabinet_kb(lang: str) -> InlineKeyboardMarkup:
 
 def language_kb() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    items = [(code, name) for code, name in L10N.LANGS.items()]
+    # Only languages that actually have translations are offered.
+    items = [(code, name) for code, name in L10N.LANGS.items() if code in L10N.T]
     for i in range(0, len(items), 3):
         row = items[i:i + 3]
         b.row(*[InlineKeyboardButton(text=name, callback_data=f"lang:{code}") for code, name in row])
@@ -60,14 +61,6 @@ def category_kb(lang: str, counts: dict) -> InlineKeyboardMarkup:
     b.row(
         InlineKeyboardButton(text=f"📢 Channel · {counts.get('channel', 0)}", callback_data="earn:cat:channel_sub"),
         InlineKeyboardButton(text=f"👥 Group · {counts.get('group', 0)}", callback_data="earn:cat:group_join"),
-    )
-    b.row(
-        InlineKeyboardButton(text=f"👀 Post · {counts.get('post', 0)}", callback_data="earn:cat:post_view"),
-        InlineKeyboardButton(text=f"🤖 Bot · {counts.get('bot', 0)}", callback_data="earn:cat:bot_start"),
-    )
-    b.row(
-        InlineKeyboardButton(text=f"❤️ Reaction · {counts.get('reaction', 0)}", callback_data="earn:cat:reaction"),
-        InlineKeyboardButton(text=f"⚡ Boost · {counts.get('boost', 0)}", callback_data="earn:cat:boost_7day"),
     )
     b.row(InlineKeyboardButton(text="📋 Rules", callback_data="earn:rules"))
     b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="cab:back"))
@@ -111,6 +104,7 @@ def task_detail_kb(lang: str, cid: str, link: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t(lang, "task_open"), url=link)],
         [InlineKeyboardButton(text=t(lang, "task_verify"), callback_data=f"earn:verify:{cid}")],
+        [InlineKeyboardButton(text="🚩 Report", callback_data=f"earn:report:{cid}")],
         [InlineKeyboardButton(text=t(lang, "task_back"), callback_data="earn:back")],
     ])
 
@@ -121,7 +115,6 @@ def admin_kb() -> InlineKeyboardMarkup:
     b.row(InlineKeyboardButton(text="🚨 Fraud Reports", callback_data="adm:reports"))
     b.row(InlineKeyboardButton(text="💸 Withdrawals", callback_data="adm:withdrawals"))
     b.row(InlineKeyboardButton(text="🚫 Ban/Unban User", callback_data="adm:ban"))
-    b.row(InlineKeyboardButton(text="📢 Moderate Campaigns", callback_data="adm:tasks"))
     b.row(InlineKeyboardButton(text="📊 Full Stats", callback_data="adm:stats"))
     return b.as_markup()
 
@@ -133,3 +126,10 @@ def withdraw_method_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🏦 Bank Transfer", callback_data="wd:m:bank")],
         [InlineKeyboardButton(text="📱 Mobile Wallet", callback_data="wd:m:mobile")],
     ])
+
+
+def withdrawal_review_kb(wd_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="✅ Approve", callback_data=f"adm:wd:ok:{wd_id}"),
+        InlineKeyboardButton(text="❌ Reject + refund", callback_data=f"adm:wd:no:{wd_id}"),
+    ]])
