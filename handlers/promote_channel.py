@@ -72,7 +72,8 @@ async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_cha
         request_chat=KeyboardButtonRequestChat(
             request_id=REQ_CHANNEL if is_channel else REQ_GROUP,
             chat_is_channel=is_channel,
-            user_administrator_rights=_no_rights(can_manage_chat=True),
+            # Telegram requires bot rights to be a subset of the user's rights
+            user_administrator_rights=_no_rights(can_manage_chat=True, can_invite_users=True),
             bot_administrator_rights=_no_rights(can_manage_chat=True, can_invite_users=True),
             bot_is_member=True,
         ),
