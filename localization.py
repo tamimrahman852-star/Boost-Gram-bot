@@ -200,15 +200,29 @@ class L10N:
 
     @classmethod
     def get(cls, lang: str, key: str, **kw) -> str:
-        text = (
-            cls.T.get(lang, {}).get(key)
-            or cls.T["en"].get(key)
-            or f"[{key}]"
-        )
+        text = cls.T.get(lang, {}).get(key)
+        if text is None:
+            en = cls.T["en"].get(key)
+            if en is not None and lang in cls.LANGS:
+                import i18n
+                tr = i18n.lookup(lang, en)
+                if tr is None:
+                    i18n.note_missing(en)
+                text = tr or en
+            else:
+                text = en
+        if text is None:
+            text = f"[{key}]"
         try:
             return text.format(**kw)
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, ValueError):
             return text
+
+    @classmethod
+    def menu_variants(cls, key: str) -> set:
+        """All spellings of a main-menu button (every language that has been translated)."""
+        import i18n
+        return i18n.variants(cls.T["en"][key], cls.T["bn"].get(key))
 
 
 def t(lang: str, key: str, **kw) -> str:

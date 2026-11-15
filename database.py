@@ -460,8 +460,17 @@ class CampaignPost(Base):
     source_message_id: Mapped[int] = mapped_column(BigInteger)
 
 
+class Translation(Base):
+    """Cached machine translation of one English text into one language (see i18n.py)."""
+    __tablename__ = "translations"
+
+    lang: Mapped[str] = mapped_column(String(8), primary_key=True)
+    key: Mapped[str] = mapped_column(String(16), primary_key=True)
+    text: Mapped[str] = mapped_column(Text)
+
+
 NEW_TABLES = [DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__,
-              TaskSubmission.__table__, AutoRenew.__table__, CampaignPost.__table__]
+              TaskSubmission.__table__, AutoRenew.__table__, CampaignPost.__table__, Translation.__table__]
 
 
 async def ensure_new_tables():

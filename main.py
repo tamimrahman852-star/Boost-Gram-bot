@@ -11,6 +11,8 @@ from aiogram.fsm.storage.redis import RedisStorage
 from config import BOT_TOKEN, PORT, ADMIN_IDS, BusinessRules, logger
 from database import AsyncSessionLocal, redis_client, User, ensure_new_tables
 from localization import L10N
+from i18n_filters import is_menu_text
+import i18n
 from helpers import alert_admins, esc
 from web import fastapi_app
 from workers import retention_worker
@@ -38,11 +40,6 @@ class DBSessionMiddleware(BaseMiddleware):
         async with AsyncSessionLocal() as session:
             data["session"] = session
             return await handler(event, data)
-
-
-MENU_TEXTS = {
-    v for lang in L10N.T.values() for k, v in lang.items() if k.startswith("menu_")
-} | {"❌ বাতিল", "❌ Cancel"}
 
 
 class GuardMiddleware(BaseMiddleware):
@@ -80,7 +77,7 @@ class GuardMiddleware(BaseMiddleware):
                     await event.answer("🚫 Your account is blocked.", show_alert=True)
                 return None
 
-        if isinstance(event, Message) and event.text in MENU_TEXTS:
+        if isinstance(event, Message) and is_menu_text(event.text):
             state = data.get("state")
             if state is not None:
                 await state.clear()
@@ -90,6 +87,8 @@ class GuardMiddleware(BaseMiddleware):
 
 async def main():
     await ensure_new_tables()
+    await i18n.load_cache()
+    i18n_task = asyncio.create_task(i18n.background_loop())  # noqa: F841 (keep a reference)
     storage = RedisStorage(redis=redis_client)
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher(storage=storage)

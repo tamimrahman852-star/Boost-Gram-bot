@@ -36,9 +36,7 @@ def is_expired(dt) -> bool:
     return dt < datetime.now(timezone.utc)
 
 
-def L(lang: str, bn: str, en: str) -> str:
-    """Tiny helper for strings that exist only in Bangla and English."""
-    return bn if lang == "bn" else en
+from i18n import L  # noqa: E402,F401  (multi-language text picker)
 
 
 def fmt(n) -> str:

@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+from i18n import L
 from localization import L10N, t
 
 
@@ -33,8 +34,8 @@ def cabinet_kb(lang: str, notif_on: bool, can_withdraw: bool) -> InlineKeyboardM
         InlineKeyboardButton(text=t(lang, "btn_tasks"), callback_data="cab:tasks"),
     )
     b.row(
-        InlineKeyboardButton(text="📜 " + ("ইতিহাস" if lang == "bn" else "History"), callback_data="cab:hist:0"),
-        InlineKeyboardButton(text="🎟 " + ("প্রোমো কোড" if lang == "bn" else "Promo code"), callback_data="voucher:start"),
+        InlineKeyboardButton(text="📜 " + (L(lang, "ইতিহাস", "History")), callback_data="cab:hist:0"),
+        InlineKeyboardButton(text="🎟 " + (L(lang, "প্রোমো কোড", "Promo code")), callback_data="voucher:start"),
     )
     if can_withdraw:
         b.row(InlineKeyboardButton(text=t(lang, "menu_withdraw"), callback_data="cab:withdraw"))
@@ -52,8 +53,7 @@ def back_to_cabinet_kb(lang: str) -> InlineKeyboardMarkup:
 
 def language_kb() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    # Only languages that actually have translations are offered.
-    items = [(code, name) for code, name in L10N.LANGS.items() if code in L10N.T]
+    items = list(L10N.LANGS.items())
     for i in range(0, len(items), 3):
         row = items[i:i + 3]
         b.row(*[InlineKeyboardButton(text=name, callback_data=f"lang:{code}") for code, name in row])
@@ -64,11 +64,11 @@ def category_kb(lang: str, counts: dict) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     bn = lang == "bn"
     def btn(icon, name_bn, name_en, key, data):
-        return InlineKeyboardButton(text=f"{icon} {name_bn if bn else name_en} · {counts.get(key, 0)}", callback_data=f"earn:cat:{data}")
+        return InlineKeyboardButton(text=f"{icon} {L(lang, name_bn, name_en)} · {counts.get(key, 0)}", callback_data=f"earn:cat:{data}")
     b.row(btn("📢", "চ্যানেল", "Channels", "channel", "channel_sub"), btn("👥", "গ্রুপ", "Groups", "group", "group_join"))
     b.row(btn("👁", "ভিউ", "Views", "view", "post_view"), btn("🤖", "বট", "Bots", "bot", "bot_start"))
     b.row(btn("❤️", "প্রতিক্রিয়া", "Reactions", "reaction", "reaction"), btn("⚡", "বুস্ট", "Boost", "boost", "boost_7day"))
-    b.row(InlineKeyboardButton(text=f"📝 {'নিয়মাবলী' if bn else 'Rules'}", callback_data="earn:rules"))
+    b.row(InlineKeyboardButton(text=f"📝 {L(lang, 'নিয়মাবলী', 'Rules')}", callback_data="earn:rules"))
     b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="cab:back"))
     return b.as_markup()
 

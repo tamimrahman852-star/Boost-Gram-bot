@@ -6,13 +6,14 @@ from aiogram.enums import ParseMode
 
 from config import BOT_USERNAME
 from database import User, Campaign, TaskCompletion, Transaction, CampaignStatus, TransactionType
+from i18n_filters import MenuText
 from localization import L10N, t
 from helpers import esc
 
 router = Router()
 
 
-@router.message(F.text.in_([L10N.T["en"]["menu_stats"], L10N.T["bn"]["menu_stats"]]))
+@router.message(MenuText("menu_stats"))
 async def stats(message: Message, session):
     r = await session.execute(select(func.count(User.id)))
     users = r.scalar() or 0
@@ -25,17 +26,17 @@ async def stats(message: Message, session):
     await message.answer(t("en", "stats", users=users, active=active, completed=done, paid=paid), parse_mode=ParseMode.HTML)
 
 
-@router.message(F.text.in_([L10N.T["en"]["menu_links"], L10N.T["bn"]["menu_links"]]))
+@router.message(MenuText("menu_links"))
 async def links(message: Message):
     await message.answer(t("en", "links", bot=BOT_USERNAME), parse_mode=ParseMode.HTML)
 
 
-@router.message(F.text.in_([L10N.T["en"]["menu_instruction"], L10N.T["bn"]["menu_instruction"]]))
+@router.message(MenuText("menu_instruction"))
 async def instr(message: Message):
     await message.answer(t("en", "instruction"), parse_mode=ParseMode.HTML)
 
 
-@router.message(F.text.in_([L10N.T["en"]["menu_sub_check"], L10N.T["bn"]["menu_sub_check"]]))
+@router.message(MenuText("menu_sub_check"))
 async def subc(message: Message):
     await message.answer(t("en", "sub_check", bot=esc(BOT_USERNAME)), parse_mode=ParseMode.HTML)
 

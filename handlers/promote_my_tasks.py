@@ -62,7 +62,7 @@ async def build_list(session, uid: int, lang: str, tab: str, page: int):
         text=f"{STATUS_ICON[c.status]} {c.title[:20]} · {c.completed_count}/{c.max_completions} · {c.reward_per_user:,.0f}",
         callback_data=f"promote:ch:manage:{c.id}")] for c in rows_db]
     rows.append([
-        InlineKeyboardButton(text=("• " if k == tab else "") + (v[1] if lang == "bn" else v[2]), callback_data=f"promote:mt:{k}:0")
+        InlineKeyboardButton(text=("• " if k == tab else "") + (L(lang, v[1], v[2])), callback_data=f"promote:mt:{k}:0")
         for k, v in TABS.items()
     ])
     if pages > 1:
@@ -119,23 +119,23 @@ def _manage_view(c: Campaign, lang: str, renew_on: bool = False, pending: int = 
         f"💰 খরচ: <b>{c.spent_budget:,.0f}</b> · বাকি বাজেট: <b>{_remaining(c):,.0f}</b>",
         f"{STATUS_ICON[c.status]} <b>{esc(c.title)}</b>\n<code>№{c.id[:8].upper()}</code>\n\n"
         f"👥 Done: <b>{c.completed_count}/{c.max_completions}</b>\n💲 Per user: <b>{c.reward_per_user:,.0f}</b> GRAM\n"
-        f"💰 Spent: <b>{c.spent_budget:,.0f}</b> · Budget left: <b>{_remaining(c):,.0f}</b>",
-    )
+        f"💰 Spent: <b>{c.spent_budget:,.0f}</b> · Budget left: <b>{_remaining(c):,.0f}</b>"
+    , _tpl='{v0} <b>{v1}</b>\n<code>№{v2}</code>\n\n👥 Done: <b>{v3}/{v4}</b>\n💲 Per user: <b>{v5:,.0f}</b> GRAM\n💰 Spent: <b>{v6:,.0f}</b> · Budget left: <b>{v7:,.0f}</b>', _kw={"v0": STATUS_ICON[c.status], "v1": esc(c.title), "v2": c.id[:8].upper(), "v3": c.completed_count, "v4": c.max_completions, "v5": c.reward_per_user, "v6": c.spent_budget, "v7": _remaining(c)})
     rows = []
     live = c.status in (CampaignStatus.ACTIVE, CampaignStatus.PAUSED)
     ttype = c.task_type.value if hasattr(c.task_type, "value") else str(c.task_type)
     if ttype in BusinessRules.PROOF_TASK_TYPES and c.status != CampaignStatus.CANCELLED:
         rows.append([InlineKeyboardButton(
-            text=L(lang, f"📥 প্রমাণ যাচাই ({pending})", f"📥 Review proofs ({pending})"), callback_data=f"rev:list:{c.id}")])
+            text=L(lang, f"📥 প্রমাণ যাচাই ({pending})", f"📥 Review proofs ({pending})", _tpl='📥 Review proofs ({v0})', _kw={"v0": pending}), callback_data=f"rev:list:{c.id}")])
     if live:
         rows.append([InlineKeyboardButton(
-            text=L(lang, f"🔁 অটো-রিনিউ: {'চালু' if renew_on else 'বন্ধ'}", f"🔁 Auto-renew: {'ON' if renew_on else 'OFF'}"),
+            text=L(lang, f"🔁 অটো-রিনিউ: {'চালু' if renew_on else 'বন্ধ'}", f"🔁 Auto-renew: {'ON' if renew_on else 'OFF'}", _tpl='🔁 Auto-renew: {v0}', _kw={"v0": 'ON' if renew_on else 'OFF'}),
             callback_data=f"promote:mng:renew:{c.id}")])
         if c.status == CampaignStatus.ACTIVE:
             rows.append([InlineKeyboardButton(text=L(lang, "⏸ বিরতি দিন", "⏸ Pause"), callback_data=f"promote:mng:pause:{c.id}")])
         else:
             rows.append([InlineKeyboardButton(text=L(lang, "▶️ চালু করুন", "▶️ Resume"), callback_data=f"promote:mng:resume:{c.id}")])
-        rows.append([InlineKeyboardButton(text=L(lang, f"👤 অডিয়েন্স: {aud}", f"👤 Audience: {aud}"), callback_data=f"promote:mng:aud:{c.id}")])
+        rows.append([InlineKeyboardButton(text=L(lang, f"👤 অডিয়েন্স: {aud}", f"👤 Audience: {aud}", _tpl='👤 Audience: {v0}', _kw={"v0": aud}), callback_data=f"promote:mng:aud:{c.id}")])
         rows.append([InlineKeyboardButton(text=L(lang, "🗑 মুছুন ও রিফান্ড", "🗑 Delete & refund"), callback_data=f"promote:mng:cancel:{c.id}")])
     rows.append([InlineKeyboardButton(text=L(lang, "◀️ ফিরে যান", "◀️ Back"), callback_data="promote:my_tasks")])
     return text, InlineKeyboardMarkup(inline_keyboard=rows)
@@ -177,7 +177,7 @@ async def campaign_action(query: CallbackQuery, session):
         await query.message.edit_text(L(
             lang,
             f"🛑 কাজটি মুছলে <b>{refund:,.0f} GRAM</b> ফেরত পাবেন। (প্ল্যাটফর্ম কমিশন ফেরতযোগ্য নয়)",
-            f"🛑 Deleting refunds <b>{refund:,.0f} GRAM</b>. (The platform commission is non-refundable.)"),
+            f"🛑 Deleting refunds <b>{refund:,.0f} GRAM</b>. (The platform commission is non-refundable.)", _tpl='🛑 Deleting refunds <b>{v0:,.0f} GRAM</b>. (The platform commission is non-refundable.)', _kw={"v0": refund}),
             reply_markup=kb, parse_mode=ParseMode.HTML)
         await query.answer()
         return
@@ -201,7 +201,7 @@ async def campaign_action(query: CallbackQuery, session):
         await query.message.edit_text(L(
             lang,
             f"✅ <b>সম্পন্ন! টাস্কটি মুছে ফেলা হয়েছে।</b>\n\nফেরত দেওয়া হয়েছে: <b>{remaining:,.1f} GRAM</b> 💲\nআপনার ব্যালেন্স: <b>{owner.balance:,.1f} GRAM</b> 💰",
-            f"✅ <b>Done! The task was deleted.</b>\n\nRefunded: <b>{remaining:,.1f} GRAM</b> 💲\nYour balance: <b>{owner.balance:,.1f} GRAM</b> 💰"),
+            f"✅ <b>Done! The task was deleted.</b>\n\nRefunded: <b>{remaining:,.1f} GRAM</b> 💲\nYour balance: <b>{owner.balance:,.1f} GRAM</b> 💰", _tpl='✅ <b>Done! The task was deleted.</b>\n\nRefunded: <b>{v0:,.1f} GRAM</b> 💲\nYour balance: <b>{v1:,.1f} GRAM</b> 💰', _kw={"v0": remaining, "v1": owner.balance}),
             reply_markup=kb, parse_mode=ParseMode.HTML)
         await query.answer("✅")
         return
@@ -210,7 +210,7 @@ async def campaign_action(query: CallbackQuery, session):
         now_on = await _toggle_renew(session, c.id)
         await query.answer(
             L(lang, f"🔁 অটো-রিনিউ চালু: টাস্ক শেষ হলে স্বয়ংক্রিয়ভাবে আরও {BusinessRules.AUTO_RENEW_DEFAULT} বার পুনরায় প্রকাশ হবে এবং আপনার ব্যালেন্স থেকে টাকা কাটা হবে।",
-                    f"🔁 Auto-renew ON: when this task finishes it is re-published up to {BusinessRules.AUTO_RENEW_DEFAULT} times, charging your balance.")
+                    f"🔁 Auto-renew ON: when this task finishes it is re-published up to {BusinessRules.AUTO_RENEW_DEFAULT} times, charging your balance.", _tpl='🔁 Auto-renew ON: when this task finishes it is re-published up to {v0} times, charging your balance.', _kw={"v0": BusinessRules.AUTO_RENEW_DEFAULT})
             if now_on else L(lang, "🔁 অটো-রিনিউ বন্ধ করা হয়েছে।", "🔁 Auto-renew turned off."), show_alert=True)
     elif action == "pause" and c.status == CampaignStatus.ACTIVE:
         c.status = CampaignStatus.PAUSED
@@ -224,7 +224,7 @@ async def campaign_action(query: CallbackQuery, session):
                 await session.rollback()
                 await query.answer(L(
                     lang, f"❌ Premium অডিয়েন্সের জন্য কমপক্ষে {need:,} GRAM পুরস্কার দরকার।",
-                    f"❌ The Premium audience needs a reward of at least {need:,} GRAM."), show_alert=True)
+                    f"❌ The Premium audience needs a reward of at least {need:,} GRAM.", _tpl='❌ The Premium audience needs a reward of at least {v0:,} GRAM.', _kw={"v0": need}), show_alert=True)
                 return
         c.premium_only = not c.premium_only
     await session.commit()
@@ -268,7 +268,7 @@ async def _auto_view(session, uid: int, lang: str):
         "যে কাজে চালু করতে চান সেটি চাপুন:",
         "⚙️ <b>Auto-task settings</b>\n\n🔁 <b>Auto-renew</b>: when a task finishes, the same task is published again so your promotion never stops.\n"
         f"• Up to {BusinessRules.AUTO_RENEW_DEFAULT} repeats\n• Each repeat is charged to your balance\n• Stops by itself (and tells you) if the balance is too low\n\n"
-        "Tap a task to switch it on or off:")
+        "Tap a task to switch it on or off:", _tpl='⚙️ <b>Auto-task settings</b>\n\n🔁 <b>Auto-renew</b>: when a task finishes, the same task is published again so your promotion never stops.\n• Up to {v0} repeats\n• Each repeat is charged to your balance\n• Stops by itself (and tells you) if the balance is too low\n\nTap a task to switch it on or off:', _kw={"v0": BusinessRules.AUTO_RENEW_DEFAULT})
     if not camps:
         text += L(lang, "\n\n📭 আপনার কোনো কাজ নেই।", "\n\n📭 You have no tasks yet.")
     rows = [[InlineKeyboardButton(

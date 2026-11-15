@@ -8,6 +8,7 @@ from aiogram.fsm.context import FSMContext
 
 from config import BOT_USERNAME, BusinessRules, ADMIN_IDS
 from database import User, TaskCompletion, Campaign, WithdrawalRequest, Transaction, TransactionType
+from i18n_filters import MenuText
 from localization import L10N, t
 from keyboards import cabinet_kb, back_to_cabinet_kb, language_kb, main_menu, withdraw_method_kb
 from helpers import esc, level_emoji, TopUpState, WithdrawState, safe_text, L
@@ -22,7 +23,7 @@ async def get_user(session, uid):
     return r.scalar_one_or_none()
 
 
-@router.message(F.text.in_([L10N.T["en"]["menu_cabinet"], L10N.T["bn"]["menu_cabinet"]]))
+@router.message(MenuText("menu_cabinet"))
 async def show_cabinet(message: Message, session):
     user = await get_user(session, message.from_user.id)
     if not user:
@@ -97,13 +98,17 @@ async def set_lang(query: CallbackQuery, session):
         return
     user.language = code
     await session.commit()
+    await query.answer()
+    import i18n
+    if not await i18n.ensure_language(code, wait=0.01):        # not translated yet: start it and tell the user
+        await query.message.edit_text("⏳ …")
+        await i18n.ensure_language(code, wait=45)
     await query.message.edit_text(t(code, "lang_changed"))
     await query.message.answer(
         t(code, "welcome", bot_name=esc(BOT_USERNAME), first_name=esc(user.first_name)),
         reply_markup=main_menu(code),
         parse_mode=ParseMode.HTML,
     )
-    await query.answer()
 
 
 @router.callback_query(F.data == "cab:referral")
@@ -362,7 +367,7 @@ async def cab_pkg(query: CallbackQuery, session, state: FSMContext):
     if choice == "custom":
         await query.message.answer(
             L(lang, f"⭐ কত Stars দিতে চান? (১ Star = {int(BusinessRules.STAR_TO_COIN_RATE):,} GRAM)\n১–১০০০০ এর মধ্যে সংখ্যা পাঠান:",
-                    f"⭐ How many Stars? (1 Star = {int(BusinessRules.STAR_TO_COIN_RATE):,} GRAM)\nSend a number from 1 to 10000:"))
+                    f"⭐ How many Stars? (1 Star = {int(BusinessRules.STAR_TO_COIN_RATE):,} GRAM)\nSend a number from 1 to 10000:", _tpl='⭐ How many Stars? (1 Star = {v0:,} GRAM)\nSend a number from 1 to 10000:', _kw={"v0": int(BusinessRules.STAR_TO_COIN_RATE)}))
         await state.set_state(TopUpState.stars)
         await query.answer()
         return

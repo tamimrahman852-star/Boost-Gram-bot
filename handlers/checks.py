@@ -9,6 +9,7 @@ from aiogram.fsm.context import FSMContext
 
 from config import BOT_USERNAME, BusinessRules
 from database import User, Check, CheckActivation, Transaction, CheckType, TransactionType, redis_client
+from i18n_filters import MenuText
 from localization import L10N, t
 from keyboards import checks_kb
 from helpers import esc, safe_text, CheckCreateState, CheckRedeemState, hash_password, L, is_expired
@@ -23,7 +24,7 @@ async def get_user(session, uid):
     return r.scalar_one_or_none()
 
 
-@router.message(F.text.in_([L10N.T["en"]["menu_checks"], L10N.T["bn"]["menu_checks"]]))
+@router.message(MenuText("menu_checks"))
 async def checks_menu(message: Message, session):
     user = await get_user(session, message.from_user.id)
     if not user:
@@ -59,7 +60,7 @@ async def chk_amount(message: Message, session, state: FSMContext):
             raise ValueError()
     except (InvalidOperation, ValueError):
         await message.answer(L(lang, f"❌ ১ থেকে {BusinessRules.CHECK_MAX_AMOUNT:,.0f} এর মধ্যে একটি পূর্ণ সংখ্যা দিন।",
-                               f"❌ Send a whole number between 1 and {BusinessRules.CHECK_MAX_AMOUNT:,.0f}."))
+                               f"❌ Send a whole number between 1 and {BusinessRules.CHECK_MAX_AMOUNT:,.0f}.", _tpl='❌ Send a whole number between 1 and {v0:,.0f}.', _kw={"v0": BusinessRules.CHECK_MAX_AMOUNT}))
         return
     await state.update_data(amount=str(v))
     await message.answer(t(lang, "check_activations"))

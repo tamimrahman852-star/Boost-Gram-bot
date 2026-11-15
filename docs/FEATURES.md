@@ -47,3 +47,18 @@ Promote → 👁 Post → forward a channel post to the bot (or send its public 
 Earn → 👁 Views → tap "View post +N": the bot forwards the post into the worker's chat (this also counts as a real view on the
 original post) and pays automatically after a few seconds. Safety: one view per post per user, minimum dwell time, daily task limit,
 tap cooldown, own posts excluded, campaigns auto-pause if the post can't be forwarded any more.
+
+## Languages (all 21 supported)
+Bangla and English are hand-written. Every other language (hi, ru, ar, es, de, fr, pt, id, tr, fa, uz, kk, uk, zh, vi, th, ja, ko, my)
+is translated automatically the first time it is needed and stored in the `translations` table, so it is instant afterwards.
+Placeholders (`{amount}`), HTML tags and numbers are protected and verified; if a translation can't be verified the English text is used.
+Set ONE of these in Render for the translator:
+| Env | Provider |
+|---|---|
+| `GOOGLE_TRANSLATE_API_KEY` | official Google Cloud Translation (recommended) |
+| `LIBRETRANSLATE_URL` (+ `LIBRETRANSLATE_API_KEY`) | your LibreTranslate server |
+| nothing | free public Google endpoint (works, but best-effort) |
+
+When a user picks a language the bot translates it (up to ~45 s the first time), then shows the menu in that language.
+Polish any text by hand: `locales/overrides/<lang>.json` → `{"English text": "your translation"}` (always wins).
+After adding new texts to the code run `python tools/extract_catalog.py` and commit `locales/catalog.json`.

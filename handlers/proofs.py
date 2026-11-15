@@ -111,7 +111,7 @@ async def proof_start(query: CallbackQuery, session, state: FSMContext):
                 "⚠️ একই স্ক্রিনশট দ্বিতীয়বার ব্যবহার করা যাবে না। ভুয়া প্রমাণ দিলে অ্যাকাউন্ট ব্লক হতে পারে।",
           f"📸 <b>{esc(c.title)}</b>\n\n{en}\n\n💲 Reward: <b>{c.reward_per_user:,.0f} GRAM</b>\n"
           f"⏳ The advertiser reviews within {BusinessRules.PROOF_REVIEW_HOURS} hours.\n\n"
-          "⚠️ A screenshot can't be used twice. Fake proof can get your account blocked."),
+          "⚠️ A screenshot can't be used twice. Fake proof can get your account blocked.", _tpl="📸 <b>{v0}</b>\n\n{v1}\n\n💲 Reward: <b>{v2:,.0f} GRAM</b>\n⏳ The advertiser reviews within {v3} hours.\n\n⚠️ A screenshot can't be used twice. Fake proof can get your account blocked.", _kw={"v0": esc(c.title), "v1": en, "v2": c.reward_per_user, "v3": BusinessRules.PROOF_REVIEW_HOURS}),
         reply_markup=_cancel_kb(lang), parse_mode=ParseMode.HTML)
     await query.answer()
 
@@ -168,7 +168,7 @@ async def proof_photo(message: Message, session, state: FSMContext, bot: Bot):
         await pipe.execute()
         await message.answer(L(
             lang, f"✅ <b>প্রমাণ জমা হয়েছে</b>\n\nবিজ্ঞাপনদাতা যাচাই করলে <b>{reward:,.0f} GRAM</b> আপনার ব্যালেন্সে যোগ হবে।",
-            f"✅ <b>Proof submitted</b>\n\n<b>{reward:,.0f} GRAM</b> will be added once the advertiser approves."), parse_mode=ParseMode.HTML)
+            f"✅ <b>Proof submitted</b>\n\n<b>{reward:,.0f} GRAM</b> will be added once the advertiser approves.", _tpl='✅ <b>Proof submitted</b>\n\n<b>{v0:,.0f} GRAM</b> will be added once the advertiser approves.', _kw={"v0": reward}), parse_mode=ParseMode.HTML)
         try:
             await bot.send_photo(
                 advertiser, photo.file_id,
@@ -222,7 +222,7 @@ async def review_approve(query: CallbackQuery, session, bot: Bot):
         w = await _user(session, worker)
         await bot.send_message(worker, L(w.language if w else "bn",
             f"✅ আপনার প্রমাণ অনুমোদিত হয়েছে!\n💲 +{reward:,.0f} GRAM · 💰 {bal:,.1f}",
-            f"✅ Your proof was approved!\n💲 +{reward:,.0f} GRAM · 💰 {bal:,.1f}"))
+            f"✅ Your proof was approved!\n💲 +{reward:,.0f} GRAM · 💰 {bal:,.1f}", _tpl='✅ Your proof was approved!\n💲 +{v0:,.0f} GRAM · 💰 {v1:,.1f}', _kw={"v0": reward, "v1": bal}))
     except Exception:
         pass
 
@@ -247,7 +247,7 @@ async def review_reject(query: CallbackQuery, session, bot: Bot):
             text=L(lang, "⚖️ আপিল করুন", "⚖️ Dispute"), callback_data=f"sub:dispute:{sid}")]])
         await bot.send_message(worker, L(
             lang, f"❌ আপনার প্রমাণ বাতিল করা হয়েছে। আপনি মনে করলে {BusinessRules.PROOF_DISPUTE_HOURS} ঘণ্টার মধ্যে আপিল করতে পারেন — অ্যাডমিন বিচার করবেন।",
-            f"❌ Your proof was rejected. If you think this is wrong you can dispute it within {BusinessRules.PROOF_DISPUTE_HOURS}h — an admin will decide."),
+            f"❌ Your proof was rejected. If you think this is wrong you can dispute it within {BusinessRules.PROOF_DISPUTE_HOURS}h — an admin will decide.", _tpl='❌ Your proof was rejected. If you think this is wrong you can dispute it within {v0}h — an admin will decide.', _kw={"v0": BusinessRules.PROOF_DISPUTE_HOURS}),
             reply_markup=kb)
     except Exception:
         pass

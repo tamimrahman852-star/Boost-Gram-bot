@@ -68,7 +68,7 @@ async def dep_start(query: CallbackQuery, session, state: FSMContext):
         f"💳 <b>ম্যানুয়াল ডিপোজিট</b>\n\nদর: ১ টাকা = <b>{DEPOSIT_RATE_PER_BDT:,.0f} GRAM</b>\n"
         f"সর্বনিম্ন {DEPOSIT_MIN_BDT:,.0f}৳ · সর্বোচ্চ {DEPOSIT_MAX_BDT:,.0f}৳\n\nপেমেন্ট মাধ্যম বেছে নিন:",
         f"💳 <b>Manual deposit</b>\n\nRate: 1 BDT = <b>{DEPOSIT_RATE_PER_BDT:,.0f} GRAM</b>\n"
-        f"Min {DEPOSIT_MIN_BDT:,.0f} · Max {DEPOSIT_MAX_BDT:,.0f} BDT\n\nChoose a payment method:"),
+        f"Min {DEPOSIT_MIN_BDT:,.0f} · Max {DEPOSIT_MAX_BDT:,.0f} BDT\n\nChoose a payment method:", _tpl='💳 <b>Manual deposit</b>\n\nRate: 1 BDT = <b>{v0:,.0f} GRAM</b>\nMin {v1:,.0f} · Max {v2:,.0f} BDT\n\nChoose a payment method:', _kw={"v0": DEPOSIT_RATE_PER_BDT, "v1": DEPOSIT_MIN_BDT, "v2": DEPOSIT_MAX_BDT}),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode=ParseMode.HTML)
     await query.answer()
 
@@ -88,7 +88,7 @@ async def dep_method(query: CallbackQuery, session, state: FSMContext):
         f"💳 <b>{METHOD_LABEL[method]}</b>\n\nপ্রথমে এই নম্বরে <b>Send Money</b> করুন:\n<code>{esc(PAY_NUMBERS[method])}</code>\n\n"
         f"তারপর কত টাকা পাঠিয়েছেন তা লিখুন ({DEPOSIT_MIN_BDT:,.0f}–{DEPOSIT_MAX_BDT:,.0f}):",
         f"💳 <b>{METHOD_LABEL[method]}</b>\n\nFirst <b>Send Money</b> to this number:\n<code>{esc(PAY_NUMBERS[method])}</code>\n\n"
-        f"Then enter the amount you sent in BDT ({DEPOSIT_MIN_BDT:,.0f}–{DEPOSIT_MAX_BDT:,.0f}):"),
+        f"Then enter the amount you sent in BDT ({DEPOSIT_MIN_BDT:,.0f}–{DEPOSIT_MAX_BDT:,.0f}):", _tpl='💳 <b>{v0}</b>\n\nFirst <b>Send Money</b> to this number:\n<code>{v1}</code>\n\nThen enter the amount you sent in BDT ({v2:,.0f}–{v3:,.0f}):', _kw={"v0": METHOD_LABEL[method], "v1": esc(PAY_NUMBERS[method]), "v2": DEPOSIT_MIN_BDT, "v3": DEPOSIT_MAX_BDT}),
         reply_markup=_cancel_kb(lang), parse_mode=ParseMode.HTML)
     await query.answer()
 
@@ -113,12 +113,12 @@ async def dep_amount(message: Message, session, state: FSMContext):
         amt = amt.quantize(Decimal("0.01"))
     except InvalidOperation:
         await message.answer(L(lang, f"❌ {DEPOSIT_MIN_BDT:,.0f} থেকে {DEPOSIT_MAX_BDT:,.0f} এর মধ্যে সংখ্যা লিখুন।",
-                               f"❌ Send a number between {DEPOSIT_MIN_BDT:,.0f} and {DEPOSIT_MAX_BDT:,.0f}."))
+                               f"❌ Send a number between {DEPOSIT_MIN_BDT:,.0f} and {DEPOSIT_MAX_BDT:,.0f}.", _tpl='❌ Send a number between {v0:,.0f} and {v1:,.0f}.', _kw={"v0": DEPOSIT_MIN_BDT, "v1": DEPOSIT_MAX_BDT}))
         return
     await state.update_data(amount=str(amt))
     await state.set_state(DepositState.trx)
     await message.answer(L(lang, f"✅ {amt:,.2f}৳ = <b>{amt * DEPOSIT_RATE_PER_BDT:,.0f} GRAM</b>\n\nএখন পেমেন্টের <b>TrxID</b> লিখুন:",
-                                 f"✅ {amt:,.2f} BDT = <b>{amt * DEPOSIT_RATE_PER_BDT:,.0f} GRAM</b>\n\nNow send the payment <b>TrxID</b>:"),
+                                 f"✅ {amt:,.2f} BDT = <b>{amt * DEPOSIT_RATE_PER_BDT:,.0f} GRAM</b>\n\nNow send the payment <b>TrxID</b>:", _tpl='✅ {v0:,.2f} BDT = <b>{v1:,.0f} GRAM</b>\n\nNow send the payment <b>TrxID</b>:', _kw={"v0": amt, "v1": amt * DEPOSIT_RATE_PER_BDT}),
                          parse_mode=ParseMode.HTML, reply_markup=_cancel_kb(lang))
 
 
@@ -182,7 +182,7 @@ async def dep_proof(message: Message, session, state: FSMContext, bot: Bot):
             f"✅ <b>অনুরোধ জমা হয়েছে</b>\n\n💳 {METHOD_LABEL[data['method']]} · {amt:,.2f}৳\n🔖 <code>{esc(data['trx'])}</code>\n\n"
             "অ্যাডমিন যাচাই করলে GRAM আপনার ব্যালেন্সে যোগ হবে। সাধারণত অল্প সময় লাগে।",
             f"✅ <b>Request submitted</b>\n\n💳 {METHOD_LABEL[data['method']]} · {amt:,.2f} BDT\n🔖 <code>{esc(data['trx'])}</code>\n\n"
-            "Once an admin verifies it, the GRAM is added to your balance."), parse_mode=ParseMode.HTML)
+            "Once an admin verifies it, the GRAM is added to your balance.", _tpl='✅ <b>Request submitted</b>\n\n💳 {v0} · {v1:,.2f} BDT\n🔖 <code>{v2}</code>\n\nOnce an admin verifies it, the GRAM is added to your balance.', _kw={"v0": METHOD_LABEL[data['method']], "v1": amt, "v2": esc(data['trx'])}), parse_mode=ParseMode.HTML)
         caption = (f"💳 <b>New deposit</b>\n\n👤 <code>{uid}</code> ({esc(user.first_name)})\n"
                    f"🏦 {METHOD_LABEL[data['method']]} · <b>{amt:,.2f} BDT</b> → {coins:,.0f} GRAM\n🔖 <code>{esc(data['trx'])}</code>")
         kb = review_kb(dep_id)
@@ -253,12 +253,12 @@ async def adm_dep_review(query: CallbackQuery, session, bot: Bot):
             reference_type="deposit", balance_after=user.balance))
         note = "✅ Approved"
         msg = L(lang, f"✅ আপনার <b>{amt:,.2f}৳</b> ডিপোজিট অনুমোদিত হয়েছে।\n💲 যোগ হয়েছে: <b>{coins:,.0f} GRAM</b>",
-                      f"✅ Your <b>{amt:,.2f} BDT</b> deposit was approved.\n💲 Added: <b>{coins:,.0f} GRAM</b>")
+                      f"✅ Your <b>{amt:,.2f} BDT</b> deposit was approved.\n💲 Added: <b>{coins:,.0f} GRAM</b>", _tpl='✅ Your <b>{v0:,.2f} BDT</b> deposit was approved.\n💲 Added: <b>{v1:,.0f} GRAM</b>', _kw={"v0": amt, "v1": coins})
     else:
         dep.status = "rejected"
         note = "❌ Rejected"
         msg = L(lang, f"❌ আপনার {amt:,.2f}৳ ডিপোজিট অনুরোধ যাচাই করা যায়নি। সঠিক TrxID ও স্ক্রিনশটসহ আবার চেষ্টা করুন।",
-                      f"❌ Your {amt:,.2f} BDT deposit could not be verified. Please retry with the correct TrxID and screenshot.")
+                      f"❌ Your {amt:,.2f} BDT deposit could not be verified. Please retry with the correct TrxID and screenshot.", _tpl='❌ Your {v0:,.2f} BDT deposit could not be verified. Please retry with the correct TrxID and screenshot.', _kw={"v0": amt})
     await session.commit()
     logger.info(f"Admin {query.from_user.id} {note} deposit {dep_id}")
     try:

@@ -23,12 +23,12 @@ from config import BusinessRules, TaskPricing, BOT_USERNAME, logger
 from database import (
     User, Campaign, Transaction, CampaignStatus, TaskType, TransactionType, CampaignPost, redis_client,
 )
+from i18n_filters import TextVariant
 from keyboards import main_menu
 from helpers import esc, safe_text, L, CampaignCreateState
 
 router = Router()
 
-CANCEL_TEXTS = {"❌ বাতিল", "❌ Cancel"}
 REQ_CHANNEL, REQ_GROUP, REQ_CHANNEL_ANY, REQ_GROUP_ANY = 1, 2, 3, 4
 _USERNAME_RE = re.compile(r"^(?:https?://)?(?:t(?:elegram)?\.me/)?@?([A-Za-z][A-Za-z0-9_]{3,31})/?$")
 
@@ -64,7 +64,7 @@ async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_cha
         Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).scalar() or 0
     if active >= BusinessRules.MAX_ACTIVE_CAMPAIGNS:
         await query.answer(L(lang, f"সর্বোচ্চ {BusinessRules.MAX_ACTIVE_CAMPAIGNS}টি সক্রিয় ক্যাম্পেইন চালানো যায়।",
-                               f"Maximum {BusinessRules.MAX_ACTIVE_CAMPAIGNS} active campaigns allowed."), show_alert=True)
+                               f"Maximum {BusinessRules.MAX_ACTIVE_CAMPAIGNS} active campaigns allowed.", _tpl='Maximum {v0} active campaigns allowed.', _kw={"v0": BusinessRules.MAX_ACTIVE_CAMPAIGNS}), show_alert=True)
         return
     # While this step is open, a typed @username / t.me link is also accepted.
     await state.set_state(CampaignCreateState.target)
@@ -80,8 +80,8 @@ async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_cha
         f"📢 <b>Choose a {kind_en} to promote</b> (the bot must be an admin there)\n\n"
         f"🏠 <b>I'm an admin</b> — pick a {kind_en} you administer\n"
         f"👤 <b>I'm not an admin</b> — pick any public {kind_en}, or just send its <code>@username</code> / link\n\n"
-        "⚠️ In both cases the bot must be an <b>admin</b> there (with invite permission), otherwise members cannot be verified.",
-    )
+        "⚠️ In both cases the bot must be an <b>admin</b> there (with invite permission), otherwise members cannot be verified."
+    , _tpl="📢 <b>Choose a {v0} to promote</b> (the bot must be an admin there)\n\n🏠 <b>I'm an admin</b> — pick a {v0} you administer\n👤 <b>I'm not an admin</b> — pick any public {v0}, or just send its <code>@username</code> / link\n\n⚠️ In both cases the bot must be an <b>admin</b> there (with invite permission), otherwise members cannot be verified.", _kw={"v0": kind_en})
     cancel = [KeyboardButton(text=L(lang, "❌ বাতিল", "❌ Cancel"))]
     admin_text = L(lang, "🏠 আমি অ্যাডমিন", "🏠 I'm an admin")
     any_text = L(lang, "👤 আমি অ্যাডমিন নই", "👤 I'm not an admin")
@@ -141,7 +141,7 @@ async def promote_group_start(query: CallbackQuery, state: FSMContext, session):
     await _start_picker(query, state, session, False)
 
 
-@router.message(F.text.in_(CANCEL_TEXTS))
+@router.message(TextVariant("❌ Cancel", "❌ বাতিল"))
 async def cancel_flow(message: Message, state: FSMContext, session):
     await state.clear()
     user = await _get_user(session, message.from_user.id)
@@ -225,8 +225,8 @@ async def _after_target(message: Message, state: FSMContext, lang: str, title: s
         f"<b>2️⃣ শুধু Telegram Premium</b>\nশুধু Premium ব্যবহারকারীদের দেখানো হবে — আরও মানসম্মত অডিয়েন্স।\n💡 সর্বনিম্ন মূল্য: {rp['min']:,} GRAM/ইউনিট।",
         f"🎯 <b>Task audience</b> — {esc(title)}\n\n"
         f"<b>1️⃣ All users</b>\nWide reach across all users.\n💡 Minimum price: {rl['min']:,} GRAM/unit.\n\n"
-        f"<b>2️⃣ Telegram Premium only</b>\nShown only to Premium users — a higher-quality audience.\n💡 Minimum price: {rp['min']:,} GRAM/unit.",
-    )
+        f"<b>2️⃣ Telegram Premium only</b>\nShown only to Premium users — a higher-quality audience.\n💡 Minimum price: {rp['min']:,} GRAM/unit."
+    , _tpl='🎯 <b>Task audience</b> — {v0}\n\n<b>1️⃣ All users</b>\nWide reach across all users.\n💡 Minimum price: {v1:,} GRAM/unit.\n\n<b>2️⃣ Telegram Premium only</b>\nShown only to Premium users — a higher-quality audience.\n💡 Minimum price: {v2:,} GRAM/unit.', _kw={"v0": esc(title), "v1": rl['min'], "v2": rp['min']})
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=L(lang, "1️⃣ সব ব্যবহারকারী", "1️⃣ All users"), callback_data="promote:aud:all")],
         [InlineKeyboardButton(text=L(lang, "2️⃣ শুধুমাত্র Telegram Premium", "2️⃣ Telegram Premium only"), callback_data="promote:aud:premium")],
@@ -246,17 +246,17 @@ async def _start_link(query: CallbackQuery, state: FSMContext, session, kind: st
     lang = user.language if user else "bn"
     if await _over_limit(session, query.from_user.id):
         await query.answer(L(lang, f"সর্বোচ্চ {BusinessRules.MAX_ACTIVE_CAMPAIGNS}টি সক্রিয় ক্যাম্পেইন চালানো যায়।",
-                               f"Maximum {BusinessRules.MAX_ACTIVE_CAMPAIGNS} active campaigns allowed."), show_alert=True)
+                               f"Maximum {BusinessRules.MAX_ACTIVE_CAMPAIGNS} active campaigns allowed.", _tpl='Maximum {v0} active campaigns allowed.', _kw={"v0": BusinessRules.MAX_ACTIVE_CAMPAIGNS}), show_alert=True)
         return
     await state.set_state(CampaignCreateState.link)
     await state.update_data(link_kind=kind)
     texts = {
-        "post": (f"👁 <b>পোস্ট ভিউ</b>\n\n<b>যে পোস্টটি প্রচার করতে চান সেটি ফরওয়ার্ড করুন।</b>\n"
-                 f"<blockquote>চ্যানেল খুলুন → পোস্ট বেছে নিন → ফরওয়ার্ড → @{BOT_USERNAME}</blockquote>\n"
+        "post": ("👁 <b>পোস্ট ভিউ</b>\n\n<b>যে পোস্টটি প্রচার করতে চান সেটি ফরওয়ার্ড করুন।</b>\n"
+                 "<blockquote>চ্যানেল খুলুন → পোস্ট বেছে নিন → ফরওয়ার্ড → @{bot}</blockquote>\n"
                  "অথবা পাবলিক চ্যানেলের পোস্টের লিংক পাঠান (<code>https://t.me/channel/123</code>)।\n\n"
                  "✅ কর্মীরা পোস্টটি সরাসরি বটের ভিতরে দেখবে (এটি আসল পোস্টের ভিউ কাউন্টারেও যোগ হয়), কোনো স্ক্রিনশট বা অনুমোদন লাগে না।",
-                 f"👁 <b>Post views</b>\n\n<b>Forward the post you want to promote.</b>\n"
-                 f"<blockquote>Open the channel → pick the post → Forward → @{BOT_USERNAME}</blockquote>\n"
+                 "👁 <b>Post views</b>\n\n<b>Forward the post you want to promote.</b>\n"
+                 "<blockquote>Open the channel → pick the post → Forward → @{bot}</blockquote>\n"
                  "Or send the link of a public channel post (<code>https://t.me/channel/123</code>).\n\n"
                  "✅ Workers view the post right inside the bot (it also counts on the original post's view counter) — no screenshots or approvals."),
         "reaction": ("❤️ <b>পোস্ট রিঅ্যাকশন</b>\n\nপাবলিক চ্যানেলের পোস্টের লিংক পাঠান।\nউদাহরণ: <code>https://t.me/channel/123</code>\n\n"
@@ -269,7 +269,9 @@ async def _start_link(query: CallbackQuery, state: FSMContext, session, kind: st
                 "ℹ️ Workers send a screenshot of starting the bot and you approve it."),
     }
     bn, en = texts[kind]
-    await query.message.answer(L(lang, bn, en), parse_mode=ParseMode.HTML, reply_markup=_back_kb(lang))
+    await query.message.answer(
+        L(lang, bn.format(bot=BOT_USERNAME), en.format(bot=BOT_USERNAME), _tpl=en, _kw={"bot": BOT_USERNAME}),
+        parse_mode=ParseMode.HTML, reply_markup=_back_kb(lang))
     await query.answer()
 
 
@@ -417,7 +419,7 @@ async def typed_target(message: Message, state: FSMContext, session, bot: Bot):
     ok_type = chat.type == "channel" if is_channel else chat.type in ("group", "supergroup")
     if not ok_type:
         await message.answer(L(lang, f"❌ এটি {'চ্যানেল' if is_channel else 'গ্রুপ'} নয়। সঠিক ধরন বেছে নিন।",
-                               f"❌ That is not a {'channel' if is_channel else 'group'}."))
+                               f"❌ That is not a {'channel' if is_channel else 'group'}.", _tpl='❌ That is not a {v0}.', _kw={"v0": 'channel' if is_channel else 'group'}))
         return
     await _process_target(message, state, session, bot, chat.id,
                           TaskType.CHANNEL_SUB if is_channel else TaskType.GROUP_JOIN,
@@ -453,8 +455,8 @@ def _reward_prompt(lang: str, task_type: str, premium: bool):
         "💡 পুরস্কার যত বেশি, টাস্ক তত দ্রুত সম্পন্ন হবে। নিচের বাটন চাপুন অথবা সংখ্যা লিখুন।",
         f"💲 <b>Enter the reward (GRAM) per {unit_en}</b>\n\n"
         f"Min: <b>{rules['min']:,}</b> · Suggested: <b>{rules['suggested']:,}</b> · Max: <b>{rules['max']:,}</b>\n\n"
-        "💡 Higher rewards get completed faster. Tap a button or type a number.",
-    )
+        "💡 Higher rewards get completed faster. Tap a button or type a number."
+    , _tpl='💲 <b>Enter the reward (GRAM) per {v0}</b>\n\nMin: <b>{v1:,}</b> · Suggested: <b>{v2:,}</b> · Max: <b>{v3:,}</b>\n\n💡 Higher rewards get completed faster. Tap a button or type a number.', _kw={"v0": unit_en, "v1": rules['min'], "v2": rules['suggested'], "v3": rules['max']})
     kb = _back_kb(lang, [[
         InlineKeyboardButton(text=f"{rules['min']:,}", callback_data=f"promote:price:{rules['min']}"),
         InlineKeyboardButton(text=f"⭐ {rules['suggested']:,}", callback_data=f"promote:price:{rules['suggested']}"),
@@ -498,12 +500,12 @@ async def _ask_slots(ev, state: FSMContext, user, reward: Decimal):
         "✏️ <b>সংখ্যা লিখুন: কতজন সাবস্ক্রাইবার চান</b>",
         f"ℹ️ Task creation commission — <b>{pct:.0f}%</b>\n\n"
         f"<blockquote>💲 Price per subscriber — {reward:,.0f} GRAM\n💰 Your balance — {bal:,.1f} GRAM</blockquote>\n"
-        "✏️ <b>Enter how many subscribers you want</b>",
-    )
+        "✏️ <b>Enter how many subscribers you want</b>"
+    , _tpl='ℹ️ Task creation commission — <b>{v0:.0f}%</b>\n\n<blockquote>💲 Price per subscriber — {v1:,.0f} GRAM\n💰 Your balance — {v2:,.1f} GRAM</blockquote>\n✏️ <b>Enter how many subscribers you want</b>', _kw={"v0": pct, "v1": reward, "v2": bal})
     extra = []
     if mx >= BusinessRules.CAMPAIGN_MIN_SLOTS:
         extra.append([InlineKeyboardButton(
-            text=L(lang, f"{mx:,} (আপনার ব্যালেন্সের সর্বোচ্চ সীমা)", f"{mx:,} (max for your balance)"),
+            text=L(lang, f"{mx:,} (আপনার ব্যালেন্সের সর্বোচ্চ সীমা)", f"{mx:,} (max for your balance)", _tpl='{v0:,} (max for your balance)', _kw={"v0": mx}),
             callback_data=f"promote:qty:{mx}")])
     else:
         text += L(lang, "\n\n⚠️ ব্যালেন্স কম। প্রথমে ব্যালেন্স টপ-আপ করুন।", "\n\n⚠️ Not enough balance. Please top up first.")
@@ -565,8 +567,8 @@ async def _show_ready(ev, state: FSMContext, user, slots: int):
         f"✅ <b>Ready to publish</b>\n\n📢 {esc(data['title'])}\n"
         f"👥 Subscribers: <b>{slots:,}</b> × <b>{reward:,.0f}</b> GRAM = {budget:,.0f}\n"
         f"🏷 Commission ({BusinessRules.PLATFORM_COMMISSION * 100:.0f}%): {fee:,.0f}\n"
-        f"💲 <b>Total charge: {total:,.0f} GRAM</b>\n\nTap “Publish task” to post it.",
-    )
+        f"💲 <b>Total charge: {total:,.0f} GRAM</b>\n\nTap “Publish task” to post it."
+    , _tpl='✅ <b>Ready to publish</b>\n\n📢 {v0}\n👥 Subscribers: <b>{v1:,}</b> × <b>{v2:,.0f}</b> GRAM = {v3:,.0f}\n🏷 Commission ({v4:.0f}%): {v5:,.0f}\n💲 <b>Total charge: {v6:,.0f} GRAM</b>\n\nTap “Publish task” to post it.', _kw={"v0": esc(data['title']), "v1": slots, "v2": reward, "v3": budget, "v4": BusinessRules.PLATFORM_COMMISSION * 100, "v5": fee, "v6": total})
     kb = _back_kb(lang, [[InlineKeyboardButton(text=L(lang, "কাজ প্রকাশ করুন", "Publish task"), callback_data="promote:confirm")]])
     await _reply(ev, text, kb)
 
@@ -594,7 +596,7 @@ async def got_slots(message: Message, state: FSMContext, session):
             raise ValueError
     except ValueError:
         await message.answer(L(lang, f"❌ {BusinessRules.CAMPAIGN_MIN_SLOTS}–{BusinessRules.CAMPAIGN_MAX_SLOTS:,} এর মধ্যে একটি সংখ্যা দিন।",
-                               f"❌ Send a number between {BusinessRules.CAMPAIGN_MIN_SLOTS} and {BusinessRules.CAMPAIGN_MAX_SLOTS:,}."))
+                               f"❌ Send a number between {BusinessRules.CAMPAIGN_MIN_SLOTS} and {BusinessRules.CAMPAIGN_MAX_SLOTS:,}.", _tpl='❌ Send a number between {v0} and {v1:,}.', _kw={"v0": BusinessRules.CAMPAIGN_MIN_SLOTS, "v1": BusinessRules.CAMPAIGN_MAX_SLOTS}))
         return
     await _show_ready(message, state, user, slots)
 
@@ -628,7 +630,7 @@ async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
         budget, fee, total = _cost(reward, slots)
         if user.balance < total:
             await session.rollback()
-            await query.answer(L(lang, f"❌ ব্যালেন্স কম। দরকার {total:,.0f} GRAM।", f"❌ Insufficient balance. Need {total:,.0f} GRAM."), show_alert=True)
+            await query.answer(L(lang, f"❌ ব্যালেন্স কম। দরকার {total:,.0f} GRAM।", f"❌ Insufficient balance. Need {total:,.0f} GRAM.", _tpl='❌ Insufficient balance. Need {v0:,.0f} GRAM.', _kw={"v0": total}), show_alert=True)
             return
         dup_cond = (Campaign.target_chat_id == data["chat_id"]) if data.get("chat_id") is not None else (Campaign.target_link == data.get("link"))
         if (await session.execute(select(Campaign.id).where(
@@ -668,8 +670,8 @@ async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
         await query.message.edit_text(L(
             lang,
             f"✅ <b>টাস্ক №{c.id[:8].upper()} প্রকাশিত হয়েছে</b>\n💲 ব্যালেন্স থেকে কাটা হয়েছে: {total:,.1f} GRAM",
-            f"✅ <b>Task №{c.id[:8].upper()} published</b>\n💲 Deducted from balance: {total:,.1f} GRAM",
-        ), reply_markup=kb, parse_mode=ParseMode.HTML)
+            f"✅ <b>Task №{c.id[:8].upper()} published</b>\n💲 Deducted from balance: {total:,.1f} GRAM"
+        , _tpl='✅ <b>Task №{v0} published</b>\n💲 Deducted from balance: {v1:,.1f} GRAM', _kw={"v0": c.id[:8].upper(), "v1": total}), reply_markup=kb, parse_mode=ParseMode.HTML)
     except Exception as e:
         await session.rollback()
         logger.exception(f"Campaign create failed: {e}")

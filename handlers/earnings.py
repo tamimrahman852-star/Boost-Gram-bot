@@ -15,6 +15,7 @@ from database import (
     User, Campaign, TaskCompletion, Transaction, ReferralEarning, FraudReport, TaskSubmission, CampaignPost, AsyncSessionLocal,
     CampaignStatus, TaskType, RetentionStatus, TransactionType, VERIFIABLE_TASKS, redis_client
 )
+from i18n_filters import MenuText
 from localization import L10N, t
 from keyboards import category_kb, task_detail_kb
 from helpers import esc, L, alert_admins
@@ -28,7 +29,7 @@ async def get_user(session, uid):
     return r.scalar_one_or_none()
 
 
-@router.message(F.text.in_([L10N.T["en"]["menu_earnings"], L10N.T["bn"]["menu_earnings"]]))
+@router.message(MenuText("menu_earnings"))
 async def earnings_cmd(message: Message, session):
     user = await get_user(session, message.from_user.id)
     if not user:
@@ -178,7 +179,7 @@ async def _show_task_list(query, session, task_type, page):
         L(lang, "🎯 <b>উপলব্ধ টাস্ক</b>\n\nবাটনে চেপে কাজটি করুন, তারপর <b>যাচাই</b> বা <b>প্রমাণ</b> (স্ক্রিনশট) চাপুন।\n"
                 f"⚠️ চ্যানেল/গ্রুপ/বুস্ট কমপক্ষে {BusinessRules.RETENTION_DAYS} দিন বজায় রাখতে হবে।",
                 "🎯 <b>Available tasks</b>\n\nTap the button to do the task, then press <b>Check</b> or <b>Proof</b> (screenshot).\n"
-                f"⚠️ Channel/group/boost tasks must be kept for at least {BusinessRules.RETENTION_DAYS} days.")
+                f"⚠️ Channel/group/boost tasks must be kept for at least {BusinessRules.RETENTION_DAYS} days.", _tpl='🎯 <b>Available tasks</b>\n\nTap the button to do the task, then press <b>Check</b> or <b>Proof</b> (screenshot).\n⚠️ Channel/group/boost tasks must be kept for at least {v0} days.', _kw={"v0": BusinessRules.RETENTION_DAYS})
         if items else t(lang, "no_tasks")
     )
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -249,7 +250,7 @@ async def earn_view(query: CallbackQuery, session):
             f"💰 Reward: <code>{c.reward_per_user:,.0f}</code> GRAM\n"
             f"👥 Slots left: <code>{c.slots_remaining}</code>\n"
             f"⏰ You must stay for <b>{c.retention_days} days</b>, otherwise the reward is revoked.\n\n"
-            "1) Tap <b>Open</b> and join\n2) Then tap <b>Verify</b>")
+            "1) Tap <b>Open</b> and join\n2) Then tap <b>Verify</b>", _tpl='💰 Reward: <code>{v0:,.0f}</code> GRAM\n👥 Slots left: <code>{v1}</code>\n⏰ You must stay for <b>{v2} days</b>, otherwise the reward is revoked.\n\n1) Tap <b>Open</b> and join\n2) Then tap <b>Verify</b>', _kw={"v0": c.reward_per_user, "v1": c.slots_remaining, "v2": c.retention_days})
     )
     await query.message.edit_text(text, reply_markup=task_detail_kb(lang, c.id, link), parse_mode=ParseMode.HTML)
     await query.answer()
@@ -484,7 +485,7 @@ async def _finish_view(bot: Bot, uid: int, cid: str, chat_id: int, lang: str):
                 await bot.send_message(
                     chat_id,
                     L(lang, f"💲 পোস্ট #{cid[:6].upper()} দেখার জন্য আপনি <b>{reward:,.0f} GRAM</b> পেয়েছেন!\n💰 আপনার ব্যালেন্স: <b>{user.balance:,.1f}</b> GRAM",
-                            f"💲 You earned <b>{reward:,.0f} GRAM</b> for viewing post #{cid[:6].upper()}!\n💰 Your balance: <b>{user.balance:,.1f}</b> GRAM"),
+                            f"💲 You earned <b>{reward:,.0f} GRAM</b> for viewing post #{cid[:6].upper()}!\n💰 Your balance: <b>{user.balance:,.1f}</b> GRAM", _tpl='💲 You earned <b>{v0:,.0f} GRAM</b> for viewing post #{v1}!\n💰 Your balance: <b>{v2:,.1f}</b> GRAM', _kw={"v0": reward, "v1": cid[:6].upper(), "v2": user.balance}),
                     reply_markup=_view_result_kb(lang, cid), parse_mode=ParseMode.HTML)
             elif not msg.startswith("❌ আগে") and "Open the post first" not in msg:
                 await bot.send_message(chat_id, msg, reply_markup=_view_result_kb(lang, cid))
@@ -531,7 +532,7 @@ async def _start_view(query: CallbackQuery, session, bot: Bot, cid: str):
         await alert_admins(bot, f"⚠️ View campaign <code>{esc(cid)}</code> paused: the post cannot be forwarded.")
         try:
             await bot.send_message(c.advertiser_id, L("bn", f"⚠️ “{esc(c.title)}” পোস্টটি ফরওয়ার্ড করা যাচ্ছে না (মুছে গেছে বা ফরওয়ার্ড বন্ধ)। ক্যাম্পেইনটি বিরতিতে রাখা হয়েছে।",
-                                                          f"⚠️ The post of “{esc(c.title)}” can't be forwarded (deleted or forwarding restricted). The campaign was paused."))
+                                                          f"⚠️ The post of “{esc(c.title)}” can't be forwarded (deleted or forwarding restricted). The campaign was paused.", _tpl="⚠️ The post of “{v0}” can't be forwarded (deleted or forwarding restricted). The campaign was paused.", _kw={"v0": esc(c.title)}))
         except Exception:
             pass
         await query.answer(L(lang, "⚠️ এই পোস্টটি এখন পাওয়া যাচ্ছে না। অন্যটি চেষ্টা করুন।", "⚠️ This post is unavailable. Try another one."), show_alert=True)

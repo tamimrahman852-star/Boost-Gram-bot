@@ -94,7 +94,7 @@ async def voucher_redeem(message: Message, session, state: FSMContext):
         await message.answer(L(lang, "❌ আপনি এই কোড আগেই ব্যবহার করেছেন।", "❌ You already used this code."))
         return
     await message.answer(L(lang, f"🎉 কোড সফল! <b>+{amount:,.0f} GRAM</b> যোগ হয়েছে।\n💰 ব্যালেন্স: <b>{ru.balance:,.0f}</b>",
-                                 f"🎉 Code redeemed! <b>+{amount:,.0f} GRAM</b> added.\n💰 Balance: <b>{ru.balance:,.0f}</b>"),
+                                 f"🎉 Code redeemed! <b>+{amount:,.0f} GRAM</b> added.\n💰 Balance: <b>{ru.balance:,.0f}</b>", _tpl='🎉 Code redeemed! <b>+{v0:,.0f} GRAM</b> added.\n💰 Balance: <b>{v1:,.0f}</b>', _kw={"v0": amount, "v1": ru.balance}),
                          parse_mode=ParseMode.HTML)
 
 

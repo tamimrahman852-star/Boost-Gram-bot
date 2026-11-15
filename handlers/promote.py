@@ -2,18 +2,19 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ParseMode
 from sqlalchemy import select
+from i18n import L
 from database import User
+from i18n_filters import MenuText
 from localization import L10N
 
 router = Router()
 
 def _promote_menu(lang: str, balance) -> tuple:
     text = (
-        ("📢 <b>আপনি কী প্রচার করতে চান?</b>\n\n💲 ব্যালেন্স: <b>{b:,.0f} GRAM</b>" if lang == "bn"
-         else "📢 <b>What would you like to promote?</b>\n\n💲 Balance: <b>{b:,.0f} GRAM</b>").format(b=balance)
+        (L(lang, "📢 <b>আপনি কী প্রচার করতে চান?</b>\n\n💲 ব্যালেন্স: <b>{b:,.0f} GRAM</b>", "📢 <b>What would you like to promote?</b>\n\n💲 Balance: <b>{b:,.0f} GRAM</b>")).format(b=balance)
     )
     def B(bn, en, data):
-        return InlineKeyboardButton(text=bn if lang == "bn" else en, callback_data=data)
+        return InlineKeyboardButton(text=L(lang, bn, en), callback_data=data)
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [B("📢 চ্যানেল", "📢 Channel", "promote:cat:channel"), B("👥 গ্রুপ", "👥 Group", "promote:cat:group")],
@@ -25,7 +26,7 @@ def _promote_menu(lang: str, balance) -> tuple:
     return text, kb
 
 
-@router.message(F.text.in_([L10N.T["en"]["menu_promote"], L10N.T["bn"]["menu_promote"]]))
+@router.message(MenuText("menu_promote"))
 async def promote_main_menu_message(message: Message, session):
     user = (await session.execute(select(User).where(User.id == message.from_user.id))).scalar_one_or_none()
     if not user:
@@ -57,7 +58,7 @@ async def back_to_start_menu(query: CallbackQuery, session):
     except Exception:
         pass
     await query.message.answer(
-        "🏠 " + ("প্রধান মেনু" if lang == "bn" else "Main menu"),
+        "🏠 " + (L(lang, "প্রধান মেনু", "Main menu")),
         reply_markup=main_menu(lang),
     )
     await query.answer()
@@ -68,7 +69,6 @@ async def promote_soon(query: CallbackQuery, session):
     user = (await session.execute(select(User).where(User.id == query.from_user.id))).scalar_one_or_none()
     lang = user.language if user else "bn"
     await query.answer(
-        "🚧 এই ধরনের টাস্কে অংশগ্রহণ যাচাই করার নিরাপদ উপায় তৈরি হলে চালু হবে।" if lang == "bn"
-        else "🚧 This task type will be enabled once participation can be verified securely.",
+        L(lang, "🚧 এই ধরনের টাস্কে অংশগ্রহণ যাচাই করার নিরাপদ উপায় তৈরি হলে চালু হবে।", "🚧 This task type will be enabled once participation can be verified securely."),
         show_alert=True,
     )

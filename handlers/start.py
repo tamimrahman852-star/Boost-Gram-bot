@@ -26,7 +26,8 @@ async def get_or_create_user(session, tg_user, referrer_id=None):
         u.is_premium = tg_user.is_premium or False
         u.last_active_at = datetime.now(timezone.utc)
         return u, False
-    lang = tg_user.language_code if tg_user.language_code in L10N.T else "en"
+    code = (tg_user.language_code or "en").split("-")[0].lower()
+    lang = code if code in L10N.LANGS else "en"
     u = User(
         id=tg_user.id, username=tg_user.username,
         first_name=tg_user.first_name, last_name=tg_user.last_name,
