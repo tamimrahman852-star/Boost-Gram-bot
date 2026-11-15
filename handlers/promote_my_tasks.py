@@ -5,7 +5,10 @@ from aiogram.enums import ParseMode
 from sqlalchemy import select, func
 
 from config import TaskPricing
-from database import User, Campaign, Transaction, CampaignStatus, TransactionType
+from config import BusinessRules
+from database import (
+    User, Campaign, Transaction, CampaignStatus, TransactionType, TaskSubmission, AutoRenew,
+)
 from helpers import esc, L
 
 router = Router()
@@ -32,6 +35,13 @@ async def _own_campaign(session, cid, uid, lock=False):
     if lock:
         q = q.with_for_update()
     return (await session.execute(q)).scalar_one_or_none()
+
+
+async def _extras(session, cid: str):
+    renew = (await session.execute(select(AutoRenew.renewals_left).where(AutoRenew.campaign_id == cid))).scalar()
+    pending = (await session.execute(select(func.count(TaskSubmission.id)).where(
+        TaskSubmission.campaign_id == cid, TaskSubmission.status == "pending"))).scalar() or 0
+    return bool(renew and renew > 0), pending
 
 
 def _remaining(c: Campaign) -> Decimal:
@@ -100,7 +110,7 @@ async def noop(query: CallbackQuery):
     await query.answer()
 
 
-def _manage_view(c: Campaign, lang: str):
+def _manage_view(c: Campaign, lang: str, renew_on: bool = False, pending: int = 0):
     aud = L(lang, "শুধু Telegram Premium", "Telegram Premium only") if c.premium_only else L(lang, "সব ব্যবহারকারী", "All users")
     text = L(
         lang,
@@ -113,7 +123,14 @@ def _manage_view(c: Campaign, lang: str):
     )
     rows = []
     live = c.status in (CampaignStatus.ACTIVE, CampaignStatus.PAUSED)
+    ttype = c.task_type.value if hasattr(c.task_type, "value") else str(c.task_type)
+    if ttype in BusinessRules.PROOF_TASK_TYPES and c.status != CampaignStatus.CANCELLED:
+        rows.append([InlineKeyboardButton(
+            text=L(lang, f"📥 প্রমাণ যাচাই ({pending})", f"📥 Review proofs ({pending})"), callback_data=f"rev:list:{c.id}")])
     if live:
+        rows.append([InlineKeyboardButton(
+            text=L(lang, f"🔁 অটো-রিনিউ: {'চালু' if renew_on else 'বন্ধ'}", f"🔁 Auto-renew: {'ON' if renew_on else 'OFF'}"),
+            callback_data=f"promote:mng:renew:{c.id}")])
         if c.status == CampaignStatus.ACTIVE:
             rows.append([InlineKeyboardButton(text=L(lang, "⏸ বিরতি দিন", "⏸ Pause"), callback_data=f"promote:mng:pause:{c.id}")])
         else:
@@ -132,7 +149,8 @@ async def manage_campaign(query: CallbackQuery, session):
     if not c:
         await query.answer("❌", show_alert=True)
         return
-    text, kb = _manage_view(c, lang)
+    renew_on, pending = await _extras(session, c.id)
+    text, kb = _manage_view(c, lang, renew_on, pending)
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer()
 
@@ -188,7 +206,13 @@ async def campaign_action(query: CallbackQuery, session):
         await query.answer("✅")
         return
 
-    if action == "pause" and c.status == CampaignStatus.ACTIVE:
+    if action == "renew" and c.status in (CampaignStatus.ACTIVE, CampaignStatus.PAUSED):
+        now_on = await _toggle_renew(session, c.id)
+        await query.answer(
+            L(lang, f"🔁 অটো-রিনিউ চালু: টাস্ক শেষ হলে স্বয়ংক্রিয়ভাবে আরও {BusinessRules.AUTO_RENEW_DEFAULT} বার পুনরায় প্রকাশ হবে এবং আপনার ব্যালেন্স থেকে টাকা কাটা হবে।",
+                    f"🔁 Auto-renew ON: when this task finishes it is re-published up to {BusinessRules.AUTO_RENEW_DEFAULT} times, charging your balance.")
+            if now_on else L(lang, "🔁 অটো-রিনিউ বন্ধ করা হয়েছে।", "🔁 Auto-renew turned off."), show_alert=True)
+    elif action == "pause" and c.status == CampaignStatus.ACTIVE:
         c.status = CampaignStatus.PAUSED
     elif action == "resume" and c.status == CampaignStatus.PAUSED and not c.is_full:
         c.status = CampaignStatus.ACTIVE
@@ -204,6 +228,75 @@ async def campaign_action(query: CallbackQuery, session):
                 return
         c.premium_only = not c.premium_only
     await session.commit()
-    text, kb = _manage_view(c, lang)
+    renew_on, pending = await _extras(session, c.id)
+    text, kb = _manage_view(c, lang, renew_on, pending)
+    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    try:
+        await query.answer("✅")
+    except Exception:
+        pass
+
+
+async def _toggle_renew(session, cid: str) -> bool:
+    """Flip auto-renew for a campaign (caller already verified ownership). Returns the new state."""
+    row = (await session.execute(select(AutoRenew).where(AutoRenew.campaign_id == cid).with_for_update())).scalar_one_or_none()
+    if row and row.renewals_left > 0:
+        row.renewals_left = 0
+        await session.commit()
+        return False
+    if row:
+        row.renewals_left = BusinessRules.AUTO_RENEW_DEFAULT
+    else:
+        session.add(AutoRenew(campaign_id=cid, renewals_left=BusinessRules.AUTO_RENEW_DEFAULT))
+    await session.commit()
+    return True
+
+
+# ----------------------------- Auto-task settings screen -----------------------------
+async def _auto_view(session, uid: int, lang: str):
+    camps = (await session.execute(
+        select(Campaign).where(Campaign.advertiser_id == uid,
+                               Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED, CampaignStatus.COMPLETED]))
+        .order_by(Campaign.created_at.desc()).limit(10))).scalars().all()
+    on = {r[0] for r in (await session.execute(
+        select(AutoRenew.campaign_id).where(AutoRenew.campaign_id.in_([c.id for c in camps] or ["-"]),
+                                            AutoRenew.renewals_left > 0))).all()}
+    text = L(
+        lang,
+        "⚙️ <b>অটো-টাস্ক সেটিংস</b>\n\n🔁 <b>অটো-রিনিউ</b>: কাজ শেষ হলে একই কাজ স্বয়ংক্রিয়ভাবে আবার প্রকাশ হয়, ফলে আপনার প্রচার কখনো থামে না।\n"
+        f"• সর্বোচ্চ {BusinessRules.AUTO_RENEW_DEFAULT} বার পুনরাবৃত্তি\n• প্রতিবার আপনার ব্যালেন্স থেকে খরচ কাটা হয়\n• ব্যালেন্স কম হলে নিজে থেকে বন্ধ হয় এবং আপনাকে জানানো হয়\n\n"
+        "যে কাজে চালু করতে চান সেটি চাপুন:",
+        "⚙️ <b>Auto-task settings</b>\n\n🔁 <b>Auto-renew</b>: when a task finishes, the same task is published again so your promotion never stops.\n"
+        f"• Up to {BusinessRules.AUTO_RENEW_DEFAULT} repeats\n• Each repeat is charged to your balance\n• Stops by itself (and tells you) if the balance is too low\n\n"
+        "Tap a task to switch it on or off:")
+    if not camps:
+        text += L(lang, "\n\n📭 আপনার কোনো কাজ নেই।", "\n\n📭 You have no tasks yet.")
+    rows = [[InlineKeyboardButton(
+        text=f"{'🔁 ON' if c.id in on else '⚪ OFF'} · {c.title[:24]} · {c.completed_count}/{c.max_completions}",
+        callback_data=f"promote:renew:{c.id}")] for c in camps]
+    rows.append([InlineKeyboardButton(text=L(lang, "◀️ ফিরে যান", "◀️ Back"), callback_data="menu:promote")])
+    return text, InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+@router.callback_query(F.data == "promote:auto")
+async def auto_settings(query: CallbackQuery, session):
+    user = await _user(session, query.from_user.id)
+    lang = user.language if user else "bn"
+    text, kb = await _auto_view(session, query.from_user.id, lang)
+    await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    await query.answer()
+
+
+@router.callback_query(F.data.startswith("promote:renew:"))
+async def auto_toggle(query: CallbackQuery, session):
+    uid = query.from_user.id
+    c = await _own_campaign(session, query.data.split(":")[2], uid)
+    if not c or c.status == CampaignStatus.CANCELLED:
+        await query.answer("❌", show_alert=True)
+        return
+    await _toggle_renew(session, c.id)
+    user = await _user(session, uid)
+    lang = user.language if user else "bn"
+    text, kb = await _auto_view(session, uid, lang)
     await query.message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await query.answer("✅")

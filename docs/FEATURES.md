@@ -27,3 +27,17 @@ Admin panel → 📣 Broadcast (or `/broadcast`) → send any message → confir
 
 ## Database
 The new tables (`deposit_requests`, `vouchers`, `voucher_redemptions`) are created automatically at startup.
+
+## Task types
+| Type | How it is verified |
+|---|---|
+| Channel / Group | Telegram API (`getChatMember`) now + again after 7 days (retention) |
+| ⚡ Boost | Telegram API (`getUserChatBoosts`, bot must be admin) now + after 7 days. Premium users only |
+| 👁 Post views, 🤖 Bot starts, ❤️ Reactions | Telegram cannot see these. Worker sends a screenshot → advertiser approves/rejects (48h, then auto-approve) → rejected workers may dispute once → admin decides ("⚖️ Proof disputes") |
+
+Proof-task safety: the reward is reserved from the advertiser's escrow when the proof is sent; a screenshot can only be used once;
+max 10 open proofs per user; only the campaign owner can review its proofs; fake proofs lose the dispute and add risk score.
+
+## Auto-task settings (auto-renew)
+Promote → ⚙️ Auto-task settings (or a campaign's own screen): when the task finishes it is published again, up to 3 times,
+charged to the owner's balance. It stops by itself (and tells the owner) if the balance is too low.

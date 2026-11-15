@@ -29,6 +29,7 @@ from handlers.admin import router as admin_router
 from handlers.deposits import router as deposits_router
 from handlers.vouchers import router as vouchers_router
 from handlers.history import router as history_router
+from handlers.proofs import router as proofs_router
 from handlers.broadcast import router as broadcast_router
 
 
@@ -113,6 +114,7 @@ async def main():
     dp.include_router(deposits_router)
     dp.include_router(vouchers_router)
     dp.include_router(history_router)
+    dp.include_router(proofs_router)
     dp.include_router(broadcast_router)
     dp.include_router(admin_router)
 

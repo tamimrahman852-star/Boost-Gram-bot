@@ -93,6 +93,7 @@ class CheckRedeemState(StatesGroup):
 
 class CampaignCreateState(StatesGroup):
     target = State()
+    link = State()
     reward = State()
     slots = State()
 
@@ -117,3 +118,7 @@ class DepositState(StatesGroup):
 
 class VoucherState(StatesGroup):
     code = State()
+
+
+class ProofState(StatesGroup):
+    photo = State()

@@ -61,22 +61,14 @@ def language_kb() -> InlineKeyboardMarkup:
 
 
 def category_kb(lang: str, counts: dict) -> InlineKeyboardMarkup:
-    """2-column category grid. Types that cannot be verified yet are shown but locked."""
     b = InlineKeyboardBuilder()
-    soon = "earn:soon"
-    b.row(
-        InlineKeyboardButton(text=f"📢 {'চ্যানেল' if lang == 'bn' else 'Channels'} · {counts.get('channel', 0)}", callback_data="earn:cat:channel_sub"),
-        InlineKeyboardButton(text=f"👥 {'গ্রুপ' if lang == 'bn' else 'Groups'} · {counts.get('group', 0)}", callback_data="earn:cat:group_join"),
-    )
-    b.row(
-        InlineKeyboardButton(text=f"👁 {'ভিউ' if lang == 'bn' else 'Views'} · 🔜", callback_data=soon),
-        InlineKeyboardButton(text=f"🤖 {'বট' if lang == 'bn' else 'Bots'} · 🔜", callback_data=soon),
-    )
-    b.row(
-        InlineKeyboardButton(text=f"❤️ {'প্রতিক্রিয়া' if lang == 'bn' else 'Reactions'} · 🔜", callback_data=soon),
-        InlineKeyboardButton(text=f"⚡ Boost · 🔜", callback_data=soon),
-    )
-    b.row(InlineKeyboardButton(text=f"📝 {'নিয়মাবলী' if lang == 'bn' else 'Rules'}", callback_data="earn:rules"))
+    bn = lang == "bn"
+    def btn(icon, name_bn, name_en, key, data):
+        return InlineKeyboardButton(text=f"{icon} {name_bn if bn else name_en} · {counts.get(key, 0)}", callback_data=f"earn:cat:{data}")
+    b.row(btn("📢", "চ্যানেল", "Channels", "channel", "channel_sub"), btn("👥", "গ্রুপ", "Groups", "group", "group_join"))
+    b.row(btn("👁", "ভিউ", "Views", "view", "post_view"), btn("🤖", "বট", "Bots", "bot", "bot_start"))
+    b.row(btn("❤️", "প্রতিক্রিয়া", "Reactions", "reaction", "reaction"), btn("⚡", "বুস্ট", "Boost", "boost", "boost_7day"))
+    b.row(InlineKeyboardButton(text=f"📝 {'নিয়মাবলী' if bn else 'Rules'}", callback_data="earn:rules"))
     b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="cab:back"))
     return b.as_markup()
 
@@ -135,6 +127,7 @@ def admin_kb() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="🎟 Vouchers", callback_data="adm:vouchers"),
         InlineKeyboardButton(text="📣 Broadcast", callback_data="adm:broadcast"),
     )
+    b.row(InlineKeyboardButton(text="⚖️ Proof disputes", callback_data="adm:disputes"))
     b.row(InlineKeyboardButton(text="🚫 Ban/Unban User", callback_data="adm:ban"))
     b.row(InlineKeyboardButton(text="📊 Full Stats", callback_data="adm:stats"))
     return b.as_markup()

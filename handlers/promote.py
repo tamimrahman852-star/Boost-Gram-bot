@@ -17,9 +17,9 @@ def _promote_menu(lang: str, balance) -> tuple:
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [B("📢 চ্যানেল", "📢 Channel", "promote:cat:channel"), B("👥 গ্রুপ", "👥 Group", "promote:cat:group")],
-        [B("👁 পোস্ট", "👁 Post", "promote:soon"), B("🤖 বট", "🤖 Bot", "promote:soon")],
-        [B("⚡ প্রিমিয়াম বুস্ট", "⚡ Premium Boost", "promote:soon"), B("❤️ প্রতিক্রিয়া", "❤️ Reaction", "promote:soon")],
-        [B("⚙️ অটো-টাস্ক সেটিংস", "⚙️ Auto-task settings", "promote:soon")],
+        [B("👁 পোস্ট", "👁 Post", "promote:cat:post"), B("🤖 বট", "🤖 Bot", "promote:cat:bot")],
+        [B("⚡ প্রিমিয়াম বুস্ট", "⚡ Premium Boost", "promote:cat:boost"), B("❤️ প্রতিক্রিয়া", "❤️ Reaction", "promote:cat:reaction")],
+        [B("⚙️ অটো-টাস্ক সেটিংস", "⚙️ Auto-task settings", "promote:auto")],
         [B("📋 আমার কাজ", "📋 My tasks", "promote:my_tasks"), B("◀️ ফিরে যান", "◀️ Back", "menu:start")],
     ])
     return text, kb

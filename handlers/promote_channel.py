@@ -48,7 +48,14 @@ async def _get_user(session, uid):
     return (await session.execute(select(User).where(User.id == uid))).scalar_one_or_none()
 
 
-async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_channel: bool):
+async def _over_limit(session, uid) -> bool:
+    n = (await session.execute(select(func.count(Campaign.id)).where(
+        Campaign.advertiser_id == uid,
+        Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).scalar() or 0
+    return n >= BusinessRules.MAX_ACTIVE_CAMPAIGNS
+
+
+async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_channel: bool, promo_type=None):
     await state.clear()
     user = await _get_user(session, query.from_user.id)
     lang = user.language if user else "bn"
@@ -61,7 +68,7 @@ async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_cha
         return
     # While this step is open, a typed @username / t.me link is also accepted.
     await state.set_state(CampaignCreateState.target)
-    await state.update_data(is_channel=is_channel)
+    await state.update_data(is_channel=is_channel, promo_type=promo_type)
 
     kind_bn, kind_en = ("চ্যানেল", "channel") if is_channel else ("গ্রুপ", "group")
     text = L(
@@ -124,6 +131,11 @@ async def promote_channel_start(query: CallbackQuery, state: FSMContext, session
     await _start_picker(query, state, session, True)
 
 
+@router.callback_query(F.data == "promote:cat:boost")
+async def promote_boost_start(query: CallbackQuery, state: FSMContext, session):
+    await _start_picker(query, state, session, True, "boost_7day")
+
+
 @router.callback_query(F.data == "promote:cat:group")
 async def promote_group_start(query: CallbackQuery, state: FSMContext, session):
     await _start_picker(query, state, session, False)
@@ -147,6 +159,8 @@ async def _process_target(message: Message, state: FSMContext, session, bot: Bot
     if not user or user.is_blocked:
         return
     lang = user.language
+    if (await state.get_data()).get("promo_type") == "boost_7day":
+        task_type = TaskType.BOOST_7DAY
 
     try:
         chat = await bot.get_chat(chat_id)
@@ -164,12 +178,16 @@ async def _process_target(message: Message, state: FSMContext, session, bot: Bot
         await message.answer(L(lang, "❌ আপনি এই চ্যাটের অ্যাডমিন নন। “আমি অ্যাডমিন নই” অপশন ব্যবহার করুন।",
                                "❌ You are not an admin of that chat. Use the “I'm not an admin” option."))
         return
+    if task_type == TaskType.BOOST_7DAY and not chat.username:
+        await message.answer(L(lang, "❌ বুস্ট টাস্কের জন্য চ্যানেল/গ্রুপটি পাবলিক (username সহ) হতে হবে।",
+                               "❌ Boost tasks need a public channel/group (with a username)."))
+        return
     dup = (await session.execute(select(Campaign.id).where(
-        Campaign.target_chat_id == chat_id,
+        Campaign.target_chat_id == chat_id, Campaign.task_type == task_type,
         Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).first()
     if dup:
         await message.answer(L(lang, "❌ এই চ্যাটের জন্য ইতিমধ্যে একটি সক্রিয় ক্যাম্পেইন আছে।",
-                               "❌ This chat already has an active campaign."))
+                               "❌ This chat already has an active campaign of this type."))
         return
 
     link = f"https://t.me/{chat.username}" if chat.username else chat.invite_link
@@ -187,14 +205,25 @@ async def _process_target(message: Message, state: FSMContext, session, bot: Bot
         link=link, task_type=task_type.value, premium=False,
     )
     await message.answer("✅", reply_markup=main_menu(lang))
+    await _after_target(message, state, lang, chat.title, task_type)
+
+
+async def _after_target(message: Message, state: FSMContext, lang: str, title: str, task_type: TaskType):
+    """Boost tasks are Premium-only by nature -> straight to price. Others ask for the audience first."""
+    if task_type == TaskType.BOOST_7DAY:
+        await state.update_data(premium=True)
+        text, kb = _reward_prompt(lang, task_type.value, True)
+        await state.set_state(CampaignCreateState.reward)
+        await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+        return
     rl = TaskPricing.get(task_type.value, False)
     rp = TaskPricing.get(task_type.value, True)
     text = L(
         lang,
-        f"🎯 <b>টাস্কের অডিয়েন্স</b> — {esc(chat.title)}\n\n"
+        f"🎯 <b>টাস্কের অডিয়েন্স</b> — {esc(title)}\n\n"
         f"<b>1️⃣ সব ব্যবহারকারী</b>\nসকল ব্যবহারকারীর মধ্যে বিস্তৃত পৌঁছানো।\n💡 সর্বনিম্ন মূল্য: {rl['min']:,} GRAM/ইউনিট।\n\n"
         f"<b>2️⃣ শুধু Telegram Premium</b>\nশুধু Premium ব্যবহারকারীদের দেখানো হবে — আরও মানসম্মত অডিয়েন্স।\n💡 সর্বনিম্ন মূল্য: {rp['min']:,} GRAM/ইউনিট।",
-        f"🎯 <b>Task audience</b> — {esc(chat.title)}\n\n"
+        f"🎯 <b>Task audience</b> — {esc(title)}\n\n"
         f"<b>1️⃣ All users</b>\nWide reach across all users.\n💡 Minimum price: {rl['min']:,} GRAM/unit.\n\n"
         f"<b>2️⃣ Telegram Premium only</b>\nShown only to Premium users — a higher-quality audience.\n💡 Minimum price: {rp['min']:,} GRAM/unit.",
     )
@@ -204,6 +233,102 @@ async def _process_target(message: Message, state: FSMContext, session, bot: Bot
         [InlineKeyboardButton(text=L(lang, "◀️ ফিরে যান", "◀️ Back"), callback_data="menu:promote")],
     ])
     await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+
+
+POST_RE = re.compile(r"^(?:https?://)?(?:www\.)?t\.me/([A-Za-z][A-Za-z0-9_]{3,31})/(\d{1,12})(?:[/?#].*)?$")
+BOT_RE = re.compile(r"^(?:(?:https?://)?(?:www\.)?t\.me/|@)([A-Za-z][A-Za-z0-9_]{1,30}[Bb][Oo][Tt])(?:\?start=([A-Za-z0-9_-]{1,64}))?/?$")
+LINK_KINDS = {"post": "post_view", "reaction": "reaction", "bot": "bot_start"}
+
+
+async def _start_link(query: CallbackQuery, state: FSMContext, session, kind: str):
+    await state.clear()
+    user = await _get_user(session, query.from_user.id)
+    lang = user.language if user else "bn"
+    if await _over_limit(session, query.from_user.id):
+        await query.answer(L(lang, f"সর্বোচ্চ {BusinessRules.MAX_ACTIVE_CAMPAIGNS}টি সক্রিয় ক্যাম্পেইন চালানো যায়।",
+                               f"Maximum {BusinessRules.MAX_ACTIVE_CAMPAIGNS} active campaigns allowed."), show_alert=True)
+        return
+    await state.set_state(CampaignCreateState.link)
+    await state.update_data(link_kind=kind)
+    texts = {
+        "post": ("👁 <b>পোস্ট ভিউ</b>\n\nআপনার পাবলিক চ্যানেলের পোস্টের লিংক পাঠান।\nউদাহরণ: <code>https://t.me/channel/123</code>\n\n"
+                 "ℹ️ Telegram ভিউ নিজে যাচাই করতে পারে না, তাই কর্মী স্ক্রিনশট পাঠায় এবং আপনি অনুমোদন দেন।",
+                 "👁 <b>Post views</b>\n\nSend the link of a post in a public channel.\nExample: <code>https://t.me/channel/123</code>\n\n"
+                 "ℹ️ Telegram can't verify views itself, so workers send a screenshot and you approve it."),
+        "reaction": ("❤️ <b>পোস্ট রিঅ্যাকশন</b>\n\nপাবলিক চ্যানেলের পোস্টের লিংক পাঠান।\nউদাহরণ: <code>https://t.me/channel/123</code>\n\n"
+                     "ℹ️ কর্মী রিঅ্যাকশনসহ স্ক্রিনশট পাঠায়, আপনি অনুমোদন দেন।",
+                     "❤️ <b>Post reactions</b>\n\nSend the link of a post in a public channel.\nExample: <code>https://t.me/channel/123</code>\n\n"
+                     "ℹ️ Workers send a screenshot showing their reaction and you approve it."),
+        "bot": ("🤖 <b>বট স্টার্ট</b>\n\nআপনার বটের লিংক বা <code>@username</code> পাঠান (রেফারেল লিংকও চলবে)।\nউদাহরণ: <code>https://t.me/mybot?start=promo</code>\n\n"
+                "ℹ️ কর্মী স্টার্ট দেওয়ার স্ক্রিনশট পাঠায়, আপনি অনুমোদন দেন।",
+                "🤖 <b>Bot starts</b>\n\nSend your bot's link or <code>@username</code> (referral links work too).\nExample: <code>https://t.me/mybot?start=promo</code>\n\n"
+                "ℹ️ Workers send a screenshot of starting the bot and you approve it."),
+    }
+    bn, en = texts[kind]
+    await query.message.answer(L(lang, bn, en), parse_mode=ParseMode.HTML, reply_markup=_back_kb(lang))
+    await query.answer()
+
+
+@router.callback_query(F.data.in_({"promote:cat:post", "promote:cat:reaction", "promote:cat:bot"}))
+async def promote_link_start(query: CallbackQuery, state: FSMContext, session):
+    await _start_link(query, state, session, query.data.split(":")[2])
+
+
+@router.message(CampaignCreateState.link, F.text)
+async def typed_link(message: Message, state: FSMContext, session, bot: Bot):
+    user = await _get_user(session, message.from_user.id)
+    if not user or user.is_blocked:
+        return
+    lang = user.language
+    kind = (await state.get_data()).get("link_kind")
+    ttype = LINK_KINDS.get(kind)
+    raw = (message.text or "").strip()
+    if not ttype:
+        await state.clear()
+        return
+    if kind == "bot":
+        m = BOT_RE.match(raw)
+        if not m:
+            await message.answer(L(lang, "❌ সঠিক বটের লিংক বা @username পাঠান (নাম <code>bot</code> দিয়ে শেষ হতে হবে)।",
+                                   "❌ Send a valid bot link or @username (the name must end with <code>bot</code>)."), parse_mode=ParseMode.HTML)
+            return
+        name, param = m.group(1), m.group(2)
+        try:
+            await bot.get_chat("@" + name)
+        except (TelegramBadRequest, TelegramForbiddenError):
+            await message.answer(L(lang, "❌ এই নামে কোনো বট পাওয়া যায়নি।", "❌ No bot was found with that name."))
+            return
+        link = f"https://t.me/{name}" + (f"?start={param}" if param else "")
+        title, username = f"🤖 @{name}", None
+    else:
+        m = POST_RE.match(raw)
+        if not m:
+            await message.answer(L(lang, "❌ পাবলিক চ্যানেলের পোস্টের লিংক পাঠান, যেমন <code>https://t.me/channel/123</code>।",
+                                   "❌ Send a public channel post link like <code>https://t.me/channel/123</code>."), parse_mode=ParseMode.HTML)
+            return
+        name, num = m.group(1), m.group(2)
+        try:
+            chat = await bot.get_chat("@" + name)
+        except (TelegramBadRequest, TelegramForbiddenError):
+            await message.answer(L(lang, "❌ এই পাবলিক চ্যানেল পাওয়া যায়নি।", "❌ That public channel was not found."))
+            return
+        if chat.type not in ("channel", "supergroup", "group"):
+            await message.answer(L(lang, "❌ এটি চ্যানেল বা গ্রুপের পোস্ট নয়।", "❌ That is not a channel/group post."))
+            return
+        link = f"https://t.me/{name}/{num}"
+        icon = "👁" if kind == "post" else "❤️"
+        title, username = f"{icon} {(chat.title or name)[:60]} #{num}", name
+
+    dup = (await session.execute(select(Campaign.id).where(
+        Campaign.target_link == link, Campaign.task_type == TaskType(ttype),
+        Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).first()
+    if dup:
+        await message.answer(L(lang, "❌ এই লিংকের জন্য ইতিমধ্যে একটি সক্রিয় ক্যাম্পেইন আছে।",
+                               "❌ This link already has an active campaign."))
+        return
+    await state.set_state(None)
+    await state.update_data(chat_id=None, title=title[:200], username=username, link=link, task_type=ttype, premium=False)
+    await _after_target(message, state, lang, title, TaskType(ttype))
 
 
 @router.message(F.chat_shared)
@@ -261,24 +386,19 @@ def _back_kb(lang: str, extra=None):
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-@router.callback_query(F.data.in_({"promote:aud:all", "promote:aud:premium"}))
-async def audience_chosen(query: CallbackQuery, state: FSMContext, session):
-    data = await state.get_data()
-    if "chat_id" not in data:
-        await query.answer("Session expired.", show_alert=True)
-        return
-    user = await _get_user(session, query.from_user.id)
-    lang = user.language if user else "bn"
-    premium = query.data.endswith("premium")
-    await state.update_data(premium=premium)
-    rules = TaskPricing.get(data["task_type"], premium)
-    await state.set_state(CampaignCreateState.reward)
+def _reward_prompt(lang: str, task_type: str, premium: bool):
+    rules = TaskPricing.get(task_type, premium)
+    unit_bn, unit_en = {
+        "channel_sub": ("সাবস্ক্রাইবার", "subscriber"), "group_join": ("সদস্য", "member"),
+        "post_view": ("ভিউ", "view"), "bot_start": ("বট স্টার্ট", "bot start"),
+        "reaction": ("রিঅ্যাকশন", "reaction"), "boost_7day": ("বুস্ট", "boost"),
+    }.get(task_type, ("কাজ", "task"))
     text = L(
         lang,
-        f"💲 <b>প্রতিটি সাবস্ক্রাইবারের জন্য পুরস্কার (GRAM) লিখুন</b>\n\n"
+        f"💲 <b>প্রতিটি {unit_bn}-এর জন্য পুরস্কার (GRAM) লিখুন</b>\n\n"
         f"ন্যূনতম: <b>{rules['min']:,}</b> · প্রস্তাবিত: <b>{rules['suggested']:,}</b> · সর্বোচ্চ: <b>{rules['max']:,}</b>\n\n"
         "💡 পুরস্কার যত বেশি, টাস্ক তত দ্রুত সম্পন্ন হবে। নিচের বাটন চাপুন অথবা সংখ্যা লিখুন।",
-        f"💲 <b>Enter the reward (GRAM) per subscriber</b>\n\n"
+        f"💲 <b>Enter the reward (GRAM) per {unit_en}</b>\n\n"
         f"Min: <b>{rules['min']:,}</b> · Suggested: <b>{rules['suggested']:,}</b> · Max: <b>{rules['max']:,}</b>\n\n"
         "💡 Higher rewards get completed faster. Tap a button or type a number.",
     )
@@ -286,6 +406,21 @@ async def audience_chosen(query: CallbackQuery, state: FSMContext, session):
         InlineKeyboardButton(text=f"{rules['min']:,}", callback_data=f"promote:price:{rules['min']}"),
         InlineKeyboardButton(text=f"⭐ {rules['suggested']:,}", callback_data=f"promote:price:{rules['suggested']}"),
     ]])
+    return text, kb
+
+
+@router.callback_query(F.data.in_({"promote:aud:all", "promote:aud:premium"}))
+async def audience_chosen(query: CallbackQuery, state: FSMContext, session):
+    data = await state.get_data()
+    if "task_type" not in data or "title" not in data:
+        await query.answer("Session expired.", show_alert=True)
+        return
+    user = await _get_user(session, query.from_user.id)
+    lang = user.language if user else "bn"
+    premium = query.data.endswith("premium")
+    await state.update_data(premium=premium)
+    await state.set_state(CampaignCreateState.reward)
+    text, kb = _reward_prompt(lang, data["task_type"], premium)
     await _reply(query, text, kb)
 
 
@@ -420,7 +555,7 @@ async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
         return
     try:
         data = await state.get_data()
-        if not {"chat_id", "reward", "slots", "task_type"} <= data.keys():
+        if not {"title", "reward", "slots", "task_type"} <= data.keys():
             await query.answer("Session expired.", show_alert=True)
             return
         r = await session.execute(select(User).where(User.id == uid).with_for_update())
@@ -430,7 +565,8 @@ async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
             await query.answer("❌", show_alert=True)
             return
         lang = user.language
-        reward, slots, premium = Decimal(data["reward"]), int(data["slots"]), bool(data.get("premium"))
+        reward, slots = Decimal(data["reward"]), int(data["slots"])
+        premium = bool(data.get("premium")) or data["task_type"] == "boost_7day"
         ok, msg = TaskPricing.validate(data["task_type"], reward, premium)
         if not ok or not BusinessRules.CAMPAIGN_MIN_SLOTS <= slots <= BusinessRules.CAMPAIGN_MAX_SLOTS:
             await session.rollback()
@@ -441,8 +577,9 @@ async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
             await session.rollback()
             await query.answer(L(lang, f"❌ ব্যালেন্স কম। দরকার {total:,.0f} GRAM।", f"❌ Insufficient balance. Need {total:,.0f} GRAM."), show_alert=True)
             return
+        dup_cond = (Campaign.target_chat_id == data["chat_id"]) if data.get("chat_id") is not None else (Campaign.target_link == data.get("link"))
         if (await session.execute(select(Campaign.id).where(
-                Campaign.target_chat_id == data["chat_id"],
+                dup_cond, Campaign.task_type == TaskType(data["task_type"]),
                 Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).first():
             await session.rollback()
             await query.answer(L(lang, "❌ এই চ্যাটের ক্যাম্পেইন আগে থেকেই আছে।", "❌ A campaign for this chat already exists."), show_alert=True)
@@ -451,11 +588,12 @@ async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
         await query.message.edit_text(L(lang, "⏳ কাজ তৈরি হচ্ছে, দয়া করে অপেক্ষা করুন...", "⏳ Creating your task, please wait..."))
         c = Campaign(
             advertiser_id=uid, title=data["title"], task_type=TaskType(data["task_type"]),
-            target_chat_id=data["chat_id"], target_username=data.get("username"),
+            target_chat_id=data.get("chat_id"), target_username=data.get("username"),
             target_link=data.get("link"), target_title=data["title"],
             premium_only=premium, reward_per_user=reward, base_reward=reward,
             max_completions=slots, total_budget=budget,
-            retention_days=BusinessRules.RETENTION_DAYS, requires_retention_check=True,
+            retention_days=BusinessRules.RETENTION_DAYS,
+            requires_retention_check=data["task_type"] in BusinessRules.API_VERIFIED_TASK_TYPES,
         )
         session.add(c)
         await session.flush()

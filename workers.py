@@ -8,13 +8,14 @@ from aiogram.exceptions import (
 )
 
 from config import logger, BusinessRules
+from datetime import timedelta
 from database import (
-    AsyncSessionLocal, TaskCompletion, Campaign, User, Transaction, FraudReport,
-    RetentionStatus, CampaignStatus, TransactionType
+    AsyncSessionLocal, TaskCompletion, Campaign, User, Transaction, FraudReport, TaskSubmission, AutoRenew,
+    RetentionStatus, CampaignStatus, TransactionType, TaskType
 )
 from localization import t
 from helpers import alert_admins, esc
-from services import settle_referrals
+from services import settle_referrals, approve_submission, finalize_rejection, campaign_cost
 
 CHECK_INTERVAL = 3600  # seconds between retention sweeps
 
@@ -51,7 +52,11 @@ async def _sweep(bot: Bot) -> int:
                 await settle_referrals(session, u, tc)
                 continue
             try:
-                ok = await _still_member(bot, target, u.id)
+                if c.task_type == TaskType.BOOST_7DAY:
+                    from handlers.earnings import has_active_boost
+                    ok = await has_active_boost(bot, target, u.id)
+                else:
+                    ok = await _still_member(bot, target, u.id)
             except (TelegramRetryAfter, TelegramNetworkError):
                 continue          # temporary problem: retry next sweep, never punish
             except (TelegramBadRequest, TelegramForbiddenError):
@@ -116,10 +121,100 @@ async def _sweep(bot: Bot) -> int:
     return handled
 
 
+async def _sweep_proofs(bot: Bot) -> None:
+    """Auto-approve proofs the advertiser ignored, and make expired rejections final."""
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as s:
+        pending = (await s.execute(select(TaskSubmission.id, TaskSubmission.advertiser_id).where(
+            TaskSubmission.status == "pending",
+            TaskSubmission.created_at <= now - timedelta(hours=BusinessRules.PROOF_REVIEW_HOURS)).limit(50))).all()
+        expired = (await s.execute(select(TaskSubmission.id, TaskSubmission.user_id).where(
+            TaskSubmission.status == "rejected",
+            TaskSubmission.decided_at <= now - timedelta(hours=BusinessRules.PROOF_DISPUTE_HOURS)).limit(50))).all()
+    for sid, adv in pending:
+        async with AsyncSessionLocal() as s:
+            ok, reward, worker, bal = await approve_submission(s, sid, 0, allowed=("pending",))
+        if ok:
+            for uid, msg in ((worker, f"✅ Proof approved automatically. +{reward:,.0f} GRAM"),
+                             (adv, "ℹ️ A proof you did not review within the deadline was approved automatically.")):
+                try:
+                    await bot.send_message(uid, msg)
+                except Exception:
+                    pass
+    for sid, worker in expired:
+        async with AsyncSessionLocal() as s:
+            ok = await finalize_rejection(s, sid, 0, penalize_worker=False, allowed=("rejected",))
+        if ok:
+            try:
+                await bot.send_message(worker, "ℹ️ The dispute window has ended — the rejection of your proof is final.")
+            except Exception:
+                pass
+
+
+async def _sweep_auto_renew(bot: Bot) -> None:
+    """Re-publish completed campaigns that the owner opted in to auto-renew."""
+    from config import BusinessRules as BR
+    async with AsyncSessionLocal() as s:
+        ids = [r[0] for r in (await s.execute(
+            select(AutoRenew.campaign_id).join(Campaign, Campaign.id == AutoRenew.campaign_id)
+            .where(AutoRenew.renewals_left > 0, Campaign.status == CampaignStatus.COMPLETED).limit(25))).all()]
+    for cid in ids:
+        msg = None
+        owner_id = None
+        async with AsyncSessionLocal() as s:
+            ar = (await s.execute(select(AutoRenew).where(AutoRenew.campaign_id == cid).with_for_update())).scalar_one_or_none()
+            c = (await s.execute(select(Campaign).where(Campaign.id == cid).with_for_update())).scalar_one_or_none()
+            if not ar or ar.renewals_left <= 0 or not c or c.status != CampaignStatus.COMPLETED:
+                await s.rollback()
+                continue
+            owner = (await s.execute(select(User).where(User.id == c.advertiser_id).with_for_update())).scalar_one_or_none()
+            owner_id = c.advertiser_id
+            budget, fee, total = campaign_cost(c.reward_per_user, c.max_completions)
+            from sqlalchemy import func as F_
+            active_n = (await s.execute(select(F_.count(Campaign.id)).where(
+                Campaign.advertiser_id == owner_id,
+                Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).scalar() or 0
+            clash = False
+            if c.target_chat_id is not None:
+                clash = (await s.execute(select(Campaign.id).where(
+                    Campaign.target_chat_id == c.target_chat_id,
+                    Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).first() is not None
+            if not owner or owner.is_blocked or owner.balance < total or active_n >= BR.MAX_ACTIVE_CAMPAIGNS or clash:
+                ar.renewals_left = 0
+                msg = (f"🔁 Auto-renew stopped for “{c.title}”: not enough balance ({total:,.0f} GRAM needed) or the campaign limit was reached.")
+            else:
+                new = Campaign(
+                    advertiser_id=owner_id, title=c.title, task_type=c.task_type, target_chat_id=c.target_chat_id,
+                    target_username=c.target_username, target_link=c.target_link, target_title=c.target_title,
+                    premium_only=c.premium_only, reward_per_user=c.reward_per_user, base_reward=c.base_reward,
+                    max_completions=c.max_completions, total_budget=budget, retention_days=c.retention_days,
+                    requires_retention_check=c.requires_retention_check)
+                s.add(new)
+                await s.flush()
+                owner.balance -= total
+                s.add(Transaction(
+                    user_id=owner_id, amount=-total, type=TransactionType.CAMPAIGN_PAYMENT,
+                    description=f"Auto-renew: {c.title} (fee {fee:,.0f})"[:255], reference_id=new.id,
+                    reference_type="campaign", balance_after=owner.balance))
+                left = ar.renewals_left - 1
+                ar.renewals_left = 0
+                if left > 0:
+                    s.add(AutoRenew(campaign_id=new.id, renewals_left=left))
+                msg = f"🔁 “{c.title}” finished and was renewed automatically (−{total:,.0f} GRAM). Renewals left: {left}."
+            await s.commit()
+        if msg and owner_id:
+            try:
+                await bot.send_message(owner_id, msg)
+            except Exception:
+                pass
+
+
 async def retention_worker(bot: Bot):
     while True:
         try:
             await _sweep(bot)
+            await _sweep_proofs(bot)
+            await _sweep_auto_renew(bot)
             await asyncio.sleep(CHECK_INTERVAL)
         except asyncio.CancelledError:
             break

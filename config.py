@@ -77,7 +77,15 @@ class BusinessRules:
 
     # Only task types that the bot can really verify through the Telegram API.
     # Everything else would pay out without any proof, so it is disabled.
-    EARNABLE_TASK_TYPES = ("channel_sub", "group_join")
+    EARNABLE_TASK_TYPES = ("channel_sub", "group_join", "boost_7day", "post_view", "bot_start", "reaction")
+    # Telegram can verify these itself (membership / boosts):
+    API_VERIFIED_TASK_TYPES = ("channel_sub", "group_join", "boost_7day")
+    # Telegram cannot see these, so they use screenshot proof + advertiser review:
+    PROOF_TASK_TYPES = ("post_view", "bot_start", "reaction")
+    PROOF_REVIEW_HOURS = 48            # advertiser has this long to approve/reject, then auto-approve
+    PROOF_DISPUTE_HOURS = 24           # after a rejection the worker may dispute once within this time
+    PROOF_MAX_PENDING_PER_USER = 10
+    AUTO_RENEW_DEFAULT = 3             # how many times a campaign may renew itself
 
 
 class TaskPricing:
@@ -94,7 +102,7 @@ class TaskPricing:
     @classmethod
     def get(cls, task_type: str, premium: bool = False) -> dict:
         base = cls.PRICING.get(task_type, {"min": 100, "suggested": 200, "max": 1000})
-        if premium:
+        if premium and task_type != "boost_7day":   # boosting already requires Telegram Premium
             return {k: int(Decimal(str(v)) * cls.PREMIUM_MULTIPLIER) for k, v in base.items()}
         return base
 

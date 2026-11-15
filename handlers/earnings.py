@@ -10,7 +10,7 @@ from aiogram.exceptions import (
 
 from config import BOT_USERNAME, BusinessRules, logger
 from database import (
-    User, Campaign, TaskCompletion, Transaction, ReferralEarning, FraudReport,
+    User, Campaign, TaskCompletion, Transaction, ReferralEarning, FraudReport, TaskSubmission,
     CampaignStatus, TaskType, RetentionStatus, TransactionType, VERIFIABLE_TASKS, redis_client
 )
 from localization import L10N, t
@@ -40,12 +40,17 @@ async def _render_categories(message, session, user, edit=False):
     for key, tt in [
         ("channel", TaskType.CHANNEL_SUB),
         ("group", TaskType.GROUP_JOIN),
+        ("view", TaskType.POST_VIEW),
+        ("bot", TaskType.BOT_START),
+        ("reaction", TaskType.REACTION),
+        ("boost", TaskType.BOOST_7DAY),
     ]:
         r = await session.execute(
             select(func.count(Campaign.id)).where(
                 Campaign.task_type == tt,
                 Campaign.status == CampaignStatus.ACTIVE,
                 Campaign.completed_count < Campaign.max_completions,
+                Campaign.advertiser_id != user.id,
             )
         )
         counts[key] = r.scalar() or 0
@@ -94,10 +99,12 @@ async def earn_category(query: CallbackQuery, session):
 
 def _task_filters(uid: int, user, task_type):
     done_sub = select(TaskCompletion.campaign_id).where(TaskCompletion.user_id == uid)
+    sub_sub = select(TaskSubmission.campaign_id).where(TaskSubmission.user_id == uid)
     base = [
         Campaign.status == CampaignStatus.ACTIVE,
         Campaign.completed_count < Campaign.max_completions,
         Campaign.id.not_in(done_sub),
+        Campaign.id.not_in(sub_sub),
         Campaign.advertiser_id != uid,
         Campaign.task_type.in_([TaskType(x) for x in BusinessRules.EARNABLE_TASK_TYPES]),
     ]
@@ -124,6 +131,8 @@ async def _page_items(session, uid, user, task_type, page):
 
 
 def _open_link(c) -> str:
+    if c.task_type == TaskType.BOOST_7DAY and c.target_username:
+        return f"https://t.me/{c.target_username}?boost"
     link = c.target_link or (f"https://t.me/{c.target_username}" if c.target_username else None)
     return link if link and link.startswith("http") else f"https://t.me/{BOT_USERNAME}"
 
@@ -134,14 +143,20 @@ async def _show_task_list(query, session, task_type, page):
     items, total, pages, page = await _page_items(session, query.from_user.id, user, task_type, page)
 
     buttons = []
+    VERBS = {
+        TaskType.CHANNEL_SUB: ("সাবস্ক্রাইব", "Subscribe"), TaskType.GROUP_JOIN: ("জয়েন", "Join"),
+        TaskType.POST_VIEW: ("দেখুন", "View"), TaskType.BOT_START: ("স্টার্ট", "Start"),
+        TaskType.REACTION: ("রিঅ্যাক্ট", "React"), TaskType.BOOST_7DAY: ("বুস্ট", "Boost"),
+    }
     for c in items:
-        verb = "Join" if c.task_type == TaskType.GROUP_JOIN else "Subscribe"
-        verb = {"Join": "জয়েন", "Subscribe": "সাবস্ক্রাইব"}[verb] if lang == "bn" else verb
+        bn, en = VERBS.get(c.task_type, ("খুলুন", "Open"))
         star = "⭐ " if c.premium_only else ""
-        buttons.append([
-            InlineKeyboardButton(text=f"💲 {star}+{c.reward_per_user:,.0f} | {verb} ↗", url=_open_link(c)),
-            InlineKeyboardButton(text="🔄 " + L(lang, "যাচাই", "Check"), callback_data=f"earn:verify:{c.id}"),
-        ])
+        open_btn = InlineKeyboardButton(text=f"💲 {star}+{c.reward_per_user:,.0f} | {L(lang, bn, en)} ↗", url=_open_link(c))
+        if c.task_type in (TaskType.POST_VIEW, TaskType.BOT_START, TaskType.REACTION):
+            second = InlineKeyboardButton(text="📸 " + L(lang, "প্রমাণ", "Proof"), callback_data=f"earn:proof:{c.id}")
+        else:
+            second = InlineKeyboardButton(text="🔄 " + L(lang, "যাচাই", "Check"), callback_data=f"earn:verify:{c.id}")
+        buttons.append([open_btn, second])
     if items:
         if pages > 1:
             buttons.append([
@@ -154,10 +169,10 @@ async def _show_task_list(query, session, task_type, page):
         buttons.append([InlineKeyboardButton(text="🚩 " + L(lang, "রিপোর্ট", "Report"), callback_data=f"earn:rpt:{task_type}:{page}")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="earn:back")])
     text = (
-        L(lang, "🎯 <b>উপলব্ধ টাস্ক</b>\n\nচ্যানেল/গ্রুপে যোগ দিতে বাটনে চাপুন, তারপর <b>যাচাই</b> চাপুন।\n"
-                f"⚠️ কমপক্ষে {BusinessRules.RETENTION_DAYS} দিন থাকতে হবে।",
-                "🎯 <b>Available tasks</b>\n\nTap the button to join, then press <b>Check</b>.\n"
-                f"⚠️ You must stay for at least {BusinessRules.RETENTION_DAYS} days.")
+        L(lang, "🎯 <b>উপলব্ধ টাস্ক</b>\n\nবাটনে চেপে কাজটি করুন, তারপর <b>যাচাই</b> বা <b>প্রমাণ</b> (স্ক্রিনশট) চাপুন।\n"
+                f"⚠️ চ্যানেল/গ্রুপ/বুস্ট কমপক্ষে {BusinessRules.RETENTION_DAYS} দিন বজায় রাখতে হবে।",
+                "🎯 <b>Available tasks</b>\n\nTap the button to do the task, then press <b>Check</b> or <b>Proof</b> (screenshot).\n"
+                f"⚠️ Channel/group/boost tasks must be kept for at least {BusinessRules.RETENTION_DAYS} days.")
         if items else t(lang, "no_tasks")
     )
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -234,6 +249,19 @@ async def earn_view(query: CallbackQuery, session):
     await query.answer()
 
 
+async def has_active_boost(bot: Bot, target, uid: int) -> bool:
+    """Telegram tells us (bot must be admin) whether this user currently boosts the chat."""
+    res = await bot.get_user_chat_boosts(target, uid)
+    now = datetime.now(timezone.utc)
+    for b in res.boosts or []:
+        exp = b.expiration_date
+        if exp is not None and exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if exp is None or exp > now:
+            return True
+    return False
+
+
 async def _is_member(bot: Bot, target, uid: int) -> bool:
     """True if the user is really inside the chat. May raise Telegram errors."""
     m = await bot.get_chat_member(target, uid)
@@ -261,7 +289,7 @@ async def earn_verify(query: CallbackQuery, session, bot: Bot):
             await query.answer()
             await query.message.answer(msg, parse_mode=ParseMode.HTML)
             await _render_categories(query.message, session, user, edit=False)
-        elif msg == t(lang, "task_failed"):
+        elif msg.startswith("ℹ️") or msg.startswith("📸"):
             await query.answer()
             await query.message.answer(msg)
         else:
@@ -286,8 +314,8 @@ async def _process_task(session, bot, uid, cid):
             return False, L(lang, "❌ আপনার অ্যাকাউন্টে কাজ করা বন্ধ আছে।", "❌ Tasks are disabled for your account."), task_type_val
         if c.advertiser_id == uid:
             return False, L(lang, "❌ নিজের ক্যাম্পেইনে কাজ করা যায় না।", "❌ You cannot complete your own campaign."), task_type_val
-        if task_type_val not in BusinessRules.EARNABLE_TASK_TYPES:
-            return False, L(lang, "❌ এই ধরনের টাস্ক এখনো সমর্থিত নয়।", "❌ This task type is not supported yet."), task_type_val
+        if task_type_val not in BusinessRules.API_VERIFIED_TASK_TYPES:
+            return False, L(lang, "📸 এই টাস্কে স্ক্রিনশট প্রমাণ দিন।", "📸 Send a screenshot proof for this task."), task_type_val
         if c.premium_only and not user.is_premium:
             return False, t(lang, "task_premium_only"), task_type_val
         if c.is_full:
@@ -309,7 +337,10 @@ async def _process_task(session, bot, uid, cid):
 
         # ---- real Telegram verification ----
         try:
-            member = await _is_member(bot, target, uid)
+            if task_type_val == "boost_7day":
+                member = await has_active_boost(bot, target, uid)
+            else:
+                member = await _is_member(bot, target, uid)
         except (TelegramRetryAfter, TelegramNetworkError):
             return False, L(lang, "⏳ টেলিগ্রাম ব্যস্ত, একটু পরে আবার চেষ্টা করুন।", "⏳ Telegram is busy, please retry shortly."), task_type_val
         except (TelegramBadRequest, TelegramForbiddenError) as e:
@@ -320,6 +351,9 @@ async def _process_task(session, bot, uid, cid):
             await alert_admins(bot, f"⚠️ Campaign <code>{esc(cid)}</code> paused: bot cannot verify membership.")
             return False, L(lang, "⚠️ এই টাস্কটি সাময়িকভাবে বন্ধ। অন্য টাস্ক চেষ্টা করুন।", "⚠️ This task is temporarily unavailable."), task_type_val
         if not member:
+            if task_type_val == "boost_7day":
+                return False, L(lang, "ℹ️ আপনি এখনো এই চ্যানেল/গ্রুপে বুস্ট করেননি। বুস্ট করে আবার চেষ্টা করুন।",
+                                "ℹ️ You have not boosted this channel/group yet. Boost it and try again."), task_type_val
             return False, t(lang, "task_failed"), task_type_val
 
         # ---- stage 2: lock rows and pay atomically ----

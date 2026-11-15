@@ -421,7 +421,38 @@ class VoucherRedemption(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
-NEW_TABLES = [DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__]
+class TaskSubmission(Base):
+    """Screenshot proof for tasks Telegram cannot verify (post view / bot start / reaction).
+    Lifecycle: pending -> approved | rejected -> (disputed ->) approved | final_rejected."""
+    __tablename__ = "task_submissions"
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "user_id", name="uq_submission_user_campaign"),
+        Index("ix_submission_status", "status", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    campaign_id: Mapped[str] = mapped_column(String(36), ForeignKey("campaigns.id"))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    advertiser_id: Mapped[int] = mapped_column(BigInteger)
+    proof_file_id: Mapped[str] = mapped_column(String(256))
+    proof_unique_id: Mapped[str] = mapped_column(String(64), unique=True)   # same screenshot can never be reused
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    decided_by: Mapped[Optional[int]] = mapped_column(BigInteger)           # 0 = automatic
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class AutoRenew(Base):
+    """Opt-in: when this campaign completes, publish an identical one (if the owner can afford it)."""
+    __tablename__ = "auto_renew"
+
+    campaign_id: Mapped[str] = mapped_column(String(36), ForeignKey("campaigns.id"), primary_key=True)
+    renewals_left: Mapped[int] = mapped_column(Integer, default=3)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+NEW_TABLES = [DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__,
+              TaskSubmission.__table__, AutoRenew.__table__]
 
 
 async def ensure_new_tables():
