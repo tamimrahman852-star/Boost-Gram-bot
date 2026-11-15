@@ -55,6 +55,7 @@ Placeholders (`{amount}`), HTML tags and numbers are protected and verified; if 
 Set ONE of these in Render for the translator:
 | Env | Provider |
 |---|---|
+| `GEMINI_API_KEY` (+ optional `GEMINI_MODEL`, `GEMINI_MIN_INTERVAL`) | Google AI Studio / Gemini — best quality (used first if set) |
 | `GOOGLE_TRANSLATE_API_KEY` | official Google Cloud Translation (recommended) |
 | `LIBRETRANSLATE_URL` (+ `LIBRETRANSLATE_API_KEY`) | your LibreTranslate server |
 | nothing | free public Google endpoint (works, but best-effort) |
@@ -62,3 +63,5 @@ Set ONE of these in Render for the translator:
 When a user picks a language the bot translates it (up to ~45 s the first time), then shows the menu in that language.
 Polish any text by hand: `locales/overrides/<lang>.json` → `{"English text": "your translation"}` (always wins).
 After adding new texts to the code run `python tools/extract_catalog.py` and commit `locales/catalog.json`.
+
+Admin command `/i18n` (private chat): shows the active provider, cached text counts per language and runs a live test (shows the last error if the key is wrong).

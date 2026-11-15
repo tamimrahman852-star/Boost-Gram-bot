@@ -10,6 +10,7 @@ machine translation of the English text the first time it is needed, then stored
 * `locales/overrides/<lang>.json` ({"English text": "your translation"}) lets you hand-polish any text; it always wins.
 
 Provider (environment):
+  GEMINI_API_KEY [+ GEMINI_MODEL] -> Google AI Studio / Gemini (best quality, understands context)
   GOOGLE_TRANSLATE_API_KEY  -> official Google Cloud Translation (recommended for production)
   LIBRETRANSLATE_URL [+ LIBRETRANSLATE_API_KEY] -> LibreTranslate server
   (neither)                 -> the free public Google endpoint (works without a key, best-effort)
@@ -45,6 +46,19 @@ if _record is not None:
     def _dump_record():
         with open(os.environ["I18N_RECORD"], "a", encoding="utf-8") as fh:
             fh.write(json.dumps(sorted(_record), ensure_ascii=False) + "\n")
+
+last_error: str = ""        # most recent provider problem (shown by the admin /i18n command; never contains keys)
+
+
+def _set_error(msg: str) -> None:
+    global last_error
+    for var in ("GEMINI_API_KEY", "GOOGLE_TRANSLATE_API_KEY", "LIBRETRANSLATE_API_KEY"):
+        secret = os.getenv(var, "").strip()
+        if secret:
+            msg = msg.replace(secret, "***")          # never leak a key into logs or the admin chat
+    last_error = msg[:300]
+    logger.warning(f"i18n provider: {last_error}")
+
 
 _PROTECT_RE = re.compile(r"\{\{|\}\}|\{[^{}]*\}|</?[a-zA-Z][^>]*>")
 _TOKEN_RE = re.compile(r"\{(\d+)\}")
@@ -133,6 +147,125 @@ class Provider:
         raise NotImplementedError
 
 
+LANG_NAMES = {
+    "hi": "Hindi", "ru": "Russian", "ar": "Arabic", "es": "Spanish", "de": "German", "fr": "French",
+    "pt": "Brazilian Portuguese", "id": "Indonesian", "tr": "Turkish", "fa": "Persian (Farsi)",
+    "uz": "Uzbek (Latin script)", "kk": "Kazakh (Cyrillic script)", "uk": "Ukrainian", "zh": "Simplified Chinese",
+    "vi": "Vietnamese", "th": "Thai", "ja": "Japanese", "ko": "Korean", "my": "Burmese",
+}
+
+
+class Gemini(Provider):
+    """Google AI Studio (Gemini API). Sends the strings as a JSON array and expects a JSON array back."""
+    name = "gemini"
+    batch = 40
+    URL_TMPL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    MAX_CHARS = 5000
+    RETRY_BASE = 8
+    PROMPT = (
+        "You are a professional UI translator for a Telegram bot (earn/promote platform). "
+        "Translate every English string in the JSON array into {lang}.\n"
+        "Rules:\n"
+        "- Tokens like {{0}} {{1}} {{2}} are placeholders: keep each one exactly once, unchanged.\n"
+        "- Keep emojis, numbers, symbols (· → • № #) and names such as GRAM, Telegram, Premium, bKash, Nagad, Rocket, Stars unchanged.\n"
+        "- Wording: short, natural and friendly, suitable for buttons and chat messages.\n"
+        "- Do not add explanations. Return ONLY a JSON array of strings with exactly the same length and order as the input.\n\n"
+        "INPUT:\n"
+    )
+
+    def __init__(self, key: str, model: str = ""):
+        self.key = key
+        self.models = [m for m in dict.fromkeys([model, "gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]) if m]
+        self.min_interval = float(os.getenv("GEMINI_MIN_INTERVAL", "4.5"))   # stay below the free-tier request limit
+        self._lock = asyncio.Lock()
+        self._last = 0.0
+
+    async def _post(self, session, model: str, body: dict):
+        url = self.URL_TMPL.format(model=model)
+        async with self._lock:                       # one request at a time, spaced out
+            wait = self.min_interval - (asyncio.get_event_loop().time() - self._last)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            try:
+                async with session.post(url, json=body, headers={"x-goog-api-key": self.key}) as r:
+                    status = r.status
+                    text = await r.text()
+            finally:
+                self._last = asyncio.get_event_loop().time()
+        return status, text
+
+    async def _try_model(self, session, model: str, body: dict, n: int):
+        """Returns: list (success) | "next" (model missing) | "split" (bad answer / still failing) | None (fatal)."""
+        for attempt in range(4):
+            try:
+                status, text = await self._post(session, model, body)
+            except Exception as e:
+                _set_error(f"Gemini request failed: {type(e).__name__}")
+                await asyncio.sleep(self.RETRY_BASE * (attempt + 1) / 2)
+                continue
+            if status == 200:
+                try:
+                    parts = json.loads(text)["candidates"][0]["content"]["parts"]
+                    out = json.loads("".join(p.get("text", "") for p in parts if not p.get("thought")))
+                    if isinstance(out, list) and len(out) == n and all(isinstance(x, str) for x in out):
+                        return out
+                except Exception:
+                    pass
+                _set_error("Gemini returned an unexpected answer")
+                return "split"
+            if status in (429, 500, 502, 503, 504):
+                _set_error(f"Gemini HTTP {status} (rate limit / busy) - retrying")
+                await asyncio.sleep(self.RETRY_BASE * (attempt + 1))
+                continue
+            if status == 404:
+                _set_error(f"Gemini model {model} not available")
+                return "next"
+            _set_error(f"Gemini HTTP {status}: {text[:160]}")      # e.g. 400/403 = bad key / not allowed
+            return None
+        return "split"
+
+    async def _call(self, session, lang: str, texts: List[str], depth: int = 0) -> Optional[List[str]]:
+        body = {
+            "contents": [{"parts": [{"text": self.PROMPT.format(lang=LANG_NAMES.get(lang, lang)) + json.dumps(texts, ensure_ascii=False)}]}],
+            "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"},
+        }
+        for model in list(self.models):
+            res = await self._try_model(session, model, body, len(texts))
+            if isinstance(res, list):
+                if self.models[0] != model:                      # remember the model that works
+                    self.models.remove(model)
+                    self.models.insert(0, model)
+                return res
+            if res == "next":
+                if len(self.models) > 1:
+                    self.models.remove(model)                   # never ask a missing model again
+                continue
+            if res is None:
+                return None
+            break                                               # "split"
+        if len(texts) > 1 and depth < 3:
+            mid = len(texts) // 2
+            a = await self._call(session, lang, texts[:mid], depth + 1)
+            b = await self._call(session, lang, texts[mid:], depth + 1)
+            if a is not None and b is not None:
+                return a + b
+        return None
+
+    async def translate(self, lang, texts):
+        out: List[Optional[str]] = []
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=90)) as session:
+            i = 0
+            while i < len(texts):
+                chunk, size = [], 0
+                while i < len(texts) and (not chunk or size + len(texts[i]) < self.MAX_CHARS):
+                    chunk.append(texts[i])
+                    size += len(texts[i])
+                    i += 1
+                res = await self._call(session, lang, chunk)
+                out.extend(res if res is not None else [None] * len(chunk))
+        return out
+
+
 class GoogleFree(Provider):
     name = "google_free"
     batch = 8
@@ -150,6 +283,7 @@ class GoogleFree(Provider):
                         if r.status in (429, 503):
                             await asyncio.sleep(2 * (attempt + 1))
                             continue
+                        _set_error(f"Google (free endpoint) HTTP {r.status}")
                         return None
             except Exception:
                 await asyncio.sleep(1 + attempt)
@@ -177,7 +311,7 @@ class GoogleCloud(Provider):
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
                 async with session.post(url, json=body) as r:
                     if r.status != 200:
-                        logger.warning(f"Google Cloud Translation HTTP {r.status}")
+                        _set_error(f"Google Cloud Translation HTTP {r.status}")
                         return [None] * len(texts)
                     data = await r.json()
             return [x.get("translatedText") for x in data["data"]["translations"]]
@@ -201,7 +335,7 @@ class LibreTranslate(Provider):
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
                 async with session.post(f"{self.url}/translate", json=body) as r:
                     if r.status != 200:
-                        logger.warning(f"LibreTranslate HTTP {r.status}")
+                        _set_error(f"LibreTranslate HTTP {r.status}")
                         return [None] * len(texts)
                     data = await r.json()
             res = data.get("translatedText")
@@ -217,9 +351,12 @@ _provider: Optional[Provider] = None
 def get_provider() -> Provider:
     global _provider
     if _provider is None:
+        gem = os.getenv("GEMINI_API_KEY", "").strip()
         gk = os.getenv("GOOGLE_TRANSLATE_API_KEY", "").strip()
         lt = os.getenv("LIBRETRANSLATE_URL", "").strip()
-        if gk:
+        if gem:
+            _provider = Gemini(gem, os.getenv("GEMINI_MODEL", "").strip())
+        elif gk:
             _provider = GoogleCloud(gk)
         elif lt:
             _provider = LibreTranslate(lt, os.getenv("LIBRETRANSLATE_API_KEY", "").strip())

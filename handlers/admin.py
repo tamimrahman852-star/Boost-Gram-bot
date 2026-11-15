@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from database import User, FraudReport, WithdrawalRequest, Campaign, Transaction, CampaignStatus, TransactionType
 from keyboards import admin_kb, withdrawal_review_kb
 from localization import t
-from helpers import AdminState
+from helpers import AdminState, esc
 
 router = Router()
 
@@ -244,3 +244,26 @@ async def adm_ban_uid(message: Message, session, state: FSMContext):
         act = "banned" if u.is_blocked else "unbanned"
     await session.commit()
     await message.answer(f"✅ {uid} {act}.")
+
+
+@router.message(Command("i18n"))
+async def admin_i18n_status(message: Message):
+    """/i18n - shows which translation provider is active, how many texts each language has, and tests it live."""
+    if message.from_user.id not in ADMIN_IDS or message.chat.type != "private":
+        return
+    import i18n
+    prov = i18n.get_provider()
+    total = len(i18n.catalog())
+    langs = ", ".join(f"{k}:{len(v)}" for k, v in sorted(i18n._cache.items())) or "-"
+    await message.answer(f"🌐 <b>Translation status</b>\n\nProvider: <b>{prov.name}</b>\nTexts to translate: <b>{total}</b>\nCached: <code>{langs}</code>\n\n⏳ Testing…",
+                         parse_mode=ParseMode.HTML)
+    try:
+        res = await i18n.translate_lines("hi", ["Hello {0}, your balance is <b>{1}</b>"])
+        ok = res.get("Hello {0}, your balance is <b>{1}</b>")
+    except Exception as e:  # pragma: no cover
+        ok, i18n.last_error = None, f"{type(e).__name__}"
+    if ok:
+        await message.answer(f"✅ Provider works.\nExample (hi): <code>{esc(ok)}</code>", parse_mode=ParseMode.HTML)
+    else:
+        await message.answer(f"❌ Provider is not working.\nLast error: <code>{esc(i18n.last_error or 'unknown')}</code>\n\n"
+                             "Check the key in Render → Environment.", parse_mode=ParseMode.HTML)
