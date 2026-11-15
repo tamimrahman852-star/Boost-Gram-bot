@@ -50,13 +50,18 @@ if _record is not None:
 last_error: str = ""        # most recent provider problem (shown by the admin /i18n command; never contains keys)
 
 
-def _set_error(msg: str) -> None:
-    global last_error
+def _scrub(msg: str) -> str:
+    """Remove API keys from any text that may be logged or shown to the admin."""
     for var in ("GEMINI_API_KEY", "GOOGLE_TRANSLATE_API_KEY", "LIBRETRANSLATE_API_KEY"):
         secret = os.getenv(var, "").strip()
         if secret:
-            msg = msg.replace(secret, "***")          # never leak a key into logs or the admin chat
-    last_error = msg[:300]
+            msg = msg.replace(secret, "***")
+    return msg
+
+
+def _set_error(msg: str) -> None:
+    global last_error
+    last_error = _scrub(msg)[:300]
     logger.warning(f"i18n provider: {last_error}")
 
 
@@ -146,6 +151,13 @@ class Provider:
     async def translate(self, lang: str, texts: List[str]) -> List[Optional[str]]:
         raise NotImplementedError
 
+    async def ping(self) -> List[tuple]:
+        try:
+            out = await asyncio.wait_for(self.translate("hi", ["Hello"]), 25)
+            return [(self.name, "✅ works" if out and out[0] else f"❌ no answer ({last_error or 'unknown'})")]
+        except Exception as e:
+            return [(self.name, f"❌ {type(e).__name__}")]
+
 
 LANG_NAMES = {
     "hi": "Hindi", "ru": "Russian", "ar": "Arabic", "es": "Spanish", "de": "German", "fr": "French",
@@ -161,7 +173,10 @@ class Gemini(Provider):
     batch = 40
     URL_TMPL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     MAX_CHARS = 5000
-    RETRY_BASE = 8
+    RETRY_BASE = 3            # seconds; a rate-limited model is retried once, then the next model is used
+    TIMEOUT = 40              # seconds per request
+    COOLDOWN = 60             # a model that answered 429/5xx is skipped for this long
+    PING_TIMEOUT = 20
     PROMPT = (
         "You are a professional UI translator for a Telegram bot (earn/promote platform). "
         "Translate every English string in the JSON array into {lang}.\n"
@@ -179,30 +194,43 @@ class Gemini(Provider):
         self.min_interval = float(os.getenv("GEMINI_MIN_INTERVAL", "4.5"))   # stay below the free-tier request limit
         self._lock = asyncio.Lock()
         self._last = 0.0
+        self._cool: Dict[str, float] = {}
 
-    async def _post(self, session, model: str, body: dict):
+    @staticmethod
+    def _message(text: str) -> str:
+        try:
+            return _scrub(str(json.loads(text)["error"]["message"]))[:170]
+        except Exception:
+            return _scrub(text)[:170].replace("\n", " ")
+
+    async def _post(self, session, model: str, body: dict, locked: bool = True):
         url = self.URL_TMPL.format(model=model)
+        headers = {"x-goog-api-key": self.key}
+        if not locked:
+            async with session.post(url, json=body, headers=headers) as r:
+                return r.status, await r.text()
         async with self._lock:                       # one request at a time, spaced out
             wait = self.min_interval - (asyncio.get_event_loop().time() - self._last)
             if wait > 0:
                 await asyncio.sleep(wait)
             try:
-                async with session.post(url, json=body, headers={"x-goog-api-key": self.key}) as r:
-                    status = r.status
-                    text = await r.text()
+                async with session.post(url, json=body, headers=headers) as r:
+                    return r.status, await r.text()
             finally:
                 self._last = asyncio.get_event_loop().time()
-        return status, text
 
     async def _try_model(self, session, model: str, body: dict, n: int):
-        """Returns: list (success) | "next" (model missing) | "split" (bad answer / still failing) | None (fatal)."""
-        for attempt in range(4):
+        """Returns: list (success) | "next" (model unusable right now) | "split" (bad answer) | None (fatal: key/permission)."""
+        for attempt in range(2):
             try:
                 status, text = await self._post(session, model, body)
             except Exception as e:
-                _set_error(f"Gemini request failed: {type(e).__name__}")
-                await asyncio.sleep(self.RETRY_BASE * (attempt + 1) / 2)
-                continue
+                _set_error(f"Gemini {model}: {type(e).__name__} (network/timeout)")
+                if attempt == 0:
+                    await asyncio.sleep(self.RETRY_BASE)
+                    continue
+                self._cool[model] = asyncio.get_event_loop().time() + self.COOLDOWN
+                return "next"
             if status == 200:
                 try:
                     parts = json.loads(text)["candidates"][0]["content"]["parts"]
@@ -211,25 +239,34 @@ class Gemini(Provider):
                         return out
                 except Exception:
                     pass
-                _set_error("Gemini returned an unexpected answer")
+                _set_error(f"Gemini {model}: unexpected answer format")
                 return "split"
             if status in (429, 500, 502, 503, 504):
-                _set_error(f"Gemini HTTP {status} (rate limit / busy) - retrying")
-                await asyncio.sleep(self.RETRY_BASE * (attempt + 1))
-                continue
-            if status == 404:
-                _set_error(f"Gemini model {model} not available")
+                _set_error(f"Gemini {model} HTTP {status}: {self._message(text)}")
+                if attempt == 0:
+                    await asyncio.sleep(self.RETRY_BASE)
+                    continue
+                self._cool[model] = asyncio.get_event_loop().time() + self.COOLDOWN
                 return "next"
-            _set_error(f"Gemini HTTP {status}: {text[:160]}")      # e.g. 400/403 = bad key / not allowed
+            if status == 404:
+                _set_error(f"Gemini model {model} not available (HTTP 404)")
+                return "next"
+            _set_error(f"Gemini {model} HTTP {status}: {self._message(text)}")      # 400/401/403: bad key / API not enabled
             return None
-        return "split"
+        return "next"
+
+    def _order(self) -> List[str]:
+        now = asyncio.get_event_loop().time()
+        ready = [m for m in self.models if self._cool.get(m, 0) <= now]
+        return ready or list(self.models)
 
     async def _call(self, session, lang: str, texts: List[str], depth: int = 0) -> Optional[List[str]]:
         body = {
             "contents": [{"parts": [{"text": self.PROMPT.format(lang=LANG_NAMES.get(lang, lang)) + json.dumps(texts, ensure_ascii=False)}]}],
             "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"},
         }
-        for model in list(self.models):
+        want_split = False
+        for model in self._order():
             res = await self._try_model(session, model, body, len(texts))
             if isinstance(res, list):
                 if self.models[0] != model:                      # remember the model that works
@@ -237,13 +274,14 @@ class Gemini(Provider):
                     self.models.insert(0, model)
                 return res
             if res == "next":
-                if len(self.models) > 1:
-                    self.models.remove(model)                   # never ask a missing model again
+                if self.models.count(model) and len(self.models) > 1 and self._cool.get(model, 0) == 0:
+                    self.models.remove(model)                   # 404: never ask a missing model again
                 continue
             if res is None:
                 return None
-            break                                               # "split"
-        if len(texts) > 1 and depth < 3:
+            want_split = True
+            break
+        if want_split and len(texts) > 1 and depth < 3:
             mid = len(texts) // 2
             a = await self._call(session, lang, texts[:mid], depth + 1)
             b = await self._call(session, lang, texts[mid:], depth + 1)
@@ -253,7 +291,7 @@ class Gemini(Provider):
 
     async def translate(self, lang, texts):
         out: List[Optional[str]] = []
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=90)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.TIMEOUT)) as session:
             i = 0
             while i < len(texts):
                 chunk, size = [], 0
@@ -264,6 +302,24 @@ class Gemini(Provider):
                 res = await self._call(session, lang, chunk)
                 out.extend(res if res is not None else [None] * len(chunk))
         return out
+
+    async def ping(self) -> List[tuple]:
+        """Fast diagnostic for the admin: one tiny request per model (no queue, no retries)."""
+        body = {"contents": [{"parts": [{"text": "Reply with the JSON array [\"ok\"]"}]}],
+                "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}
+        results = []
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.PING_TIMEOUT)) as session:
+            for model in self.models:
+                try:
+                    status, text = await self._post(session, model, body, locked=False)
+                except Exception as e:
+                    results.append((model, f"❌ {type(e).__name__} (no answer in time / network)"))
+                    continue
+                if status == 200:
+                    results.append((model, "✅ works"))
+                    break
+                results.append((model, f"❌ HTTP {status}: {self._message(text)}"))
+        return results
 
 
 class GoogleFree(Provider):
@@ -526,6 +582,7 @@ async def warm_language(lang: str, chunk: int = 25) -> int:
     if lang in BASE_LANGS or not supported(lang):
         return 0
     added = 0
+    empty = 0
     todo = missing_for(lang)
     for i in range(0, len(todo), chunk):
         part = todo[i:i + chunk]
@@ -535,7 +592,12 @@ async def warm_language(lang: str, chunk: int = 25) -> int:
             logger.warning(f"translate {lang} failed: {e}")
             break
         if not done:
+            empty += 1
+            if empty >= 2:                       # provider keeps failing: stop, the background loop retries later
+                logger.warning(f"i18n: {lang}: giving up for now ({last_error or 'provider not answering'})")
+                break
             continue
+        empty = 0
         for en, tr in done.items():
             _cache.setdefault(lang, {})[key_of(en)] = tr
             _runtime_missing.discard(en)
