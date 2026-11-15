@@ -10,7 +10,7 @@ from aiogram.exceptions import (
 from config import logger, BusinessRules
 from datetime import timedelta
 from database import (
-    AsyncSessionLocal, TaskCompletion, Campaign, User, Transaction, FraudReport, TaskSubmission, AutoRenew,
+    AsyncSessionLocal, TaskCompletion, Campaign, User, Transaction, FraudReport, TaskSubmission, AutoRenew, CampaignPost,
     RetentionStatus, CampaignStatus, TransactionType, TaskType
 )
 from localization import t
@@ -191,6 +191,9 @@ async def _sweep_auto_renew(bot: Bot) -> None:
                     requires_retention_check=c.requires_retention_check)
                 s.add(new)
                 await s.flush()
+                post = (await s.execute(select(CampaignPost).where(CampaignPost.campaign_id == c.id))).scalar_one_or_none()
+                if post:
+                    s.add(CampaignPost(campaign_id=new.id, source_chat_id=post.source_chat_id, source_message_id=post.source_message_id))
                 owner.balance -= total
                 s.add(Transaction(
                     user_id=owner_id, amount=-total, type=TransactionType.CAMPAIGN_PAYMENT,

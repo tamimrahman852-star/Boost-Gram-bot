@@ -1,3 +1,5 @@
+import asyncio
+import time
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from sqlalchemy import select, func
@@ -10,7 +12,7 @@ from aiogram.exceptions import (
 
 from config import BOT_USERNAME, BusinessRules, logger
 from database import (
-    User, Campaign, TaskCompletion, Transaction, ReferralEarning, FraudReport, TaskSubmission,
+    User, Campaign, TaskCompletion, Transaction, ReferralEarning, FraudReport, TaskSubmission, CampaignPost, AsyncSessionLocal,
     CampaignStatus, TaskType, RetentionStatus, TransactionType, VERIFIABLE_TASKS, redis_client
 )
 from localization import L10N, t
@@ -151,6 +153,10 @@ async def _show_task_list(query, session, task_type, page):
     for c in items:
         bn, en = VERBS.get(c.task_type, ("খুলুন", "Open"))
         star = "⭐ " if c.premium_only else ""
+        if c.task_type == TaskType.POST_VIEW:
+            buttons.append([InlineKeyboardButton(
+                text=f"👁 {star}{L(lang, 'পোস্ট দেখুন', 'View post')} +{c.reward_per_user:,.0f} GRAM", callback_data=f"earn:pv:{c.id}")])
+            continue
         open_btn = InlineKeyboardButton(text=f"💲 {star}+{c.reward_per_user:,.0f} | {L(lang, bn, en)} ↗", url=_open_link(c))
         if c.task_type in (TaskType.POST_VIEW, TaskType.BOT_START, TaskType.REACTION):
             second = InlineKeyboardButton(text="📸 " + L(lang, "প্রমাণ", "Proof"), callback_data=f"earn:proof:{c.id}")
@@ -314,7 +320,7 @@ async def _process_task(session, bot, uid, cid):
             return False, L(lang, "❌ আপনার অ্যাকাউন্টে কাজ করা বন্ধ আছে।", "❌ Tasks are disabled for your account."), task_type_val
         if c.advertiser_id == uid:
             return False, L(lang, "❌ নিজের ক্যাম্পেইনে কাজ করা যায় না।", "❌ You cannot complete your own campaign."), task_type_val
-        if task_type_val not in BusinessRules.API_VERIFIED_TASK_TYPES:
+        if task_type_val not in BusinessRules.API_VERIFIED_TASK_TYPES + BusinessRules.VIEW_TASK_TYPES:
             return False, L(lang, "📸 এই টাস্কে স্ক্রিনশট প্রমাণ দিন।", "📸 Send a screenshot proof for this task."), task_type_val
         if c.premium_only and not user.is_premium:
             return False, t(lang, "task_premium_only"), task_type_val
@@ -329,7 +335,17 @@ async def _process_task(session, bot, uid, cid):
         if used >= BusinessRules.MAX_TASKS_PER_DAY:
             return False, L(lang, "⏳ আজকের টাস্কের সীমা শেষ। কাল আবার চেষ্টা করুন।", "⏳ Daily task limit reached. Try again tomorrow."), task_type_val
 
-        target = c.target_chat_id or (f"@{c.target_username}" if c.target_username else None)
+        view_key = f"pv:{uid}:{cid}"
+        if task_type_val == "post_view":
+            # The "proof" is that the bot really forwarded the post to this user a few seconds ago.
+            started = await redis_client.get(view_key)
+            if not started:
+                return False, L(lang, "❌ আগে পোস্টটি দেখুন।", "❌ Open the post first."), task_type_val
+            if time.time() - float(started) < BusinessRules.VIEW_DWELL_SECONDS:
+                return False, L(lang, "⏳ আরেকটু অপেক্ষা করুন।", "⏳ Please wait a moment."), task_type_val
+            target = "view"
+        else:
+            target = c.target_chat_id or (f"@{c.target_username}" if c.target_username else None)
         if not target:
             c.status = CampaignStatus.PAUSED
             await session.commit()
@@ -337,7 +353,9 @@ async def _process_task(session, bot, uid, cid):
 
         # ---- real Telegram verification ----
         try:
-            if task_type_val == "boost_7day":
+            if task_type_val == "post_view":
+                member = True
+            elif task_type_val == "boost_7day":
                 member = await has_active_boost(bot, target, uid)
             else:
                 member = await _is_member(bot, target, uid)
@@ -410,6 +428,7 @@ async def _process_task(session, bot, uid, cid):
         pipe = redis_client.pipeline()
         pipe.incr(day_key)
         pipe.expire(day_key, 86400)
+        pipe.delete(view_key)
         await pipe.execute()
         return True, t(lang, "task_completed", tid=cid[:8].upper(), reward=reward, balance=user.balance), task_type_val
     except Exception as e:
@@ -439,3 +458,100 @@ async def earn_report(query: CallbackQuery, session):
     ))
     await session.commit()
     await query.answer(L(lang, "✅ রিপোর্ট জমা হয়েছে, ধন্যবাদ।", "✅ Report submitted, thank you."), show_alert=True)
+
+
+# ----------------------------------------------------------------------------------------
+# Post views: forwarded into the bot, paid automatically after a short dwell time
+# ----------------------------------------------------------------------------------------
+def _view_result_kb(lang: str, cid: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➡️ " + L(lang, "পরবর্তী পোস্ট", "Next post"), callback_data="earn:pvnext")],
+        [InlineKeyboardButton(text="🚩 " + L(lang, "রিপোর্ট", "Report"), callback_data=f"earn:report:{cid}")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="earn:back")],
+    ])
+
+
+async def _finish_view(bot: Bot, uid: int, cid: str, chat_id: int, lang: str):
+    """Runs a few seconds after the post was forwarded: pays the reward (own DB session)."""
+    try:
+        await asyncio.sleep(BusinessRules.VIEW_DWELL_SECONDS + 0.5)
+        async with AsyncSessionLocal() as session:
+            ok, msg, _ = await _process_task(session, bot, uid, cid)
+            if ok:
+                c = (await session.execute(select(Campaign).where(Campaign.id == cid))).scalar_one_or_none()
+                reward = c.reward_per_user if c else 0
+                user = await get_user(session, uid)
+                await bot.send_message(
+                    chat_id,
+                    L(lang, f"💲 পোস্ট #{cid[:6].upper()} দেখার জন্য আপনি <b>{reward:,.0f} GRAM</b> পেয়েছেন!\n💰 আপনার ব্যালেন্স: <b>{user.balance:,.1f}</b> GRAM",
+                            f"💲 You earned <b>{reward:,.0f} GRAM</b> for viewing post #{cid[:6].upper()}!\n💰 Your balance: <b>{user.balance:,.1f}</b> GRAM"),
+                    reply_markup=_view_result_kb(lang, cid), parse_mode=ParseMode.HTML)
+            elif not msg.startswith("❌ আগে") and "Open the post first" not in msg:
+                await bot.send_message(chat_id, msg, reply_markup=_view_result_kb(lang, cid))
+    except Exception as e:
+        logger.warning(f"view payout failed for {uid}/{cid}: {e}")
+
+
+async def _start_view(query: CallbackQuery, session, bot: Bot, cid: str):
+    uid = query.from_user.id
+    user = await get_user(session, uid)
+    if not user:
+        await query.answer()
+        return
+    lang = user.language
+    if not await redis_client.set(f"pvcool:{uid}", "1", nx=True, ex=max(1, int(BusinessRules.VIEW_COOLDOWN_SECONDS))):
+        await query.answer("⏳", show_alert=False)
+        return
+    c = (await session.execute(select(Campaign).where(Campaign.id == cid))).scalar_one_or_none()
+    post = (await session.execute(select(CampaignPost).where(CampaignPost.campaign_id == cid))).scalar_one_or_none()
+    problem = None
+    if not c or not post or c.status != CampaignStatus.ACTIVE or c.task_type != TaskType.POST_VIEW or c.is_full:
+        problem = L(lang, "❌ টাস্কটি সক্রিয় নয়।", "❌ This task is not active.")
+    elif user.is_blocked or user.risk_score >= BusinessRules.RISK_BLOCK_SCORE:
+        problem = L(lang, "❌ আপনার অ্যাকাউন্টে কাজ করা বন্ধ আছে।", "❌ Tasks are disabled for your account.")
+    elif c.advertiser_id == uid:
+        problem = L(lang, "❌ নিজের ক্যাম্পেইনে কাজ করা যায় না।", "❌ You cannot complete your own campaign.")
+    elif c.premium_only and not user.is_premium:
+        problem = L(lang, "⭐ শুধু Telegram Premium ব্যবহারকারীদের জন্য।", "⭐ Telegram Premium users only.")
+    elif (await session.execute(select(TaskCompletion.id).where(
+            TaskCompletion.user_id == uid, TaskCompletion.campaign_id == cid))).first():
+        problem = L(lang, "ℹ️ আপনি এই পোস্ট আগেই দেখেছেন।", "ℹ️ You already viewed this post.")
+    elif int(await redis_client.get(f"dcap:{uid}") or 0) >= BusinessRules.MAX_TASKS_PER_DAY:
+        problem = L(lang, "⏳ আজকের টাস্কের সীমা শেষ।", "⏳ Daily task limit reached.")
+    if problem:
+        await query.answer(problem[:200], show_alert=True)
+        return
+    try:
+        await bot.forward_message(chat_id=query.message.chat.id, from_chat_id=post.source_chat_id, message_id=post.source_message_id)
+    except (TelegramBadRequest, TelegramForbiddenError) as e:
+        # post deleted / forwarding restricted / bot has no access -> not the worker's fault
+        logger.warning(f"Campaign {cid}: cannot forward post ({e}); pausing")
+        c.status = CampaignStatus.PAUSED
+        await session.commit()
+        await alert_admins(bot, f"⚠️ View campaign <code>{esc(cid)}</code> paused: the post cannot be forwarded.")
+        try:
+            await bot.send_message(c.advertiser_id, L("bn", f"⚠️ “{esc(c.title)}” পোস্টটি ফরওয়ার্ড করা যাচ্ছে না (মুছে গেছে বা ফরওয়ার্ড বন্ধ)। ক্যাম্পেইনটি বিরতিতে রাখা হয়েছে।",
+                                                          f"⚠️ The post of “{esc(c.title)}” can't be forwarded (deleted or forwarding restricted). The campaign was paused."))
+        except Exception:
+            pass
+        await query.answer(L(lang, "⚠️ এই পোস্টটি এখন পাওয়া যাচ্ছে না। অন্যটি চেষ্টা করুন।", "⚠️ This post is unavailable. Try another one."), show_alert=True)
+        return
+    await redis_client.set(f"pv:{uid}:{cid}", str(time.time()), ex=300)
+    await query.answer()
+    asyncio.create_task(_finish_view(bot, uid, cid, query.message.chat.id, lang))
+
+
+@router.callback_query(F.data.startswith("earn:pv:"))
+async def earn_view_post(query: CallbackQuery, session, bot: Bot):
+    await _start_view(query, session, bot, query.data.split(":")[2])
+
+
+@router.callback_query(F.data == "earn:pvnext")
+async def earn_view_next(query: CallbackQuery, session, bot: Bot):
+    user = await get_user(session, query.from_user.id)
+    lang = user.language if user else "en"
+    items, total, _, _ = await _page_items(session, query.from_user.id, user, "post_view", 0)
+    if not items:
+        await query.answer(L(lang, "📭 এখন আর কোনো পোস্ট নেই।", "📭 No more posts right now."), show_alert=True)
+        return
+    await _start_view(query, session, bot, items[0].id)

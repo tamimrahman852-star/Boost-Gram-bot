@@ -19,9 +19,9 @@ from aiogram.enums import ParseMode, ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from sqlalchemy import select, func
 
-from config import BusinessRules, TaskPricing, logger
+from config import BusinessRules, TaskPricing, BOT_USERNAME, logger
 from database import (
-    User, Campaign, Transaction, CampaignStatus, TaskType, TransactionType, redis_client,
+    User, Campaign, Transaction, CampaignStatus, TaskType, TransactionType, CampaignPost, redis_client,
 )
 from keyboards import main_menu
 from helpers import esc, safe_text, L, CampaignCreateState
@@ -251,10 +251,14 @@ async def _start_link(query: CallbackQuery, state: FSMContext, session, kind: st
     await state.set_state(CampaignCreateState.link)
     await state.update_data(link_kind=kind)
     texts = {
-        "post": ("👁 <b>পোস্ট ভিউ</b>\n\nআপনার পাবলিক চ্যানেলের পোস্টের লিংক পাঠান।\nউদাহরণ: <code>https://t.me/channel/123</code>\n\n"
-                 "ℹ️ Telegram ভিউ নিজে যাচাই করতে পারে না, তাই কর্মী স্ক্রিনশট পাঠায় এবং আপনি অনুমোদন দেন।",
-                 "👁 <b>Post views</b>\n\nSend the link of a post in a public channel.\nExample: <code>https://t.me/channel/123</code>\n\n"
-                 "ℹ️ Telegram can't verify views itself, so workers send a screenshot and you approve it."),
+        "post": (f"👁 <b>পোস্ট ভিউ</b>\n\n<b>যে পোস্টটি প্রচার করতে চান সেটি ফরওয়ার্ড করুন।</b>\n"
+                 f"<blockquote>চ্যানেল খুলুন → পোস্ট বেছে নিন → ফরওয়ার্ড → @{BOT_USERNAME}</blockquote>\n"
+                 "অথবা পাবলিক চ্যানেলের পোস্টের লিংক পাঠান (<code>https://t.me/channel/123</code>)।\n\n"
+                 "✅ কর্মীরা পোস্টটি সরাসরি বটের ভিতরে দেখবে (এটি আসল পোস্টের ভিউ কাউন্টারেও যোগ হয়), কোনো স্ক্রিনশট বা অনুমোদন লাগে না।",
+                 f"👁 <b>Post views</b>\n\n<b>Forward the post you want to promote.</b>\n"
+                 f"<blockquote>Open the channel → pick the post → Forward → @{BOT_USERNAME}</blockquote>\n"
+                 "Or send the link of a public channel post (<code>https://t.me/channel/123</code>).\n\n"
+                 "✅ Workers view the post right inside the bot (it also counts on the original post's view counter) — no screenshots or approvals."),
         "reaction": ("❤️ <b>পোস্ট রিঅ্যাকশন</b>\n\nপাবলিক চ্যানেলের পোস্টের লিংক পাঠান।\nউদাহরণ: <code>https://t.me/channel/123</code>\n\n"
                      "ℹ️ কর্মী রিঅ্যাকশনসহ স্ক্রিনশট পাঠায়, আপনি অনুমোদন দেন।",
                      "❤️ <b>Post reactions</b>\n\nSend the link of a post in a public channel.\nExample: <code>https://t.me/channel/123</code>\n\n"
@@ -272,6 +276,52 @@ async def _start_link(query: CallbackQuery, state: FSMContext, session, kind: st
 @router.callback_query(F.data.in_({"promote:cat:post", "promote:cat:reaction", "promote:cat:bot"}))
 async def promote_link_start(query: CallbackQuery, state: FSMContext, session):
     await _start_link(query, state, session, query.data.split(":")[2])
+
+
+def _post_link(chat, chat_id: int, mid: int) -> str:
+    if getattr(chat, "username", None):
+        return f"https://t.me/{chat.username}/{mid}"
+    return f"https://t.me/c/{str(abs(chat_id))[3:] if str(abs(chat_id)).startswith('100') else abs(chat_id)}/{mid}"
+
+
+async def _register_post(message: Message, state: FSMContext, session, bot: Bot, lang: str, chat, chat_id: int, mid: int):
+    """Common path for a forwarded post or a post link: prove the bot can forward it, then continue."""
+    try:
+        await bot.forward_message(message.chat.id, chat_id, mid)        # also acts as a preview for the advertiser
+    except (TelegramBadRequest, TelegramForbiddenError):
+        await message.answer(L(
+            lang, "❌ বট এই পোস্টটি ফরওয়ার্ড করতে পারছে না। চ্যানেলটি পাবলিক হতে হবে এবং ফরওয়ার্ড/সেভ করা অনুমোদিত থাকতে হবে, অথবা বটকে চ্যানেলের অ্যাডমিন বানান।",
+            "❌ The bot can't forward this post. The channel must be public with forwarding allowed, or make the bot an admin of the channel."))
+        return
+    link = _post_link(chat, chat_id, mid)
+    dup = (await session.execute(select(Campaign.id).where(
+        Campaign.target_link == link, Campaign.task_type == TaskType.POST_VIEW,
+        Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.PAUSED])))).first()
+    if dup:
+        await message.answer(L(lang, "❌ এই পোস্টের জন্য ইতিমধ্যে একটি সক্রিয় ক্যাম্পেইন আছে।", "❌ This post already has an active campaign."))
+        return
+    title = f"👁 {(getattr(chat, 'title', None) or 'Post')[:60]} #{mid}"
+    await state.set_state(None)
+    await state.update_data(chat_id=None, post_chat_id=chat_id, post_message_id=mid, title=title, username=None,
+                            link=link, task_type="post_view", premium=False)
+    await message.answer(L(lang, "👆 কর্মীরা পোস্টটি ঠিক এভাবেই দেখবে।", "👆 This is exactly how workers will see your post."))
+    await _after_target(message, state, lang, title, TaskType.POST_VIEW)
+
+
+@router.message(CampaignCreateState.link, F.forward_origin)
+async def forwarded_post(message: Message, state: FSMContext, session, bot: Bot):
+    user = await _get_user(session, message.from_user.id)
+    if not user or user.is_blocked:
+        return
+    lang = user.language
+    if (await state.get_data()).get("link_kind") != "post":
+        await message.answer(L(lang, "❌ এখানে লিংক পাঠান।", "❌ Please send a link here."))
+        return
+    origin = message.forward_origin
+    if getattr(origin, "type", None) != "channel":
+        await message.answer(L(lang, "❌ একটি চ্যানেলের পোস্ট ফরওয়ার্ড করুন।", "❌ Forward a post from a channel."))
+        return
+    await _register_post(message, state, session, bot, lang, origin.chat, origin.chat.id, origin.message_id)
 
 
 @router.message(CampaignCreateState.link, F.text)
@@ -314,6 +364,9 @@ async def typed_link(message: Message, state: FSMContext, session, bot: Bot):
             return
         if chat.type not in ("channel", "supergroup", "group"):
             await message.answer(L(lang, "❌ এটি চ্যানেল বা গ্রুপের পোস্ট নয়।", "❌ That is not a channel/group post."))
+            return
+        if kind == "post":
+            await _register_post(message, state, session, bot, lang, chat, chat.id, int(num))
             return
         link = f"https://t.me/{name}/{num}"
         icon = "👁" if kind == "post" else "❤️"
@@ -597,6 +650,9 @@ async def confirm_campaign(query: CallbackQuery, state: FSMContext, session):
         )
         session.add(c)
         await session.flush()
+        if data.get("post_message_id"):
+            session.add(CampaignPost(campaign_id=c.id, source_chat_id=int(data["post_chat_id"]),
+                                     source_message_id=int(data["post_message_id"])))
         user.balance -= total
         session.add(Transaction(
             user_id=uid, amount=-total, type=TransactionType.CAMPAIGN_PAYMENT,

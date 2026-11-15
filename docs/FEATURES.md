@@ -41,3 +41,9 @@ max 10 open proofs per user; only the campaign owner can review its proofs; fake
 ## Auto-task settings (auto-renew)
 Promote → ⚙️ Auto-task settings (or a campaign's own screen): when the task finishes it is published again, up to 3 times,
 charged to the owner's balance. It stops by itself (and tells the owner) if the balance is too low.
+
+## Post views (no proof, no approval)
+Promote → 👁 Post → forward a channel post to the bot (or send its public link). The bot forwards it back as a preview.
+Earn → 👁 Views → tap "View post +N": the bot forwards the post into the worker's chat (this also counts as a real view on the
+original post) and pays automatically after a few seconds. Safety: one view per post per user, minimum dwell time, daily task limit,
+tap cooldown, own posts excluded, campaigns auto-pause if the post can't be forwarded any more.

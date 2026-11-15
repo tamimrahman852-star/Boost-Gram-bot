@@ -451,8 +451,17 @@ class AutoRenew(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+class CampaignPost(Base):
+    """The post a view-campaign promotes (forwarded to workers inside the bot)."""
+    __tablename__ = "campaign_posts"
+
+    campaign_id: Mapped[str] = mapped_column(String(36), ForeignKey("campaigns.id"), primary_key=True)
+    source_chat_id: Mapped[int] = mapped_column(BigInteger)
+    source_message_id: Mapped[int] = mapped_column(BigInteger)
+
+
 NEW_TABLES = [DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__,
-              TaskSubmission.__table__, AutoRenew.__table__]
+              TaskSubmission.__table__, AutoRenew.__table__, CampaignPost.__table__]
 
 
 async def ensure_new_tables():

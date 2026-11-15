@@ -81,7 +81,12 @@ class BusinessRules:
     # Telegram can verify these itself (membership / boosts):
     API_VERIFIED_TASK_TYPES = ("channel_sub", "group_join", "boost_7day")
     # Telegram cannot see these, so they use screenshot proof + advertiser review:
-    PROOF_TASK_TYPES = ("post_view", "bot_start", "reaction")
+    PROOF_TASK_TYPES = ("bot_start", "reaction")
+    # Post views happen INSIDE the bot: the post is forwarded to the worker (which also counts as a real
+    # view on the original post) and the reward is paid after a short dwell time.
+    VIEW_TASK_TYPES = ("post_view",)
+    VIEW_DWELL_SECONDS = 6             # minimum time between forwarding the post and paying
+    VIEW_COOLDOWN_SECONDS = 2          # minimum gap between two "view" taps of one user
     PROOF_REVIEW_HOURS = 48            # advertiser has this long to approve/reject, then auto-approve
     PROOF_DISPUTE_HOURS = 24           # after a rejection the worker may dispute once within this time
     PROOF_MAX_PENDING_PER_USER = 10
