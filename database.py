@@ -373,3 +373,58 @@ class Notification(Base):
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+
+
+
+class DepositRequest(Base):
+    """Manual (bKash/Nagad/Rocket) deposit waiting for an admin to verify the payment."""
+    __tablename__ = "deposit_requests"
+    __table_args__ = (
+        UniqueConstraint("method", "trx_id", name="uq_deposit_method_trx"),   # a TrxID can only be used once
+        Index("ix_deposit_user_status", "user_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    method: Mapped[str] = mapped_column(String(20))
+    amount_bdt: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    coins: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    trx_id: Mapped[str] = mapped_column(String(40))
+    proof_file_id: Mapped[Optional[str]] = mapped_column(String(256))
+    status: Mapped[str] = mapped_column(String(20), default="pending")      # pending / approved / rejected
+    processed_by: Mapped[Optional[int]] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class Voucher(Base):
+    """Promo code created by an admin."""
+    __tablename__ = "vouchers"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    max_uses: Mapped[int] = mapped_column(Integer, default=1)
+    used_count: Mapped[int] = mapped_column(Integer, default=0)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class VoucherRedemption(Base):
+    __tablename__ = "voucher_redemptions"
+    __table_args__ = (UniqueConstraint("code", "user_id", name="uq_voucher_user"),)   # once per user
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    code: Mapped[str] = mapped_column(String(32), ForeignKey("vouchers.code"))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+NEW_TABLES = [DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__]
+
+
+async def ensure_new_tables():
+    """Create the tables added after the first release (idempotent, no migration step needed)."""
+    async with engine.begin() as conn:
+        await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=NEW_TABLES, checkfirst=True))

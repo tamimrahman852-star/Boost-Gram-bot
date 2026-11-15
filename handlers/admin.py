@@ -38,14 +38,41 @@ async def adm_stats(query: CallbackQuery, session):
     if query.from_user.id not in ADMIN_IDS:
         await query.answer()
         return
-    r = await session.execute(select(func.count(User.id)))
-    u = r.scalar() or 0
-    r = await session.execute(select(func.sum(User.balance)))
-    b = r.scalar() or Decimal("0")
-    r = await session.execute(select(func.count(Campaign.id)).where(Campaign.status == CampaignStatus.ACTIVE))
-    a = r.scalar() or 0
+    from datetime import timedelta
+    from database import TaskCompletion, DepositRequest, RetentionStatus
+    now = datetime.now(timezone.utc)
+    day = now - timedelta(hours=24)
+
+    async def one(q):
+        return (await session.execute(q)).scalar() or 0
+
+    users = await one(select(func.count(User.id)))
+    new24 = await one(select(func.count(User.id)).where(User.created_at >= day))
+    active24 = await one(select(func.count(User.id)).where(User.last_active_at >= day))
+    blocked = await one(select(func.count(User.id)).where(User.is_blocked == True))  # noqa: E712
+    premium = await one(select(func.count(User.id)).where(User.is_premium == True))  # noqa: E712
+    balance = await one(select(func.sum(User.balance))) or Decimal("0")
+    camp_active = await one(select(func.count(Campaign.id)).where(Campaign.status == CampaignStatus.ACTIVE))
+    camp_total = await one(select(func.count(Campaign.id)))
+    done_all = await one(select(func.count(TaskCompletion.id)))
+    done24 = await one(select(func.count(TaskCompletion.id)).where(TaskCompletion.completed_at >= day))
+    pen = await one(select(func.count(TaskCompletion.id)).where(TaskCompletion.retention_status == RetentionStatus.PENALIZED))
+    pend_wd = await one(select(func.count(WithdrawalRequest.id)).where(WithdrawalRequest.status == "pending"))
+    pend_dep = await one(select(func.count(DepositRequest.id)).where(DepositRequest.status == "pending"))
+    dep_bdt = await one(select(func.sum(DepositRequest.amount_bdt)).where(DepositRequest.status == "approved")) or Decimal("0")
+    reports = await one(select(func.count(FraudReport.id)))
+
     await query.message.edit_text(
-        f"📊 <b>Stats</b>\n\n👥 {u:,}\n💰 {b:,.0f}\n📢 {a:,}",
+        "📊 <b>Dashboard</b>\n\n"
+        f"👥 Users: <b>{users:,}</b>  (+{new24:,} today · {active24:,} active 24h)\n"
+        f"⭐ Premium: {premium:,} · 🚫 Blocked: {blocked:,}\n"
+        f"💰 Total balance held: <b>{balance:,.0f}</b> GRAM\n\n"
+        f"📢 Campaigns: {camp_active:,} active / {camp_total:,} total\n"
+        f"🎯 Completions: {done_all:,} (+{done24:,} in 24h) · penalised {pen:,}\n"
+        f"🚨 Fraud reports: {reports:,}\n\n"
+        f"⏳ Pending withdrawals: <b>{pend_wd:,}</b>\n"
+        f"⏳ Pending deposits: <b>{pend_dep:,}</b>\n"
+        f"💳 Approved deposits: {dep_bdt:,.0f} BDT",
         reply_markup=admin_kb(), parse_mode=ParseMode.HTML,
     )
     await query.answer()

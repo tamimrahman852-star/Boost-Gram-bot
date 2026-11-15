@@ -26,6 +26,16 @@ def hash_password(pw: str, salt: str) -> str:
     return f"h2${digest}"
 
 
+def is_expired(dt) -> bool:
+    """True if `dt` is in the past. Tolerates naive datetimes (treated as UTC)."""
+    from datetime import datetime, timezone
+    if dt is None:
+        return False
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt < datetime.now(timezone.utc)
+
+
 def L(lang: str, bn: str, en: str) -> str:
     """Tiny helper for strings that exist only in Bangla and English."""
     return bn if lang == "bn" else en
@@ -92,7 +102,18 @@ class WithdrawState(StatesGroup):
     details = State()
 
 class AdminState(StatesGroup):
+    broadcast_content = State()
     coins_uid = State()
     coins_amount = State()
     ban_uid = State()
     broadcast = State()
+
+
+class DepositState(StatesGroup):
+    amount = State()
+    trx = State()
+    proof = State()
+
+
+class VoucherState(StatesGroup):
+    code = State()

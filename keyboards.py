@@ -32,6 +32,10 @@ def cabinet_kb(lang: str, notif_on: bool, can_withdraw: bool) -> InlineKeyboardM
         InlineKeyboardButton(text=t(lang, "btn_level"), callback_data="cab:level"),
         InlineKeyboardButton(text=t(lang, "btn_tasks"), callback_data="cab:tasks"),
     )
+    b.row(
+        InlineKeyboardButton(text="📜 " + ("ইতিহাস" if lang == "bn" else "History"), callback_data="cab:hist:0"),
+        InlineKeyboardButton(text="🎟 " + ("প্রোমো কোড" if lang == "bn" else "Promo code"), callback_data="voucher:start"),
+    )
     if can_withdraw:
         b.row(InlineKeyboardButton(text=t(lang, "menu_withdraw"), callback_data="cab:withdraw"))
     notif_key = "btn_notif_off" if notif_on else "btn_notif_on"
@@ -123,7 +127,14 @@ def admin_kb() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.row(InlineKeyboardButton(text="💰 Add/Deduct Coins", callback_data="adm:coins"))
     b.row(InlineKeyboardButton(text="🚨 Fraud Reports", callback_data="adm:reports"))
-    b.row(InlineKeyboardButton(text="💸 Withdrawals", callback_data="adm:withdrawals"))
+    b.row(
+        InlineKeyboardButton(text="💸 Withdrawals", callback_data="adm:withdrawals"),
+        InlineKeyboardButton(text="💳 Deposits", callback_data="adm:deposits"),
+    )
+    b.row(
+        InlineKeyboardButton(text="🎟 Vouchers", callback_data="adm:vouchers"),
+        InlineKeyboardButton(text="📣 Broadcast", callback_data="adm:broadcast"),
+    )
     b.row(InlineKeyboardButton(text="🚫 Ban/Unban User", callback_data="adm:ban"))
     b.row(InlineKeyboardButton(text="📊 Full Stats", callback_data="adm:stats"))
     return b.as_markup()

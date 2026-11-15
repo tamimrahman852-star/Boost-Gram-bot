@@ -323,6 +323,9 @@ def _pkg_kb(lang: str) -> InlineKeyboardMarkup:
     rate = int(BusinessRules.STAR_TO_COIN_RATE)
     rows = [[InlineKeyboardButton(text=f"{n * rate:,} GRAM = {n}⭐", callback_data=f"cab:pkg:{n}")] for n in TOPUP_PACKAGES]
     rows.append([InlineKeyboardButton(text=L(lang, "⭐ কাস্টম পরিমাণ", "⭐ Custom amount"), callback_data="cab:pkg:custom")])
+    from handlers.deposits import available_methods
+    if available_methods():
+        rows.append([InlineKeyboardButton(text=L(lang, "💳 বিকাশ / নগদ / রকেট", "💳 bKash / Nagad / Rocket"), callback_data="dep:start")])
     rows.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="cab:back")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

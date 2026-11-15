@@ -9,7 +9,7 @@ from aiogram.types import BotCommand, ErrorEvent, Message, CallbackQuery
 from aiogram.fsm.storage.redis import RedisStorage
 
 from config import BOT_TOKEN, PORT, ADMIN_IDS, BusinessRules, logger
-from database import AsyncSessionLocal, redis_client, User
+from database import AsyncSessionLocal, redis_client, User, ensure_new_tables
 from localization import L10N
 from helpers import alert_admins, esc
 from web import fastapi_app
@@ -26,6 +26,10 @@ from handlers.promote_my_tasks import router as promote_my_tasks_router
 from handlers.checks import router as checks_router
 from handlers.static import router as static_router
 from handlers.admin import router as admin_router
+from handlers.deposits import router as deposits_router
+from handlers.vouchers import router as vouchers_router
+from handlers.history import router as history_router
+from handlers.broadcast import router as broadcast_router
 
 
 class DBSessionMiddleware(BaseMiddleware):
@@ -84,6 +88,7 @@ class GuardMiddleware(BaseMiddleware):
 
 
 async def main():
+    await ensure_new_tables()
     storage = RedisStorage(redis=redis_client)
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher(storage=storage)
@@ -105,6 +110,10 @@ async def main():
     dp.include_router(promote_my_tasks_router)
     dp.include_router(checks_router)
     dp.include_router(static_router)
+    dp.include_router(deposits_router)
+    dp.include_router(vouchers_router)
+    dp.include_router(history_router)
+    dp.include_router(broadcast_router)
     dp.include_router(admin_router)
 
     await bot.set_my_commands([BotCommand(command="start", description="🚀 Start")])

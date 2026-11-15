@@ -17,6 +17,16 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "BoostGramBot")
 DATABASE_URL = os.getenv("DATABASE_URL")
 REDIS_URL = os.getenv("REDIS_URL")
 ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "")
+# ---- Manual deposit (bKash / Nagad / Rocket). A method is offered only if its number is set. ----
+PAY_NUMBERS = {
+    "bkash": os.getenv("PAY_BKASH", "").strip(),
+    "nagad": os.getenv("PAY_NAGAD", "").strip(),
+    "rocket": os.getenv("PAY_ROCKET", "").strip(),
+}
+DEPOSIT_RATE_PER_BDT = Decimal(os.getenv("DEPOSIT_RATE_PER_BDT", "3000"))   # GRAM credited per 1 BDT
+DEPOSIT_MIN_BDT = Decimal(os.getenv("DEPOSIT_MIN_BDT", "50"))
+DEPOSIT_MAX_BDT = Decimal(os.getenv("DEPOSIT_MAX_BDT", "20000"))
+
 # Optional banner (GIF/MP4/PNG URL or Telegram file_id) shown with the welcome message
 WELCOME_MEDIA_URL = os.getenv("WELCOME_MEDIA_URL", "")
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "")

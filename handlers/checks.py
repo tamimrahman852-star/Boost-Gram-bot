@@ -11,7 +11,7 @@ from config import BOT_USERNAME, BusinessRules
 from database import User, Check, CheckActivation, Transaction, CheckType, TransactionType, redis_client
 from localization import L10N, t
 from keyboards import checks_kb
-from helpers import esc, safe_text, CheckCreateState, CheckRedeemState, hash_password, L
+from helpers import esc, safe_text, CheckCreateState, CheckRedeemState, hash_password, L, is_expired
 
 router = Router()
 
@@ -183,7 +183,7 @@ async def _redeem_check_deeplink(message, session, code, state: FSMContext = Non
     r = await session.execute(select(Check).where(Check.code == code))
     ck = r.scalar_one_or_none()
     now = datetime.now(timezone.utc)
-    if not ck or not ck.is_active or ck.is_exhausted or (ck.expires_at and ck.expires_at < now):
+    if not ck or not ck.is_active or ck.is_exhausted or is_expired(ck.expires_at):
         await _count_bad_code(uid)
         await message.answer(t(lang, "check_invalid"))
         return
@@ -232,7 +232,7 @@ async def _do_redeem(message, session, ck, pw):
     r = await session.execute(select(Check).where(Check.id == ck.id).with_for_update())
     ck = r.scalar_one_or_none()
     now = datetime.now(timezone.utc)
-    if not ck or not ck.is_active or ck.is_exhausted or (ck.expires_at and ck.expires_at < now):
+    if not ck or not ck.is_active or ck.is_exhausted or is_expired(ck.expires_at):
         await session.rollback()
         return False, t("en", "check_invalid")
     if ck.created_by == uid:
