@@ -1,13 +1,16 @@
 """Multi-language engine.
 
-Bangla and English are hand-written. Every other language (see localization.LANGS) is produced by
-machine translation of the English text the first time it is needed, then stored in the database
-(`translations` table), so each string is translated only once and everything afterwards is instant.
+MANUAL SYSTEM (default, no API needed): Bangla and English are in the code; every other language is a
+hand-written file `locales/<lang>.tsv` -> one line per text:  <line-number><TAB><translation>
+(line numbers refer to `locales/lines.json`). Edit those files with any text editor to improve a translation.
+`python tools/check_locales.py` validates them (placeholders such as {amount} and tags such as <b> must survive).
+
+OPTIONAL automatic translation (off by default, needs an API): set I18N_AUTO_TRANSLATE=1 plus a provider key.
+Whatever is missing in a manual file falls back to English; nothing ever crashes.
 
 * Placeholders such as {amount:,.0f} and HTML tags such as <b> are protected during translation and
   verified afterwards; anything that doesn't survive falls back to a safer chunked translation or to English.
-* Until a language has been translated, users simply see English for the missing strings (never a crash).
-* `locales/overrides/<lang>.json` ({"English text": "your translation"}) lets you hand-polish any text; it always wins.
+* `locales/overrides/<lang>.json` ({"English text": "your translation"}) is an extra place for hand-polished texts; it always wins.
 
 Provider (environment):
   GEMINI_API_KEY [+ GEMINI_MODEL] -> Google AI Studio / Gemini (best quality, understands context)
@@ -404,8 +407,10 @@ class LibreTranslate(Provider):
 _provider: Optional[Provider] = None
 
 
-def get_provider() -> Provider:
+def get_provider() -> Optional[Provider]:
     global _provider
+    if _provider is None and not auto_enabled():
+        return None
     if _provider is None:
         gem = os.getenv("GEMINI_API_KEY", "").strip()
         gk = os.getenv("GOOGLE_TRANSLATE_API_KEY", "").strip()
@@ -449,6 +454,12 @@ def _has_letters(s: str) -> bool:
     return any(ch.isalpha() for ch in s)
 
 
+def needs_translation(line: str) -> bool:
+    """False for lines made only of placeholders / tags / emoji / numbers (nothing to translate)."""
+    protected, _ = _protect(line)
+    return _has_letters(_TOKEN_RE.sub("", protected))
+
+
 def _fields(template: str) -> Optional[List[str]]:
     try:
         return sorted(f[1] for f in string.Formatter().parse(template) if f[1] is not None)
@@ -463,6 +474,8 @@ def _tags(template: str) -> List[str]:
 async def translate_lines(lang: str, lines: List[str]) -> Dict[str, str]:
     """Translate unique single lines; returns {line: translation} for the lines that succeeded."""
     provider = get_provider()
+    if provider is None:
+        return {}
     todo = [ln for ln in dict.fromkeys(lines) if ln.strip()]
     result: Dict[str, str] = {}
     need: List[str] = []
@@ -533,6 +546,84 @@ async def translate_templates(lang: str, templates: List[str]) -> Dict[str, str]
     return out
 
 
+# ------------------------------------------------------------------ manual locale files
+LOCALES_DIR = os.path.join(_BASE_DIR, "locales")
+LINES_PATH = os.path.join(LOCALES_DIR, "lines.json")
+
+
+def auto_enabled() -> bool:
+    """Automatic (API) translation is opt-in; the manual files are the normal way."""
+    return os.getenv("I18N_AUTO_TRANSLATE", "").strip() == "1"
+
+
+def read_tsv(path: str) -> Dict[int, str]:
+    out: Dict[int, str] = {}
+    with open(path, encoding="utf-8") as fh:
+        for raw in fh:
+            raw = raw.rstrip("\n").rstrip("\r")
+            if not raw.strip() or raw.lstrip().startswith("#") or "\t" not in raw:
+                continue
+            num, text = raw.split("\t", 1)
+            if num.strip().isdigit() and text.strip():
+                out[int(num)] = text
+    return out
+
+
+def manual_languages() -> List[str]:
+    try:
+        return sorted(fn[:-4] for fn in os.listdir(LOCALES_DIR) if fn.endswith(".tsv"))
+    except FileNotFoundError:
+        return []
+
+
+def load_manual() -> Dict[str, int]:
+    """Load locales/<lang>.tsv into the in-memory cache. Returns {lang: translated templates}."""
+    try:
+        with open(LINES_PATH, encoding="utf-8") as fh:
+            lines = json.load(fh)
+    except Exception as e:
+        logger.warning(f"i18n: cannot read lines.json ({e})")
+        return {}
+    templates = [t for t in (json.load(open(CATALOG_PATH, encoding="utf-8")) if os.path.exists(CATALOG_PATH) else [])]
+    result: Dict[str, int] = {}
+    for lang in manual_languages():
+        if not supported(lang):
+            continue
+        try:
+            tr_by_index = read_tsv(os.path.join(LOCALES_DIR, lang + ".tsv"))
+        except Exception as e:
+            logger.warning(f"i18n: cannot read {lang}.tsv ({e})")
+            continue
+        by_line = {lines[i]: tr for i, tr in tr_by_index.items() if 0 <= i < len(lines)}
+        n = 0
+        for tpl in templates:
+            parts = []
+            for ln in tpl.split("\n"):
+                if not ln.strip() or not needs_translation(ln):
+                    parts.append(ln)
+                elif ln in by_line:
+                    parts.append(by_line[ln])
+                else:
+                    parts = None
+                    break
+            if parts is None:
+                continue
+            cand = "\n".join(parts)
+            if _fields(cand) is None or _fields(cand) != _fields(tpl) or _tags(cand) != _tags(tpl):
+                continue                                   # damaged placeholders: ignore, English is used instead
+            _cache.setdefault(lang, {})[key_of(tpl)] = cand
+            n += 1
+        result[lang] = n
+    return result
+
+
+def coverage() -> Dict[str, tuple]:
+    """{lang: (templates translated, templates total)} for every supported non-base language."""
+    from localization import L10N
+    total = len(catalog())
+    return {l: (len(_cache.get(l, {})), total) for l in L10N.LANGS if l not in BASE_LANGS}
+
+
 # ------------------------------------------------------------------ persistence / warm-up
 def _load_overrides() -> None:
     try:
@@ -549,7 +640,9 @@ def _load_overrides() -> None:
 
 
 async def load_cache() -> None:
-    """Load every stored translation into memory (called once at startup)."""
+    """Load the manual locale files (and any stored automatic translations) into memory at startup."""
+    manual = load_manual()
+    logger.info(f"i18n manual files loaded: {manual}")
     from sqlalchemy import select
     from database import AsyncSessionLocal, Translation
     try:
@@ -579,7 +672,7 @@ def missing_for(lang: str) -> List[str]:
 
 async def warm_language(lang: str, chunk: int = 25) -> int:
     """Translate everything missing for `lang`. Returns how many templates were added."""
-    if lang in BASE_LANGS or not supported(lang):
+    if lang in BASE_LANGS or not supported(lang) or get_provider() is None:
         return 0
     added = 0
     empty = 0
@@ -609,7 +702,7 @@ async def warm_language(lang: str, chunk: int = 25) -> int:
 
 
 def start_warm(lang: str) -> Optional[asyncio.Task]:
-    if lang in BASE_LANGS or not supported(lang):
+    if lang in BASE_LANGS or not supported(lang) or get_provider() is None:
         return None
     t = _tasks.get(lang)
     if t and not t.done():

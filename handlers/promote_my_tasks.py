@@ -129,7 +129,7 @@ def _manage_view(c: Campaign, lang: str, renew_on: bool = False, pending: int = 
             text=L(lang, f"📥 প্রমাণ যাচাই ({pending})", f"📥 Review proofs ({pending})", _tpl='📥 Review proofs ({v0})', _kw={"v0": pending}), callback_data=f"rev:list:{c.id}")])
     if live:
         rows.append([InlineKeyboardButton(
-            text=L(lang, f"🔁 অটো-রিনিউ: {'চালু' if renew_on else 'বন্ধ'}", f"🔁 Auto-renew: {'ON' if renew_on else 'OFF'}", _tpl='🔁 Auto-renew: {v0}', _kw={"v0": 'ON' if renew_on else 'OFF'}),
+            text=L(lang, f"🔁 অটো-রিনিউ: {'চালু' if renew_on else 'বন্ধ'}", f"🔁 Auto-renew: {'ON' if renew_on else 'OFF'}", _tpl='🔁 Auto-renew: {v0}', _kw={"v0": L(lang, 'চালু' if renew_on else 'বন্ধ', 'ON' if renew_on else 'OFF')}),
             callback_data=f"promote:mng:renew:{c.id}")])
         if c.status == CampaignStatus.ACTIVE:
             rows.append([InlineKeyboardButton(text=L(lang, "⏸ বিরতি দিন", "⏸ Pause"), callback_data=f"promote:mng:pause:{c.id}")])

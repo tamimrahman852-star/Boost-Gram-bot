@@ -248,24 +248,23 @@ async def adm_ban_uid(message: Message, session, state: FSMContext):
 
 @router.message(Command("i18n"))
 async def admin_i18n_status(message: Message):
-    """/i18n - active provider, cached texts per language, and a FAST live test of the provider (never hangs)."""
+    """/i18n - which languages have manual translation files and how complete each one is."""
     if message.from_user.id not in ADMIN_IDS or message.chat.type != "private":
         return
     import asyncio
     import i18n
+    cov = i18n.coverage()
+    rows = "\n".join(f"• <code>{l}</code>: {have}/{total}" + (" ✅" if total and have >= total else "") for l, (have, total) in sorted(cov.items()))
+    text = ("🌐 <b>Language files</b> (translated texts / total)\n\n" + rows +
+            "\n\nEdit <code>locales/&lt;lang&gt;.tsv</code> to improve a translation; missing texts are shown in English.")
     prov = i18n.get_provider()
-    langs = ", ".join(f"{k}:{len(v)}" for k, v in sorted(i18n._cache.items())) or "-"
-    busy = ", ".join(k for k, t_ in i18n._tasks.items() if not t_.done()) or "-"
-    await message.answer(
-        f"🌐 <b>Translation status</b>\n\nProvider: <b>{prov.name}</b>\nTexts to translate: <b>{len(i18n.catalog())}</b>\n"
-        f"Cached: <code>{langs}</code>\nTranslating now: <code>{busy}</code>\n\n⏳ Testing (max 60s)…", parse_mode=ParseMode.HTML)
-    try:
-        results = await asyncio.wait_for(prov.ping(), 60)
-    except asyncio.TimeoutError:
-        results = [(prov.name, "❌ no answer within 60s")]
-    lines = "\n".join(f"• <code>{esc(m)}</code>: {esc(r)}" for m, r in results)
-    ok = any("✅" in r for _, r in results)
-    tail = ("\n\n✅ Translation will work." if ok else
-            f"\n\n❌ Provider is not working.\nLast error: <code>{esc(i18n.last_error or 'none')}</code>\n"
-            "Check GEMINI_API_KEY in Render → Environment (and that the Gemini API is enabled for the key).")
-    await message.answer("🔎 <b>Result</b>\n" + lines + tail, parse_mode=ParseMode.HTML)
+    if prov is not None:
+        text += f"\n\n🤖 Auto-translation is ON ({prov.name}). Testing…"
+        await message.answer(text, parse_mode=ParseMode.HTML)
+        try:
+            results = await asyncio.wait_for(prov.ping(), 60)
+        except asyncio.TimeoutError:
+            results = [(prov.name, "❌ no answer within 60s")]
+        await message.answer("🔎 " + "\n".join(f"{esc(m)}: {esc(r)}" for m, r in results), parse_mode=ParseMode.HTML)
+        return
+    await message.answer(text, parse_mode=ParseMode.HTML)

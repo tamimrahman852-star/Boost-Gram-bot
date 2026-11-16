@@ -81,7 +81,7 @@ async def _start_picker(query: CallbackQuery, state: FSMContext, session, is_cha
         f"🏠 <b>I'm an admin</b> — pick a {kind_en} you administer\n"
         f"👤 <b>I'm not an admin</b> — pick any public {kind_en}, or just send its <code>@username</code> / link\n\n"
         "⚠️ In both cases the bot must be an <b>admin</b> there (with invite permission), otherwise members cannot be verified."
-    , _tpl="📢 <b>Choose a {v0} to promote</b> (the bot must be an admin there)\n\n🏠 <b>I'm an admin</b> — pick a {v0} you administer\n👤 <b>I'm not an admin</b> — pick any public {v0}, or just send its <code>@username</code> / link\n\n⚠️ In both cases the bot must be an <b>admin</b> there (with invite permission), otherwise members cannot be verified.", _kw={"v0": kind_en})
+    , _tpl="📢 <b>Choose a {v0} to promote</b> (the bot must be an admin there)\n\n🏠 <b>I'm an admin</b> — pick a {v0} you administer\n👤 <b>I'm not an admin</b> — pick any public {v0}, or just send its <code>@username</code> / link\n\n⚠️ In both cases the bot must be an <b>admin</b> there (with invite permission), otherwise members cannot be verified.", _kw={"v0": L(lang, kind_bn, kind_en)})
     cancel = [KeyboardButton(text=L(lang, "❌ বাতিল", "❌ Cancel"))]
     admin_text = L(lang, "🏠 আমি অ্যাডমিন", "🏠 I'm an admin")
     any_text = L(lang, "👤 আমি অ্যাডমিন নই", "👤 I'm not an admin")
@@ -419,7 +419,7 @@ async def typed_target(message: Message, state: FSMContext, session, bot: Bot):
     ok_type = chat.type == "channel" if is_channel else chat.type in ("group", "supergroup")
     if not ok_type:
         await message.answer(L(lang, f"❌ এটি {'চ্যানেল' if is_channel else 'গ্রুপ'} নয়। সঠিক ধরন বেছে নিন।",
-                               f"❌ That is not a {'channel' if is_channel else 'group'}.", _tpl='❌ That is not a {v0}.', _kw={"v0": 'channel' if is_channel else 'group'}))
+                               f"❌ That is not a {'channel' if is_channel else 'group'}.", _tpl='❌ That is not a {v0}.', _kw={"v0": L(lang, 'চ্যানেল' if is_channel else 'গ্রুপ', 'channel' if is_channel else 'group')}))
         return
     await _process_target(message, state, session, bot, chat.id,
                           TaskType.CHANNEL_SUB if is_channel else TaskType.GROUP_JOIN,
@@ -456,7 +456,7 @@ def _reward_prompt(lang: str, task_type: str, premium: bool):
         f"💲 <b>Enter the reward (GRAM) per {unit_en}</b>\n\n"
         f"Min: <b>{rules['min']:,}</b> · Suggested: <b>{rules['suggested']:,}</b> · Max: <b>{rules['max']:,}</b>\n\n"
         "💡 Higher rewards get completed faster. Tap a button or type a number."
-    , _tpl='💲 <b>Enter the reward (GRAM) per {v0}</b>\n\nMin: <b>{v1:,}</b> · Suggested: <b>{v2:,}</b> · Max: <b>{v3:,}</b>\n\n💡 Higher rewards get completed faster. Tap a button or type a number.', _kw={"v0": unit_en, "v1": rules['min'], "v2": rules['suggested'], "v3": rules['max']})
+    , _tpl='💲 <b>Enter the reward (GRAM) per {v0}</b>\n\nMin: <b>{v1:,}</b> · Suggested: <b>{v2:,}</b> · Max: <b>{v3:,}</b>\n\n💡 Higher rewards get completed faster. Tap a button or type a number.', _kw={"v0": L(lang, unit_bn, unit_en), "v1": rules['min'], "v2": rules['suggested'], "v3": rules['max']})
     kb = _back_kb(lang, [[
         InlineKeyboardButton(text=f"{rules['min']:,}", callback_data=f"promote:price:{rules['min']}"),
         InlineKeyboardButton(text=f"⭐ {rules['suggested']:,}", callback_data=f"promote:price:{rules['suggested']}"),

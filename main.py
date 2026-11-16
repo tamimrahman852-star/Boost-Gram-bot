@@ -88,7 +88,8 @@ class GuardMiddleware(BaseMiddleware):
 async def main():
     await ensure_new_tables()
     await i18n.load_cache()
-    i18n_task = asyncio.create_task(i18n.background_loop())  # noqa: F841 (keep a reference)
+    if i18n.auto_enabled():
+        i18n_task = asyncio.create_task(i18n.background_loop())  # noqa: F841 (keep a reference)
     storage = RedisStorage(redis=redis_client)
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher(storage=storage)
