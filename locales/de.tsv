@@ -1,0 +1,370 @@
+# German
+0	💰 Verdienen
+1	📢 Bewerben
+2	📋 Schecks
+3	👤 Mein Konto
+4	🛡 Abo-Prüfung
+5	📊 Unsere Bots & Statistiken
+6	🔗 Nützliche Links
+7	ℹ️ Anleitung
+8	💸 Auszahlung
+9	👋 Willkommen bei <b>{bot_name}</b>, {first_name}!
+10	🚀 Erledige Aufgaben, verdiene GRAM-Coins und bewirb deine Kanäle sofort!
+11	✅ Sprache erfolgreich geändert!
+12	⚠️ Bitte drücke zuerst /start.
+13	⚠️ Bitte sende dies als Textnachricht.
+14	👤 <b>Dein Konto:</b>
+15	🆔 Meine ID: <code>{user_id}</code>
+16	🏅 Level: {level_emoji} {level}
+17	💰 Guthaben: <code>{balance:,.0f}</code> GRAM
+18	⚡ XP: {xp}/{next_xp}
+19	🎯 Erledigte Aufgaben: {tasks}
+20	🪙 Guthaben aufladen
+21	👥 Empfehlungssystem
+22	📊 Levelsystem
+23	📋 Meine Aufgaben
+24	🌐 Sprache ändern
+25	🔕 Benachrichtigungen aus
+26	🔔 Benachrichtigungen an
+27	◀️ Zurück
+28	🎯 Derzeit keine aktiven Aufgaben. Schau bald wieder vorbei!
+29	ℹ️ Du bist dem Kanal/Chat noch nicht beigetreten. Abonniere ihn und versuche es erneut.
+30	✅ Aufgabe №{tid} erledigt
+31	💲 Du hast +{reward:,.0f} GRAM erhalten
+32	💰 Guthaben: {balance:,.1f} GRAM
+33	📝 Wähle eine Aufgabenkategorie zum Verdienen
+34	❌ Du hast diese Aufgabe bereits erledigt!
+35	❌ Aufgabenlimit erreicht.
+36	⭐ Diese Aufgabe ist nur für Telegram-Premium-Nutzer.
+37	🚀 Link öffnen
+38	✅ Prüfen
+39	◀️ Zurück zur Liste
+40	⭐ Nur Premium (2x)
+41	👥 Alle Nutzer
+42	❌ Unzureichendes Guthaben!
+43	Benötigt: <code>{required:,.0f}</code> GRAM
+44	Dein Guthaben: <code>{balance:,.0f}</code> GRAM
+45	❌ Abgebrochen.
+46	🔒 <b>Auszahlung gesperrt</b>
+47	Erreiche Level {required}, um Auszahlungen freizuschalten.
+48	Dein aktuelles Level: {current}
+49	💸 <b>Auszahlung</b>
+50	Min: <code>{min:,.0f}</code> GRAM
+51	Max: <code>{max:,.0f}</code> GRAM
+52	Sende den Betrag:
+53	❌ Der Betrag muss zwischen <code>{min:,.0f}</code> und <code>{max:,.0f}</code> GRAM liegen.
+54	❌ Unzureichendes Guthaben.
+55	💳 Wähle deine Zahlungsmethode:
+56	📝 Sende deine Zahlungsdaten (Wallet/Konto):
+57	✅ Auszahlungsantrag gesendet!
+58	Betrag: <code>{amount:,.0f}</code> GRAM
+59	Status: Wartet auf Admin-Freigabe
+60	📋 <b>Scheck-System</b>
+61	Erstelle teilbare GRAM-Gutscheine oder löse vorhandene ein.
+62	🎫 Scheck erstellen
+63	💳 Scheck aktivieren
+64	💰 Sende den GRAM-Betrag pro Aktivierung:
+65	👥 Sende die Anzahl der Aktivierungen:
+66	🔐 Lege ein Passwort fest (oder schreibe <code>skip</code>):
+67	✅ <b>Scheck erstellt!</b>
+68	🎫 Code: <code>{code}</code>
+69	💰 Betrag: <code>{amount:,.0f}</code> GRAM
+70	👥 Aktivierungen: {activations}
+71	🔗 Link:
+73	🎫 Sende den Scheckcode:
+74	🔐 Dieser Scheck benötigt ein Passwort. Sende es:
+75	❌ Ungültiger oder abgelaufener Code.
+76	❌ Falsches Passwort.
+77	✅ Scheck eingelöst! +<code>{amount:,.0f}</code> GRAM
+78	👥 <b>Empfehlungssystem</b>
+79	Verdiene <code>{base:,.0f}</code> GRAM pro direkter Empfehlung!
+80	📊 <b>Stufenboni:</b>
+81	• Stufe 1 (direkt): 8%
+82	• Stufe 2: 5%
+83	• Stufe 3: 2%
+84	📈 Direkte Empfehlungen: <code>{direct}</code>
+85	💰 Gesamtverdienst: <code>{earned:,.0f}</code> GRAM
+86	🔗 Dein Link:
+87	📊 <b>Levelsystem</b>
+88	🏅 Level: {emoji} <code>{level}</code>
+89	⚡ Gesamt-XP: <code>{xp:,}</code>
+90	📈 Fortschritt: {progress}
+91	💡 Auszahlungen werden ab Level {min_level} freigeschaltet.
+92	📊 <b>Boost-Gram-Statistiken</b>
+93	👥 Nutzer: <code>{users:,}</code>
+94	📢 Aktive Kampagnen: <code>{active:,}</code>
+95	✅ Erledigte Aufgaben: <code>{completed:,}</code>
+96	💎 Insgesamt ausgezahlt: <code>{paid:,.0f}</code> GRAM
+97	⚠️ <b>Verdienstregeln</b>
+98	🚫 <b>Verboten:</b>
+99	• Abbestellen innerhalb von 7 Tagen
+100	• Reaktionen entfernen
+101	• Mehrere Konten
+102	• Gefälschter Traffic / Bots
+103	• Automatisierungstools
+104	⚡ <b>Strafen:</b>
+105	• Aufgabensperre: 7 Tage
+106	• Bei Wiederholung: weitere 7 Tage
+107	• Vollständiger Entzug der Aufgabenbelohnung
+108	ℹ️ <b>So nutzt du Boost Gram</b>
+109	1️⃣ Erledige Aufgaben unter 💰 Verdienen
+110	2️⃣ Bewirb deinen Kanal unter 📢 Bewerben
+111	3️⃣ Verschenke/löse ein unter 📋 Schecks
+112	4️⃣ Verwalte unter 👤 Mein Konto
+113	5️⃣ Lade Freunde ein: 5,000 GRAM + Stufenboni
+114	🔗 <b>Nützliche Links</b>
+115	• Bot: @{bot}
+116	• Support: Admin kontaktieren
+117	🛡 <b>Abo-Verifizierung</b>
+118	Alle Abonnements werden live über die Telegram Bot API verifiziert.
+119	📌 Der Kanal-/Gruppenbesitzer muss @{bot} als <b>Administrator</b> hinzufügen.
+120	⚠️ <b>Verbleibe-Warnung!</b>
+121	Du hast <b>{target}</b> vor Ablauf von 7 Tagen verlassen.
+122	Tritt jetzt wieder bei, um die Strafe zu vermeiden:
+124	🚫 <b>Strafe verhängt!</b>
+125	Du hast {target} verlassen. Die Belohnung von <code>{reward:,.0f}</code> GRAM wurde entzogen.
+126	❌ Etwas ist schiefgelaufen. Versuche es erneut.
+127	⭐ <b>Guthaben aufladen</b>
+128	Zahle mit Telegram Stars. Wähle ein Paket:
+129	❌ Auszahlungen sind für dein Konto deaktiviert.
+130	⏳ Du hast bereits eine ausstehende Auszahlung.
+131	ℹ️ Belohnungen innerhalb der 7-tägigen Verbleibefrist können nicht ausgezahlt werden.
+132	⭐ Wie viele Stars? (1 Star = {v0:,} GRAM)
+133	Sende eine Zahl von 1 bis 10000:
+134	⏳ Warte, bis deine vorherige Auszahlung bearbeitet wurde.
+135	⭐ Eigener Betrag
+136	💳 bKash / Nagad / Rocket
+137	⏳ Zu viele ungültige Codes. Versuche es in einer Stunde erneut.
+138	⏳ Zu viele falsche Passwörter. Versuche es später erneut.
+139	❌ Sende eine ganze Zahl zwischen 1 und {v0:,.0f}.
+140	✅ Deine Einzahlung von <b>{v0:,.2f} BDT</b> wurde genehmigt.
+141	💲 Gutgeschrieben: <b>{v1:,.0f} GRAM</b>
+142	❌ Deine Einzahlung von {v0:,.2f} BDT konnte nicht verifiziert werden. Versuche es mit der richtigen TrxID und einem Screenshot erneut.
+143	💳 <b>Manuelle Einzahlung</b>
+144	Kurs: 1 BDT = <b>{v0:,.0f} GRAM</b>
+145	Min {v1:,.0f} · Max {v2:,.0f} BDT
+146	Wähle eine Zahlungsmethode:
+148	Sende zuerst per <b>Send Money</b> an diese Nummer:
+150	Gib dann den gesendeten Betrag in BDT ein ({v2:,.0f}–{v3:,.0f}):
+151	❌ Einzahlung abgebrochen.
+152	✅ {v0:,.2f} BDT = <b>{v1:,.0f} GRAM</b>
+153	Sende jetzt die <b>TrxID</b> der Zahlung:
+154	📸 Sende jetzt einen <b>Screenshot</b> der Zahlung.
+155	❌ Bitte sende ein Foto (Screenshot).
+156	Manuelle Einzahlungen sind derzeit nicht verfügbar.
+157	Bitte warte, bis deine vorherigen Anfragen geprüft wurden.
+158	❌ Die TrxID muss aus 6–32 Buchstaben/Ziffern bestehen.
+159	❌ Diese TrxID wurde bereits verwendet.
+160	✅ <b>Anfrage gesendet</b>
+161	💳 {v0} · {v1:,.2f} BDT
+163	Sobald ein Admin sie verifiziert hat, werden die GRAM deinem Guthaben gutgeschrieben.
+164	❌ Sende eine Zahl zwischen {v0:,.0f} und {v1:,.0f}.
+165	⏳ Warte, bis deine vorherigen Anfragen geprüft wurden.
+166	❌ Abbrechen
+167	Abonnieren
+168	Beitreten
+169	Ansehen
+170	Starten
+171	Reagieren
+172	Boosten
+173	🎯 <b>Verfügbare Aufgaben</b>
+174	Tippe auf die Schaltfläche, erledige die Aufgabe und drücke dann <b>Prüfen</b> oder <b>Nachweis</b> (Screenshot).
+175	⚠️ Kanal-/Gruppen-/Boost-Aufgaben müssen mindestens {v0} Tage beibehalten werden.
+176	💰 Belohnung: <code>{v0:,.0f}</code> GRAM
+177	👥 Verbleibende Plätze: <code>{v1}</code>
+178	⏰ Du musst <b>{v2} Tage</b> bleiben, sonst wird die Belohnung entzogen.
+179	1) Tippe auf <b>Öffnen</b> und tritt bei
+180	2) Tippe dann auf <b>Prüfen</b>
+181	❌ Diese Aufgabe ist nicht aktiv.
+182	Öffnen
+183	🔜 Diese Aufgabenart wird freigeschaltet, sobald sie sicher verifiziert werden kann.
+184	🚩 <b>Welche Aufgabe möchtest du melden?</b>
+185	Melde nur gefälschte oder irreführende Aufgaben.
+186	✅ Meldung gesendet, danke.
+187	❌ Aufgaben sind für dein Konto deaktiviert.
+188	❌ Du kannst deine eigene Kampagne nicht erledigen.
+189	📸 Sende einen Screenshot als Nachweis für diese Aufgabe.
+190	⏳ Tageslimit für Aufgaben erreicht. Versuche es morgen erneut.
+191	Du hast diese Aufgabe bereits gemeldet.
+192	📭 Derzeit keine weiteren Beiträge.
+193	❌ Öffne zuerst den Beitrag.
+194	⏳ Bitte warte einen Moment.
+195	⏳ Telegram ist ausgelastet, versuche es gleich noch einmal.
+196	⚠️ Diese Aufgabe ist vorübergehend nicht verfügbar.
+197	ℹ️ Du hast diesen Kanal/diese Gruppe noch nicht geboostet. Boost sie und versuche es erneut.
+198	⭐ Nur für Telegram-Premium-Nutzer.
+199	⚠️ Dieser Beitrag ist nicht verfügbar. Versuche einen anderen.
+200	Nachweis
+201	Prüfen
+202	💲 Du hast <b>{v0:,.0f} GRAM</b> für das Ansehen von Beitrag #{v1} verdient!
+203	💰 Dein Guthaben: <b>{v2:,.1f}</b> GRAM
+204	ℹ️ Du hast diesen Beitrag bereits angesehen.
+205	⚠️ Der Beitrag von „{v0}“ kann nicht weitergeleitet werden (gelöscht oder Weiterleiten eingeschränkt). Die Kampagne wurde pausiert.
+206	Melden
+207	⏳ Tageslimit für Aufgaben erreicht.
+208	Nächster Beitrag
+209	Beitrag ansehen
+210	📜 <b>Transaktionsverlauf</b>
+211	Noch keine Transaktionen.
+212	📢 <b>Was möchtest du bewerben?</b>
+213	💲 Guthaben: <b>{b:,.0f} GRAM</b>
+214	🚧 Diese Aufgabenart wird aktiviert, sobald die Teilnahme sicher verifiziert werden kann.
+215	Hauptmenü
+216	📢 Kanal
+217	👥 Gruppe
+218	👁 Beitrag
+219	🤖 Bot
+220	⚡ Premium-Boost
+221	❤️ Reaktion
+222	⚙️ Einstellungen für Auto-Aufgaben
+223	📋 Meine Aufgaben
+224	📢 <b>Wähle {v0} zum Bewerben</b> (der Bot muss dort Administrator sein)
+225	🏠 <b>Ich bin Admin</b> — wähle {v0}, den/die/das du verwaltest
+226	👤 <b>Ich bin kein Admin</b> — wähle einen beliebigen öffentlichen {v0} oder sende dessen <code>@username</code> / Link
+227	⚠️ In beiden Fällen muss der Bot dort <b>Administrator</b> sein (mit Einladungsrecht), sonst können Mitglieder nicht verifiziert werden.
+228	🏠 Ich bin Admin
+229	👤 Ich bin kein Admin
+230	🎯 <b>Zielgruppe der Aufgabe</b> — {v0}
+231	<b>1️⃣ Alle Nutzer</b>
+232	Große Reichweite unter allen Nutzern.
+233	💡 Mindestpreis: {v1:,} GRAM/Einheit.
+234	<b>2️⃣ Nur Telegram Premium</b>
+235	Wird nur Premium-Nutzern angezeigt — eine hochwertigere Zielgruppe.
+236	💡 Mindestpreis: {v2:,} GRAM/Einheit.
+237	💲 <b>Gib die Belohnung (GRAM) pro {v0} ein</b>
+238	Min: <b>{v1:,}</b> · Empfohlen: <b>{v2:,}</b> · Max: <b>{v3:,}</b>
+239	💡 Höhere Belohnungen werden schneller erledigt. Tippe auf eine Schaltfläche oder gib eine Zahl ein.
+240	ℹ️ Provision für die Aufgabenerstellung — <b>{v0:.0f}%</b>
+241	<blockquote>💲 Preis pro Abonnent — {v1:,.0f} GRAM
+242	💰 Dein Guthaben — {v2:,.1f} GRAM</blockquote>
+243	✏️ <b>Gib ein, wie viele Abonnenten du möchtest</b>
+244	✅ <b>Bereit zur Veröffentlichung</b>
+246	👥 Abonnenten: <b>{v1:,}</b> × <b>{v2:,.0f}</b> GRAM = {v3:,.0f}
+247	🏷 Provision ({v4:.0f}%): {v5:,.0f}
+248	💲 <b>Gesamtkosten: {v6:,.0f} GRAM</b>
+249	Tippe auf „Aufgabe veröffentlichen“, um sie zu posten.
+250	Kanal
+251	Gruppe
+252	👁 <b>Beitragsaufrufe</b>
+253	<b>Leite den Beitrag weiter, den du bewerben möchtest.</b>
+254	<blockquote>Kanal öffnen → Beitrag wählen → Weiterleiten → @{bot}</blockquote>
+255	Oder sende den Link eines Beitrags aus einem öffentlichen Kanal (<code>https://t.me/channel/123</code>).
+256	✅ Arbeiter sehen den Beitrag direkt im Bot (zählt auch im Aufrufzähler des Originalbeitrags) — keine Screenshots oder Freigaben nötig.
+257	❤️ <b>Beitragsreaktionen</b>
+258	Sende den Link eines Beitrags in einem öffentlichen Kanal.
+259	Beispiel: <code>https://t.me/channel/123</code>
+260	ℹ️ Arbeiter senden einen Screenshot ihrer Reaktion und du bestätigst ihn.
+261	🤖 <b>Bot-Starts</b>
+262	Sende den Link deines Bots oder <code>@username</code> (Empfehlungslinks funktionieren auch).
+263	Beispiel: <code>https://t.me/mybot?start=promo</code>
+264	ℹ️ Arbeiter senden einen Screenshot vom Starten des Bots und du bestätigst ihn.
+265	Aufgabe
+266	⚠️ Unzureichendes Guthaben. Lade zuerst auf.
+267	🏠 Hauptmenü
+268	👆 So sehen Arbeiter deinen Beitrag genau.
+269	Maximal {v0} aktive Kampagnen erlaubt.
+270	❌ Mache den Bot in diesem Chat zum Administrator und versuche es erneut.
+271	❌ Du bist kein Administrator dieses Chats. Nutze die Option „Ich bin kein Admin“.
+272	❌ Boost-Aufgaben benötigen einen öffentlichen Kanal/eine öffentliche Gruppe (mit Username).
+273	❌ Dieser Chat hat bereits eine aktive Kampagne dieser Art.
+274	❌ Dieser Beitrag hat bereits eine aktive Kampagne.
+275	❌ Bitte sende hier einen Link.
+276	❌ Leite einen Beitrag aus einem Kanal weiter.
+277	❌ Dieser Link hat bereits eine aktive Kampagne.
+278	❌ Sende einen gültigen <code>@username</code> oder <code>t.me/username</code>-Link (nur öffentliche Chats).
+279	❌ Das ist kein(e) {v0}.
+280	Abonnent
+281	Mitglied
+282	Aufruf
+283	Bot-Start
+284	Reaktion
+285	Boost
+286	⏳ Deine Aufgabe wird erstellt, bitte warten...
+287	✅ <b>Aufgabe №{v0} veröffentlicht</b>
+288	💲 Vom Guthaben abgezogen: {v1:,.1f} GRAM
+289	❌ Der Bot ist in diesem Chat kein Administrator. Füge ihn als Administrator hinzu und versuche es erneut.
+290	❌ Der Bot kann diesen Beitrag nicht weiterleiten. Der Kanal muss öffentlich sein und Weiterleiten erlauben, oder mache den Bot zum Administrator des Kanals.
+291	❌ Sende einen gültigen Bot-Link oder @username (der Name muss auf <code>bot</code> enden).
+292	❌ Sende einen Link zu einem Beitrag eines öffentlichen Kanals, z. B. <code>https://t.me/channel/123</code>.
+293	❌ Das ist kein Kanal-/Gruppenbeitrag.
+294	❌ Kein öffentlicher Kanal/keine öffentliche Gruppe mit diesem Namen gefunden.
+295	❌ Sende eine ganze Zahl.
+296	❌ Sende eine Zahl zwischen {v0} und {v1:,}.
+297	❌ Unzureichendes Guthaben. Du brauchst {v0:,.0f} GRAM.
+298	❌ Für diesen Chat existiert bereits eine Kampagne.
+299	❌ Der Bot benötigt das Recht „Nutzer einladen“.
+300	❌ Kein Bot mit diesem Namen gefunden.
+301	❌ Dieser öffentliche Kanal wurde nicht gefunden.
+302	{v0:,} (Maximum für dein Guthaben)
+303	Aufgabe veröffentlichen
+304	1️⃣ Alle Nutzer
+305	2️⃣ Nur Telegram Premium
+306	Aktiv
+307	Abgeschlossen
+308	Pausiert
+309	📋 <b>Deine Aufgaben</b>
+312	👥 Erledigt: <b>{v3}/{v4}</b>
+313	💲 Pro Nutzer: <b>{v5:,.0f}</b> GRAM
+314	💰 Ausgegeben: <b>{v6:,.0f}</b> · Restbudget: <b>{v7:,.0f}</b>
+315	⚙️ <b>Einstellungen für Auto-Aufgaben</b>
+316	🔁 <b>Automatische Verlängerung</b>: Wenn eine Aufgabe endet, wird dieselbe Aufgabe erneut veröffentlicht, damit deine Werbung nie stoppt.
+317	• Bis zu {v0} Wiederholungen
+318	• Jede Wiederholung wird von deinem Guthaben abgebucht
+319	• Stoppt von selbst (und benachrichtigt dich), wenn das Guthaben zu niedrig ist
+320	Tippe auf eine Aufgabe, um sie ein- oder auszuschalten:
+321	In dieser Liste ist noch nichts.
+322	Nur Telegram Premium
+323	Alle Nutzer
+324	📭 Du hast noch keine Aufgaben.
+325	🛑 Beim Löschen werden <b>{v0:,.0f} GRAM</b> erstattet. (Die Plattformprovision wird nicht erstattet.)
+326	✅ <b>Fertig! Die Aufgabe wurde gelöscht.</b>
+327	Erstattet: <b>{v0:,.1f} GRAM</b> 💲
+328	Dein Guthaben: <b>{v1:,.1f} GRAM</b> 💰
+329	➕ Neue Aufgabe erstellen
+330	🔁 Automatische Verlängerung AN: Wenn diese Aufgabe endet, wird sie bis zu {v0}-mal neu veröffentlicht und von deinem Guthaben abgebucht.
+331	🔁 Automatische Verlängerung ausgeschaltet.
+332	📥 Nachweise prüfen ({v0})
+333	🔁 Automatische Verlängerung: {v0}
+334	👤 Zielgruppe: {v0}
+335	🗑 Löschen & erstatten
+336	⏸ Pausieren
+337	▶️ Fortsetzen
+338	✅ Ja, löschen
+339	◀️ Nein
+340	❌ Die Premium-Zielgruppe benötigt eine Belohnung von mindestens {v0:,} GRAM.
+341	👁 Öffne den Beitrag, sieh ihn dir an und sende dann einen Screenshot, der den Beitrag zeigt.
+342	🤖 Öffne den Bot und drücke <b>Start</b>, sende dann einen Screenshot des Bot-Chats.
+343	❤️ Reagiere auf den Beitrag und sende dann einen Screenshot, der deine Reaktion zeigt.
+346	💲 Belohnung: <b>{v2:,.0f} GRAM</b>
+347	⏳ Der Werbetreibende prüft innerhalb von {v3} Stunden.
+348	⚠️ Ein Screenshot kann nicht zweimal verwendet werden. Gefälschte Nachweise können zur Sperrung deines Kontos führen.
+349	✅ <b>Nachweis gesendet</b>
+350	<b>{v0:,.0f} GRAM</b> werden gutgeschrieben, sobald der Werbetreibende zustimmt.
+351	✅ Dein Nachweis wurde genehmigt!
+352	💲 +{v0:,.0f} GRAM · 💰 {v1:,.1f}
+353	❌ Dein Nachweis wurde abgelehnt. Wenn du meinst, das ist falsch, kannst du innerhalb von {v0} Std. Einspruch einlegen — ein Admin entscheidet.
+354	❌ Dieser Screenshot wurde bereits verwendet. Sende einen neuen.
+355	❌ Du kannst für diese Aufgabe keinen Nachweis mehr senden.
+356	❌ Alle Plätze sind gerade vergeben worden.
+357	❌ Alle Plätze sind vergeben.
+358	❌ Dieser Screenshot wurde bereits verwendet.
+359	ℹ️ Du hast für diese Aufgabe bereits einen Nachweis gesendet.
+360	⏳ Zu viele deiner Nachweise warten auf Prüfung.
+361	⚖️ Einspruch
+362	🎟 <b>Promo-Code</b>
+363	Sende deinen Code:
+364	❌ Ungültiger Code.
+365	❌ Dieser Code wurde vollständig verbraucht.
+366	❌ Du hast diesen Code bereits verwendet.
+367	🎉 Code eingelöst! <b>+{v0:,.0f} GRAM</b> gutgeschrieben.
+368	💰 Guthaben: <b>{v1:,.0f}</b>
+369	Kanäle
+370	Gruppen
+371	Aufrufe
+372	Bots
+373	Reaktionen
+374	Verlauf
+375	Promo-Code
+376	Regeln
+377	AN
+378	AUS
