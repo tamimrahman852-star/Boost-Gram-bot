@@ -1,0 +1,370 @@
+# Indonesian
+0	💰 Penghasilan
+1	📢 Promosi
+2	📋 Cek
+3	👤 Akun Saya
+4	🛡 Cek Langganan
+5	📊 Bot & Statistik Kami
+6	🔗 Tautan Berguna
+7	ℹ️ Petunjuk
+8	💸 Tarik Dana
+9	👋 Selamat datang di <b>{bot_name}</b>, {first_name}!
+10	🚀 Selesaikan tugas, dapatkan koin GRAM, dan promosikan channel Anda seketika!
+11	✅ Bahasa berhasil diubah!
+12	⚠️ Ketuk /start terlebih dahulu.
+13	⚠️ Kirim ini sebagai pesan teks.
+14	👤 <b>Akun Anda:</b>
+15	🆔 ID Saya: <code>{user_id}</code>
+16	🏅 Level: {level_emoji} {level}
+17	💰 Saldo: <code>{balance:,.0f}</code> GRAM
+18	⚡ XP: {xp}/{next_xp}
+19	🎯 Tugas Selesai: {tasks}
+20	🪙 Isi Saldo
+21	👥 Sistem Referral
+22	📊 Sistem Level
+23	📋 Tugas Saya
+24	🌐 Ganti Bahasa
+25	🔕 Matikan Notifikasi
+26	🔔 Aktifkan Notifikasi
+27	◀️ Kembali
+28	🎯 Belum ada tugas aktif saat ini. Cek lagi nanti!
+29	ℹ️ Anda belum berlangganan channel/chat ini. Berlangganan lalu coba lagi.
+30	✅ Tugas №{tid} selesai
+31	💲 Anda menerima +{reward:,.0f} GRAM
+32	💰 Saldo: {balance:,.1f} GRAM
+33	📝 Pilih kategori tugas untuk mendapatkan penghasilan
+34	❌ Anda sudah menyelesaikan tugas ini!
+35	❌ Batas tugas tercapai.
+36	⭐ Tugas ini hanya untuk pengguna Telegram Premium.
+37	🚀 Buka Tautan
+38	✅ Verifikasi
+39	◀️ Kembali ke Daftar
+40	⭐ Khusus Premium (2x)
+41	👥 Semua Pengguna
+42	❌ Saldo tidak cukup!
+43	Dibutuhkan: <code>{required:,.0f}</code> GRAM
+44	Saldo Anda: <code>{balance:,.0f}</code> GRAM
+45	❌ Dibatalkan.
+46	🔒 <b>Penarikan Terkunci</b>
+47	Capai Level {required} untuk membuka penarikan.
+48	Level Anda saat ini: {current}
+49	💸 <b>Penarikan</b>
+50	Min: <code>{min:,.0f}</code> GRAM
+51	Maks: <code>{max:,.0f}</code> GRAM
+52	Kirim jumlahnya:
+53	❌ Jumlah harus antara <code>{min:,.0f}</code> dan <code>{max:,.0f}</code> GRAM.
+54	❌ Saldo tidak cukup.
+55	💳 Pilih metode pembayaran:
+56	📝 Kirim detail pembayaran (dompet/akun):
+57	✅ Permintaan penarikan terkirim!
+58	Jumlah: <code>{amount:,.0f}</code> GRAM
+59	Status: Menunggu persetujuan admin
+60	📋 <b>Sistem Cek</b>
+61	Buat voucher GRAM yang bisa dibagikan atau tukarkan voucher yang ada.
+62	🎫 Buat Cek
+63	💳 Aktifkan Cek
+64	💰 Kirim jumlah GRAM per aktivasi:
+65	👥 Kirim jumlah aktivasi:
+66	🔐 Atur kata sandi (atau ketik <code>skip</code>):
+67	✅ <b>Cek Dibuat!</b>
+68	🎫 Kode: <code>{code}</code>
+69	💰 Jumlah: <code>{amount:,.0f}</code> GRAM
+70	👥 Aktivasi: {activations}
+71	🔗 Tautan:
+73	🎫 Kirim kode cek:
+74	🔐 Cek ini memerlukan kata sandi. Kirimkan:
+75	❌ Kode tidak valid atau kedaluwarsa.
+76	❌ Kata sandi salah.
+77	✅ Cek ditukarkan! +<code>{amount:,.0f}</code> GRAM
+78	👥 <b>Sistem Referral</b>
+79	Dapatkan <code>{base:,.0f}</code> GRAM untuk setiap referral langsung!
+80	📊 <b>Bonus Tingkat:</b>
+81	• Tingkat 1 (Langsung): 8%
+82	• Tingkat 2: 5%
+83	• Tingkat 3: 2%
+84	📈 Referral langsung: <code>{direct}</code>
+85	💰 Total penghasilan: <code>{earned:,.0f}</code> GRAM
+86	🔗 Tautan Anda:
+87	📊 <b>Sistem Level</b>
+88	🏅 Level: {emoji} <code>{level}</code>
+89	⚡ Total XP: <code>{xp:,}</code>
+90	📈 Kemajuan: {progress}
+91	💡 Penarikan terbuka di Level {min_level}.
+92	📊 <b>Statistik Boost Gram</b>
+93	👥 Pengguna: <code>{users:,}</code>
+94	📢 Kampanye aktif: <code>{active:,}</code>
+95	✅ Tugas selesai: <code>{completed:,}</code>
+96	💎 Total dibayarkan: <code>{paid:,.0f}</code> GRAM
+97	⚠️ <b>Aturan Penghasilan</b>
+98	🚫 <b>Dilarang:</b>
+99	• Berhenti berlangganan dalam 7 hari
+100	• Menghapus reaksi
+101	• Banyak akun
+102	• Lalu lintas palsu / bot
+103	• Alat otomatisasi
+104	⚡ <b>Sanksi:</b>
+105	• Larangan tugas: 7 hari
+106	• Pengulangan: 7 hari lagi
+107	• Pencabutan penuh hadiah tugas
+108	ℹ️ <b>Cara menggunakan Boost Gram</b>
+109	1️⃣ Selesaikan tugas di 💰 Penghasilan
+110	2️⃣ Promosikan channel Anda di 📢 Promosi
+111	3️⃣ Hadiahkan/tukar di 📋 Cek
+112	4️⃣ Kelola di 👤 Akun Saya
+113	5️⃣ Undang teman: 5,000 GRAM + bonus tingkat
+114	🔗 <b>Tautan Berguna</b>
+115	• Bot: @{bot}
+116	• Dukungan: Hubungi admin
+117	🛡 <b>Verifikasi Langganan</b>
+118	Semua langganan diverifikasi langsung melalui Telegram Bot API.
+119	📌 Pemilik channel/grup harus menambahkan @{bot} sebagai <b>Administrator</b>.
+120	⚠️ <b>Peringatan Retensi!</b>
+121	Anda keluar dari <b>{target}</b> sebelum 7 hari.
+122	Bergabung kembali sekarang untuk menghindari sanksi:
+124	🚫 <b>Sanksi Diterapkan!</b>
+125	Anda keluar dari {target}. Hadiah <code>{reward:,.0f}</code> GRAM telah dicabut.
+126	❌ Terjadi kesalahan. Coba lagi.
+127	⭐ <b>Isi saldo</b>
+128	Bayar dengan Telegram Stars. Pilih paket:
+129	❌ Penarikan dinonaktifkan untuk akun Anda.
+130	⏳ Anda sudah memiliki penarikan yang tertunda.
+131	ℹ️ Hadiah yang masih dalam masa retensi 7 hari tidak dapat ditarik.
+132	⭐ Berapa Stars? (1 Star = {v0:,} GRAM)
+133	Kirim angka dari 1 sampai 10000:
+134	⏳ Tunggu hingga penarikan sebelumnya diproses.
+135	⭐ Jumlah kustom
+136	💳 bKash / Nagad / Rocket
+137	⏳ Terlalu banyak kode tidak valid. Coba lagi dalam satu jam.
+138	⏳ Terlalu banyak kata sandi salah. Coba lagi nanti.
+139	❌ Kirim bilangan bulat antara 1 dan {v0:,.0f}.
+140	✅ Deposit <b>{v0:,.2f} BDT</b> Anda disetujui.
+141	💲 Ditambahkan: <b>{v1:,.0f} GRAM</b>
+142	❌ Deposit {v0:,.2f} BDT Anda tidak dapat diverifikasi. Coba lagi dengan TrxID dan tangkapan layar yang benar.
+143	💳 <b>Deposit manual</b>
+144	Kurs: 1 BDT = <b>{v0:,.0f} GRAM</b>
+145	Min {v1:,.0f} · Maks {v2:,.0f} BDT
+146	Pilih metode pembayaran:
+148	Pertama lakukan <b>Send Money</b> ke nomor ini:
+150	Lalu masukkan jumlah yang Anda kirim dalam BDT ({v2:,.0f}–{v3:,.0f}):
+151	❌ Deposit dibatalkan.
+152	✅ {v0:,.2f} BDT = <b>{v1:,.0f} GRAM</b>
+153	Sekarang kirim <b>TrxID</b> pembayaran:
+154	📸 Sekarang kirim <b>tangkapan layar</b> pembayaran.
+155	❌ Kirim foto (tangkapan layar).
+156	Deposit manual sedang tidak tersedia.
+157	Harap tunggu hingga permintaan sebelumnya diperiksa.
+158	❌ TrxID harus 6–32 huruf/angka.
+159	❌ TrxID ini sudah digunakan.
+160	✅ <b>Permintaan terkirim</b>
+161	💳 {v0} · {v1:,.2f} BDT
+163	Setelah admin memverifikasi, GRAM akan ditambahkan ke saldo Anda.
+164	❌ Kirim angka antara {v0:,.0f} dan {v1:,.0f}.
+165	⏳ Tunggu hingga permintaan sebelumnya diperiksa.
+166	❌ Batal
+167	Berlangganan
+168	Gabung
+169	Lihat
+170	Mulai
+171	Beri reaksi
+172	Boost
+173	🎯 <b>Tugas tersedia</b>
+174	Ketuk tombol untuk mengerjakan tugas, lalu tekan <b>Verifikasi</b> atau <b>Bukti</b> (tangkapan layar).
+175	⚠️ Tugas channel/grup/boost harus dipertahankan minimal {v0} hari.
+176	💰 Hadiah: <code>{v0:,.0f}</code> GRAM
+177	👥 Slot tersisa: <code>{v1}</code>
+178	⏰ Anda harus bertahan <b>{v2} hari</b>, jika tidak hadiah dicabut.
+179	1) Ketuk <b>Buka</b> lalu bergabung
+180	2) Lalu ketuk <b>Verifikasi</b>
+181	❌ Tugas ini tidak aktif.
+182	Buka
+183	🔜 Jenis tugas ini akan dibuka setelah dapat diverifikasi dengan aman.
+184	🚩 <b>Tugas mana yang ingin Anda laporkan?</b>
+185	Laporkan hanya tugas palsu atau menyesatkan.
+186	✅ Laporan terkirim, terima kasih.
+187	❌ Tugas dinonaktifkan untuk akun Anda.
+188	❌ Anda tidak dapat menyelesaikan kampanye Anda sendiri.
+189	📸 Kirim bukti tangkapan layar untuk tugas ini.
+190	⏳ Batas tugas harian tercapai. Coba lagi besok.
+191	Anda sudah melaporkan tugas ini.
+192	📭 Tidak ada postingan lagi saat ini.
+193	❌ Buka postingan terlebih dahulu.
+194	⏳ Mohon tunggu sebentar.
+195	⏳ Telegram sedang sibuk, coba lagi sebentar lagi.
+196	⚠️ Tugas ini sementara tidak tersedia.
+197	ℹ️ Anda belum mem-boost channel/grup ini. Boost lalu coba lagi.
+198	⭐ Khusus pengguna Telegram Premium.
+199	⚠️ Postingan ini tidak tersedia. Coba yang lain.
+200	Bukti
+201	Verifikasi
+202	💲 Anda mendapat <b>{v0:,.0f} GRAM</b> karena melihat postingan #{v1}!
+203	💰 Saldo Anda: <b>{v2:,.1f}</b> GRAM
+204	ℹ️ Anda sudah melihat postingan ini.
+205	⚠️ Postingan “{v0}” tidak dapat diteruskan (dihapus atau penerusan dibatasi). Kampanye dijeda.
+206	Laporkan
+207	⏳ Batas tugas harian tercapai.
+208	Postingan berikutnya
+209	Lihat postingan
+210	📜 <b>Riwayat transaksi</b>
+211	Belum ada transaksi.
+212	📢 <b>Apa yang ingin Anda promosikan?</b>
+213	💲 Saldo: <b>{b:,.0f} GRAM</b>
+214	🚧 Jenis tugas ini akan diaktifkan setelah partisipasi dapat diverifikasi dengan aman.
+215	Menu utama
+216	📢 Channel
+217	👥 Grup
+218	👁 Postingan
+219	🤖 Bot
+220	⚡ Boost Premium
+221	❤️ Reaksi
+222	⚙️ Pengaturan tugas otomatis
+223	📋 Tugas saya
+224	📢 <b>Pilih {v0} untuk dipromosikan</b> (bot harus menjadi admin di sana)
+225	🏠 <b>Saya admin</b> — pilih {v0} yang Anda kelola
+226	👤 <b>Saya bukan admin</b> — pilih {v0} publik mana pun, atau kirim <code>@username</code> / tautannya
+227	⚠️ Dalam kedua kasus, bot harus menjadi <b>admin</b> di sana (dengan izin undang), jika tidak anggota tidak dapat diverifikasi.
+228	🏠 Saya admin
+229	👤 Saya bukan admin
+230	🎯 <b>Audiens tugas</b> — {v0}
+231	<b>1️⃣ Semua pengguna</b>
+232	Jangkauan luas ke semua pengguna.
+233	💡 Harga minimum: {v1:,} GRAM/unit.
+234	<b>2️⃣ Khusus Telegram Premium</b>
+235	Hanya ditampilkan kepada pengguna Premium — audiens berkualitas lebih tinggi.
+236	💡 Harga minimum: {v2:,} GRAM/unit.
+237	💲 <b>Masukkan hadiah (GRAM) per {v0}</b>
+238	Min: <b>{v1:,}</b> · Disarankan: <b>{v2:,}</b> · Maks: <b>{v3:,}</b>
+239	💡 Hadiah lebih tinggi lebih cepat selesai. Ketuk tombol atau ketik angka.
+240	ℹ️ Komisi pembuatan tugas — <b>{v0:.0f}%</b>
+241	<blockquote>💲 Harga per pelanggan — {v1:,.0f} GRAM
+242	💰 Saldo Anda — {v2:,.1f} GRAM</blockquote>
+243	✏️ <b>Ketik jumlah pelanggan yang Anda inginkan</b>
+244	✅ <b>Siap dipublikasikan</b>
+246	👥 Pelanggan: <b>{v1:,}</b> × <b>{v2:,.0f}</b> GRAM = {v3:,.0f}
+247	🏷 Komisi ({v4:.0f}%): {v5:,.0f}
+248	💲 <b>Total biaya: {v6:,.0f} GRAM</b>
+249	Ketuk “Publikasikan tugas” untuk memposting.
+250	channel
+251	grup
+252	👁 <b>Tayangan postingan</b>
+253	<b>Teruskan postingan yang ingin Anda promosikan.</b>
+254	<blockquote>Buka channel → pilih postingan → Teruskan → @{bot}</blockquote>
+255	Atau kirim tautan postingan channel publik (<code>https://t.me/channel/123</code>).
+256	✅ Pekerja melihat postingan langsung di dalam bot (juga dihitung pada penghitung tayangan postingan asli) — tanpa tangkapan layar atau persetujuan.
+257	❤️ <b>Reaksi postingan</b>
+258	Kirim tautan postingan di channel publik.
+259	Contoh: <code>https://t.me/channel/123</code>
+260	ℹ️ Pekerja mengirim tangkapan layar reaksi mereka dan Anda menyetujuinya.
+261	🤖 <b>Start bot</b>
+262	Kirim tautan bot Anda atau <code>@username</code> (tautan referral juga bisa).
+263	Contoh: <code>https://t.me/mybot?start=promo</code>
+264	ℹ️ Pekerja mengirim tangkapan layar saat memulai bot dan Anda menyetujuinya.
+265	tugas
+266	⚠️ Saldo tidak cukup. Isi saldo terlebih dahulu.
+267	🏠 Menu utama
+268	👆 Seperti inilah pekerja akan melihat postingan Anda.
+269	Maksimum {v0} kampanye aktif diizinkan.
+270	❌ Jadikan bot admin di chat itu, lalu coba lagi.
+271	❌ Anda bukan admin chat itu. Gunakan opsi “Saya bukan admin”.
+272	❌ Tugas boost memerlukan channel/grup publik (dengan username).
+273	❌ Chat ini sudah memiliki kampanye aktif jenis ini.
+274	❌ Postingan ini sudah memiliki kampanye aktif.
+275	❌ Kirim tautan di sini.
+276	❌ Teruskan postingan dari channel.
+277	❌ Tautan ini sudah memiliki kampanye aktif.
+278	❌ Kirim <code>@username</code> atau tautan <code>t.me/username</code> yang valid (hanya chat publik).
+279	❌ Itu bukan {v0}.
+280	pelanggan
+281	anggota
+282	tayangan
+283	start bot
+284	reaksi
+285	boost
+286	⏳ Tugas Anda sedang dibuat, harap tunggu...
+287	✅ <b>Tugas №{v0} dipublikasikan</b>
+288	💲 Dipotong dari saldo: {v1:,.1f} GRAM
+289	❌ Bot bukan admin di chat itu. Tambahkan sebagai admin lalu coba lagi.
+290	❌ Bot tidak dapat meneruskan postingan ini. Channel harus publik dengan penerusan diizinkan, atau jadikan bot admin channel.
+291	❌ Kirim tautan bot atau @username yang valid (nama harus berakhiran <code>bot</code>).
+292	❌ Kirim tautan postingan channel publik seperti <code>https://t.me/channel/123</code>.
+293	❌ Itu bukan postingan channel/grup.
+294	❌ Tidak ditemukan channel/grup publik dengan nama itu.
+295	❌ Kirim bilangan bulat.
+296	❌ Kirim angka antara {v0} dan {v1:,}.
+297	❌ Saldo tidak cukup. Butuh {v0:,.0f} GRAM.
+298	❌ Kampanye untuk chat ini sudah ada.
+299	❌ Bot memerlukan izin 'undang pengguna'.
+300	❌ Bot dengan nama itu tidak ditemukan.
+301	❌ Channel publik itu tidak ditemukan.
+302	{v0:,} (maksimum untuk saldo Anda)
+303	Publikasikan tugas
+304	1️⃣ Semua pengguna
+305	2️⃣ Khusus Telegram Premium
+306	Aktif
+307	Selesai
+308	Dijeda
+309	📋 <b>Tugas Anda</b>
+312	👥 Selesai: <b>{v3}/{v4}</b>
+313	💲 Per pengguna: <b>{v5:,.0f}</b> GRAM
+314	💰 Terpakai: <b>{v6:,.0f}</b> · Sisa anggaran: <b>{v7:,.0f}</b>
+315	⚙️ <b>Pengaturan tugas otomatis</b>
+316	🔁 <b>Perpanjangan otomatis</b>: saat tugas selesai, tugas yang sama dipublikasikan lagi sehingga promosi Anda tidak pernah berhenti.
+317	• Hingga {v0} kali pengulangan
+318	• Setiap pengulangan dibebankan ke saldo Anda
+319	• Berhenti sendiri (dan memberi tahu Anda) jika saldo terlalu rendah
+320	Ketuk sebuah tugas untuk menyalakan atau mematikannya:
+321	Belum ada apa pun di daftar ini.
+322	Khusus Telegram Premium
+323	Semua pengguna
+324	📭 Anda belum memiliki tugas.
+325	🛑 Menghapus akan mengembalikan <b>{v0:,.0f} GRAM</b>. (Komisi platform tidak dapat dikembalikan.)
+326	✅ <b>Selesai! Tugas dihapus.</b>
+327	Dikembalikan: <b>{v0:,.1f} GRAM</b> 💲
+328	Saldo Anda: <b>{v1:,.1f} GRAM</b> 💰
+329	➕ Buat tugas baru
+330	🔁 Perpanjangan otomatis AKTIF: saat tugas ini selesai akan dipublikasikan ulang hingga {v0} kali, dibebankan ke saldo Anda.
+331	🔁 Perpanjangan otomatis dimatikan.
+332	📥 Tinjau bukti ({v0})
+333	🔁 Perpanjangan otomatis: {v0}
+334	👤 Audiens: {v0}
+335	🗑 Hapus & kembalikan dana
+336	⏸ Jeda
+337	▶️ Lanjutkan
+338	✅ Ya, hapus
+339	◀️ Tidak
+340	❌ Audiens Premium memerlukan hadiah minimal {v0:,} GRAM.
+341	👁 Buka postingan, lihat, lalu kirim tangkapan layar yang menampilkan postingan.
+342	🤖 Buka bot dan tekan <b>Start</b>, lalu kirim tangkapan layar chat bot.
+343	❤️ Beri reaksi pada postingan, lalu kirim tangkapan layar yang menampilkan reaksi Anda.
+346	💲 Hadiah: <b>{v2:,.0f} GRAM</b>
+347	⏳ Pengiklan meninjau dalam {v3} jam.
+348	⚠️ Satu tangkapan layar tidak dapat dipakai dua kali. Bukti palsu dapat membuat akun Anda diblokir.
+349	✅ <b>Bukti terkirim</b>
+350	<b>{v0:,.0f} GRAM</b> akan ditambahkan setelah pengiklan menyetujui.
+351	✅ Bukti Anda disetujui!
+352	💲 +{v0:,.0f} GRAM · 💰 {v1:,.1f}
+353	❌ Bukti Anda ditolak. Jika menurut Anda ini salah, Anda dapat mengajukan keberatan dalam {v0} jam — admin akan memutuskan.
+354	❌ Tangkapan layar ini sudah pernah dipakai. Kirim yang baru.
+355	❌ Anda tidak dapat lagi mengirim bukti untuk tugas ini.
+356	❌ Semua slot baru saja terisi.
+357	❌ Semua slot terisi.
+358	❌ Tangkapan layar ini sudah pernah dipakai.
+359	ℹ️ Anda sudah mengirim bukti untuk tugas ini.
+360	⏳ Terlalu banyak bukti Anda yang menunggu tinjauan.
+361	⚖️ Keberatan
+362	🎟 <b>Kode promo</b>
+363	Kirim kode Anda:
+364	❌ Kode tidak valid.
+365	❌ Kode ini sudah terpakai sepenuhnya.
+366	❌ Anda sudah memakai kode ini.
+367	🎉 Kode ditukarkan! <b>+{v0:,.0f} GRAM</b> ditambahkan.
+368	💰 Saldo: <b>{v1:,.0f}</b>
+369	Channel
+370	Grup
+371	Tayangan
+372	Bot
+373	Reaksi
+374	Riwayat
+375	Kode promo
+376	Aturan
+377	AKTIF
+378	MATI

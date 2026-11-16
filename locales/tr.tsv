@@ -1,0 +1,370 @@
+# Turkish
+0	💰 Kazançlar
+1	📢 Tanıtım
+2	📋 Çekler
+3	👤 Hesabım
+4	🛡 Abonelik Kontrolü
+5	📊 Botlarımız ve İstatistikler
+6	🔗 Faydalı Bağlantılar
+7	ℹ️ Talimatlar
+8	💸 Çekim
+9	👋 <b>{bot_name}</b> botuna hoş geldin, {first_name}!
+10	🚀 Görevleri tamamla, GRAM coin kazan ve kanallarını anında tanıt!
+11	✅ Dil başarıyla değiştirildi!
+12	⚠️ Lütfen önce /start yaz.
+13	⚠️ Lütfen bunu metin mesajı olarak gönder.
+14	👤 <b>Hesabın:</b>
+15	🆔 ID'm: <code>{user_id}</code>
+16	🏅 Seviye: {level_emoji} {level}
+17	💰 Bakiye: <code>{balance:,.0f}</code> GRAM
+18	⚡ XP: {xp}/{next_xp}
+19	🎯 Tamamlanan görevler: {tasks}
+20	🪙 Bakiye Yükle
+21	👥 Referans Sistemi
+22	📊 Seviye Sistemi
+23	📋 Görevlerim
+24	🌐 Dili Değiştir
+25	🔕 Bildirimleri Kapat
+26	🔔 Bildirimleri Aç
+27	◀️ Geri
+28	🎯 Şu anda aktif görev yok. Yakında tekrar bak!
+29	ℹ️ Henüz kanala/sohbete abone değilsin. Abone ol ve tekrar dene.
+30	✅ Görev №{tid} tamamlandı
+31	💲 +{reward:,.0f} GRAM kazandın
+32	💰 Bakiye: {balance:,.1f} GRAM
+33	📝 Kazanmak için bir görev kategorisi seç
+34	❌ Bu görevi zaten tamamladın!
+35	❌ Görev sınırına ulaşıldı.
+36	⭐ Bu görev yalnızca Telegram Premium kullanıcıları içindir.
+37	🚀 Bağlantıyı Aç
+38	✅ Doğrula
+39	◀️ Listeye Dön
+40	⭐ Yalnızca Premium (2x)
+41	👥 Tüm Kullanıcılar
+42	❌ Yetersiz bakiye!
+43	Gereken: <code>{required:,.0f}</code> GRAM
+44	Bakiyen: <code>{balance:,.0f}</code> GRAM
+45	❌ İptal edildi.
+46	🔒 <b>Çekim Kilitli</b>
+47	Çekimi açmak için {required}. seviyeye ulaş.
+48	Mevcut seviyen: {current}
+49	💸 <b>Çekim</b>
+50	Min: <code>{min:,.0f}</code> GRAM
+51	Maks: <code>{max:,.0f}</code> GRAM
+52	Tutarı gönder:
+53	❌ Tutar <code>{min:,.0f}</code> ile <code>{max:,.0f}</code> GRAM arasında olmalı.
+54	❌ Yetersiz bakiye.
+55	💳 Ödeme yöntemini seç:
+56	📝 Ödeme bilgilerini gönder (cüzdan/hesap):
+57	✅ Çekim talebi gönderildi!
+58	Tutar: <code>{amount:,.0f}</code> GRAM
+59	Durum: Yönetici onayı bekleniyor
+60	📋 <b>Çek Sistemi</b>
+61	Paylaşılabilir GRAM kuponları oluştur veya mevcut olanları kullan.
+62	🎫 Çek Oluştur
+63	💳 Çek Etkinleştir
+64	💰 Etkinleştirme başına GRAM tutarını gönder:
+65	👥 Etkinleştirme sayısını gönder:
+66	🔐 Bir parola belirle (veya <code>skip</code> yaz):
+67	✅ <b>Çek Oluşturuldu!</b>
+68	🎫 Kod: <code>{code}</code>
+69	💰 Tutar: <code>{amount:,.0f}</code> GRAM
+70	👥 Etkinleştirme: {activations}
+71	🔗 Bağlantı:
+73	🎫 Çek kodunu gönder:
+74	🔐 Bu çek parola gerektiriyor. Parolayı gönder:
+75	❌ Geçersiz veya süresi dolmuş kod.
+76	❌ Yanlış parola.
+77	✅ Çek kullanıldı! +<code>{amount:,.0f}</code> GRAM
+78	👥 <b>Referans Sistemi</b>
+79	Her doğrudan referans için <code>{base:,.0f}</code> GRAM kazan!
+80	📊 <b>Kademe Bonusları:</b>
+81	• Kademe 1 (Doğrudan): 8%
+82	• Kademe 2: 5%
+83	• Kademe 3: 2%
+84	📈 Doğrudan referanslar: <code>{direct}</code>
+85	💰 Toplam kazanç: <code>{earned:,.0f}</code> GRAM
+86	🔗 Bağlantın:
+87	📊 <b>Seviye Sistemi</b>
+88	🏅 Seviye: {emoji} <code>{level}</code>
+89	⚡ Toplam XP: <code>{xp:,}</code>
+90	📈 İlerleme: {progress}
+91	💡 Çekim {min_level}. seviyede açılır.
+92	📊 <b>Boost Gram İstatistikleri</b>
+93	👥 Kullanıcılar: <code>{users:,}</code>
+94	📢 Aktif kampanyalar: <code>{active:,}</code>
+95	✅ Tamamlanan görevler: <code>{completed:,}</code>
+96	💎 Toplam ödenen: <code>{paid:,.0f}</code> GRAM
+97	⚠️ <b>Kazanç Kuralları</b>
+98	🚫 <b>Yasaklar:</b>
+99	• 7 gün içinde abonelikten çıkmak
+100	• Tepkileri kaldırmak
+101	• Birden fazla hesap
+102	• Sahte trafik / botlar
+103	• Otomasyon araçları
+104	⚡ <b>Cezalar:</b>
+105	• Görev yasağı: 7 gün
+106	• Tekrarında: 7 gün daha
+107	• Görev ödülünün tamamen iptali
+108	ℹ️ <b>Boost Gram nasıl kullanılır</b>
+109	1️⃣ 💰 Kazançlar bölümünde görevleri tamamla
+110	2️⃣ 📢 Tanıtım bölümünde kanalını tanıt
+111	3️⃣ 📋 Çekler bölümünde hediye et/kullan
+112	4️⃣ 👤 Hesabım bölümünden yönet
+113	5️⃣ Arkadaşlarını davet et: 5,000 GRAM + kademe bonusları
+114	🔗 <b>Faydalı Bağlantılar</b>
+115	• Bot: @{bot}
+116	• Destek: Yöneticiyle iletişime geç
+117	🛡 <b>Abonelik Doğrulama</b>
+118	Tüm abonelikler Telegram Bot API ile canlı olarak doğrulanır.
+119	📌 Kanal/Grup sahibi @{bot} botunu <b>Yönetici</b> olarak eklemelidir.
+120	⚠️ <b>Kalma Uyarısı!</b>
+121	<b>{target}</b> alanından 7 günden önce ayrıldın.
+122	Cezadan kaçınmak için hemen tekrar katıl:
+124	🚫 <b>Ceza Uygulandı!</b>
+125	{target} alanından ayrıldın. <code>{reward:,.0f}</code> GRAM ödülü iptal edildi.
+126	❌ Bir şeyler ters gitti. Tekrar dene.
+127	⭐ <b>Bakiye yükle</b>
+128	Telegram Stars ile öde. Bir paket seç:
+129	❌ Hesabın için çekimler devre dışı.
+130	⏳ Bekleyen bir çekim talebin zaten var.
+131	ℹ️ 7 günlük kalma süresi içindeki ödüller çekilemez.
+132	⭐ Kaç Stars? (1 Star = {v0:,} GRAM)
+133	1 ile 10000 arasında bir sayı gönder:
+134	⏳ Önceki çekimin işlenmesini bekle.
+135	⭐ Özel tutar
+136	💳 bKash / Nagad / Rocket
+137	⏳ Çok fazla geçersiz kod. Bir saat sonra tekrar dene.
+138	⏳ Çok fazla yanlış parola. Daha sonra dene.
+139	❌ 1 ile {v0:,.0f} arasında tam sayı gönder.
+140	✅ <b>{v0:,.2f} BDT</b> tutarındaki yatırımın onaylandı.
+141	💲 Eklenen: <b>{v1:,.0f} GRAM</b>
+142	❌ {v0:,.2f} BDT tutarındaki yatırımın doğrulanamadı. Doğru TrxID ve ekran görüntüsüyle tekrar dene.
+143	💳 <b>Manuel yatırım</b>
+144	Oran: 1 BDT = <b>{v0:,.0f} GRAM</b>
+145	Min {v1:,.0f} · Maks {v2:,.0f} BDT
+146	Bir ödeme yöntemi seç:
+148	Önce bu numaraya <b>Send Money</b> yap:
+150	Sonra gönderdiğin tutarı BDT olarak yaz ({v2:,.0f}–{v3:,.0f}):
+151	❌ Yatırım iptal edildi.
+152	✅ {v0:,.2f} BDT = <b>{v1:,.0f} GRAM</b>
+153	Şimdi ödemenin <b>TrxID</b> değerini gönder:
+154	📸 Şimdi ödemenin <b>ekran görüntüsünü</b> gönder.
+155	❌ Lütfen bir fotoğraf (ekran görüntüsü) gönder.
+156	Manuel yatırımlar şu anda kullanılamıyor.
+157	Önceki taleplerin incelenmesini bekle.
+158	❌ TrxID 6–32 harf/rakam olmalı.
+159	❌ Bu TrxID zaten kullanıldı.
+160	✅ <b>Talep gönderildi</b>
+161	💳 {v0} · {v1:,.2f} BDT
+163	Bir yönetici doğruladığında GRAM bakiyene eklenir.
+164	❌ {v0:,.0f} ile {v1:,.0f} arasında bir sayı gönder.
+165	⏳ Önceki taleplerin incelenmesini bekle.
+166	❌ İptal
+167	Abone ol
+168	Katıl
+169	Görüntüle
+170	Başlat
+171	Tepki ver
+172	Boost
+173	🎯 <b>Mevcut görevler</b>
+174	Görevi yapmak için düğmeye dokun, sonra <b>Doğrula</b> veya <b>Kanıt</b> (ekran görüntüsü) düğmesine bas.
+175	⚠️ Kanal/grup/boost görevleri en az {v0} gün korunmalıdır.
+176	💰 Ödül: <code>{v0:,.0f}</code> GRAM
+177	👥 Kalan kontenjan: <code>{v1}</code>
+178	⏰ <b>{v2} gün</b> kalmalısın, aksi halde ödül iptal edilir.
+179	1) <b>Aç</b> düğmesine dokun ve katıl
+180	2) Sonra <b>Doğrula</b> düğmesine dokun
+181	❌ Bu görev aktif değil.
+182	Aç
+183	🔜 Bu görev türü, güvenli şekilde doğrulanabildiğinde açılacak.
+184	🚩 <b>Hangi görevi şikayet etmek istiyorsun?</b>
+185	Yalnızca sahte veya yanıltıcı görevleri şikayet et.
+186	✅ Şikayet gönderildi, teşekkürler.
+187	❌ Hesabın için görevler devre dışı.
+188	❌ Kendi kampanyanı tamamlayamazsın.
+189	📸 Bu görev için ekran görüntüsü kanıtı gönder.
+190	⏳ Günlük görev sınırına ulaşıldı. Yarın tekrar dene.
+191	Bu görevi zaten şikayet ettin.
+192	📭 Şu anda başka gönderi yok.
+193	❌ Önce gönderiyi aç.
+194	⏳ Lütfen biraz bekle.
+195	⏳ Telegram meşgul, kısa süre sonra tekrar dene.
+196	⚠️ Bu görev geçici olarak kullanılamıyor.
+197	ℹ️ Bu kanalı/grubu henüz boostlamadın. Boostla ve tekrar dene.
+198	⭐ Yalnızca Telegram Premium kullanıcıları.
+199	⚠️ Bu gönderi kullanılamıyor. Başka birini dene.
+200	Kanıt
+201	Doğrula
+202	💲 #{v1} gönderisini görüntülediğin için <b>{v0:,.0f} GRAM</b> kazandın!
+203	💰 Bakiyen: <b>{v2:,.1f}</b> GRAM
+204	ℹ️ Bu gönderiyi zaten görüntüledin.
+205	⚠️ “{v0}” gönderisi iletilemiyor (silinmiş veya iletme kısıtlı). Kampanya duraklatıldı.
+206	Şikayet et
+207	⏳ Günlük görev sınırına ulaşıldı.
+208	Sonraki gönderi
+209	Gönderiyi görüntüle
+210	📜 <b>İşlem geçmişi</b>
+211	Henüz işlem yok.
+212	📢 <b>Ne tanıtmak istersin?</b>
+213	💲 Bakiye: <b>{b:,.0f} GRAM</b>
+214	🚧 Bu görev türü, katılım güvenli şekilde doğrulanabildiğinde etkinleştirilecek.
+215	Ana menü
+216	📢 Kanal
+217	👥 Grup
+218	👁 Gönderi
+219	🤖 Bot
+220	⚡ Premium Boost
+221	❤️ Tepki
+222	⚙️ Otomatik görev ayarları
+223	📋 Görevlerim
+224	📢 <b>Tanıtılacak {v0} seç</b> (botun orada yönetici olması gerekir)
+225	🏠 <b>Yöneticiyim</b> — yönettiğin {v0} seç
+226	👤 <b>Yönetici değilim</b> — herhangi bir herkese açık {v0} seç veya <code>@username</code> / bağlantısını gönder
+227	⚠️ Her iki durumda da botun orada <b>yönetici</b> olması gerekir (davet izniyle), aksi halde üyeler doğrulanamaz.
+228	🏠 Yöneticiyim
+229	👤 Yönetici değilim
+230	🎯 <b>Görev hedef kitlesi</b> — {v0}
+231	<b>1️⃣ Tüm kullanıcılar</b>
+232	Tüm kullanıcılar arasında geniş erişim.
+233	💡 Minimum fiyat: {v1:,} GRAM/birim.
+234	<b>2️⃣ Yalnızca Telegram Premium</b>
+235	Yalnızca Premium kullanıcılara gösterilir — daha kaliteli bir kitle.
+236	💡 Minimum fiyat: {v2:,} GRAM/birim.
+237	💲 <b>{v0} başına ödülü (GRAM) gir</b>
+238	Min: <b>{v1:,}</b> · Önerilen: <b>{v2:,}</b> · Maks: <b>{v3:,}</b>
+239	💡 Yüksek ödüller daha hızlı tamamlanır. Bir düğmeye dokun veya sayı yaz.
+240	ℹ️ Görev oluşturma komisyonu — <b>{v0:.0f}%</b>
+241	<blockquote>💲 Abone başına fiyat — {v1:,.0f} GRAM
+242	💰 Bakiyen — {v2:,.1f} GRAM</blockquote>
+243	✏️ <b>Kaç abone istediğini yaz</b>
+244	✅ <b>Yayınlamaya hazır</b>
+246	👥 Aboneler: <b>{v1:,}</b> × <b>{v2:,.0f}</b> GRAM = {v3:,.0f}
+247	🏷 Komisyon ({v4:.0f}%): {v5:,.0f}
+248	💲 <b>Toplam ücret: {v6:,.0f} GRAM</b>
+249	Yayınlamak için “Görevi yayınla” düğmesine bas.
+250	kanal
+251	grup
+252	👁 <b>Gönderi görüntülemeleri</b>
+253	<b>Tanıtmak istediğin gönderiyi ilet.</b>
+254	<blockquote>Kanalı aç → gönderiyi seç → İlet → @{bot}</blockquote>
+255	Veya herkese açık bir kanaldaki gönderinin bağlantısını gönder (<code>https://t.me/channel/123</code>).
+256	✅ Çalışanlar gönderiyi doğrudan bot içinde görüntüler (orijinal gönderinin görüntülenme sayacına da eklenir) — ekran görüntüsü veya onay gerekmez.
+257	❤️ <b>Gönderi tepkileri</b>
+258	Herkese açık bir kanaldaki gönderinin bağlantısını gönder.
+259	Örnek: <code>https://t.me/channel/123</code>
+260	ℹ️ Çalışanlar tepkilerini gösteren bir ekran görüntüsü gönderir ve sen onaylarsın.
+261	🤖 <b>Bot başlatmaları</b>
+262	Botunun bağlantısını veya <code>@username</code> gönder (referans bağlantıları da çalışır).
+263	Örnek: <code>https://t.me/mybot?start=promo</code>
+264	ℹ️ Çalışanlar botu başlattıklarının ekran görüntüsünü gönderir ve sen onaylarsın.
+265	görev
+266	⚠️ Yetersiz bakiye. Önce bakiye yükle.
+267	🏠 Ana menü
+268	👆 Çalışanlar gönderini tam olarak böyle görecek.
+269	En fazla {v0} aktif kampanyaya izin verilir.
+270	❌ Botu o sohbette yönetici yap ve tekrar dene.
+271	❌ O sohbetin yöneticisi değilsin. “Yönetici değilim” seçeneğini kullan.
+272	❌ Boost görevleri herkese açık bir kanal/grup (kullanıcı adlı) gerektirir.
+273	❌ Bu sohbetin bu türde zaten aktif bir kampanyası var.
+274	❌ Bu gönderinin zaten aktif bir kampanyası var.
+275	❌ Lütfen buraya bir bağlantı gönder.
+276	❌ Bir kanaldan gönderi ilet.
+277	❌ Bu bağlantının zaten aktif bir kampanyası var.
+278	❌ Geçerli bir <code>@username</code> veya <code>t.me/username</code> bağlantısı gönder (yalnızca herkese açık sohbetler).
+279	❌ Bu bir {v0} değil.
+280	abone
+281	üye
+282	görüntüleme
+283	bot başlatma
+284	tepki
+285	boost
+286	⏳ Görevin oluşturuluyor, lütfen bekle...
+287	✅ <b>Görev №{v0} yayınlandı</b>
+288	💲 Bakiyeden düşülen: {v1:,.1f} GRAM
+289	❌ Bot o sohbette yönetici değil. Yönetici olarak ekle ve tekrar dene.
+290	❌ Bot bu gönderiyi iletemiyor. Kanal herkese açık olmalı ve iletmeye izin vermeli veya botu kanalda yönetici yap.
+291	❌ Geçerli bir bot bağlantısı veya @username gönder (ad <code>bot</code> ile bitmeli).
+292	❌ Herkese açık kanal gönderisi bağlantısı gönder, örn. <code>https://t.me/channel/123</code>.
+293	❌ Bu bir kanal/grup gönderisi değil.
+294	❌ Bu adda herkese açık kanal/grup bulunamadı.
+295	❌ Tam sayı gönder.
+296	❌ {v0} ile {v1:,} arasında bir sayı gönder.
+297	❌ Yetersiz bakiye. {v0:,.0f} GRAM gerekli.
+298	❌ Bu sohbet için zaten bir kampanya var.
+299	❌ Botun 'kullanıcı davet etme' iznine ihtiyacı var.
+300	❌ Bu adda bir bot bulunamadı.
+301	❌ O herkese açık kanal bulunamadı.
+302	{v0:,} (bakiyen için maksimum)
+303	Görevi yayınla
+304	1️⃣ Tüm kullanıcılar
+305	2️⃣ Yalnızca Telegram Premium
+306	Aktif
+307	Tamamlanan
+308	Duraklatılan
+309	📋 <b>Görevlerin</b>
+312	👥 Tamamlanan: <b>{v3}/{v4}</b>
+313	💲 Kullanıcı başına: <b>{v5:,.0f}</b> GRAM
+314	💰 Harcanan: <b>{v6:,.0f}</b> · Kalan bütçe: <b>{v7:,.0f}</b>
+315	⚙️ <b>Otomatik görev ayarları</b>
+316	🔁 <b>Otomatik yenileme</b>: bir görev bittiğinde aynı görev yeniden yayınlanır, böylece tanıtımın hiç durmaz.
+317	• En fazla {v0} tekrar
+318	• Her tekrar bakiyenden tahsil edilir
+319	• Bakiye azsa kendiliğinden durur (ve sana haber verir)
+320	Açmak veya kapatmak için bir göreve dokun:
+321	Bu listede henüz bir şey yok.
+322	Yalnızca Telegram Premium
+323	Tüm kullanıcılar
+324	📭 Henüz görevin yok.
+325	🛑 Silmek <b>{v0:,.0f} GRAM</b> iade eder. (Platform komisyonu iade edilmez.)
+326	✅ <b>Tamam! Görev silindi.</b>
+327	İade edilen: <b>{v0:,.1f} GRAM</b> 💲
+328	Bakiyen: <b>{v1:,.1f} GRAM</b> 💰
+329	➕ Yeni görev oluştur
+330	🔁 Otomatik yenileme AÇIK: bu görev bittiğinde {v0} defaya kadar yeniden yayınlanır ve bakiyenden tahsil edilir.
+331	🔁 Otomatik yenileme kapatıldı.
+332	📥 Kanıtları incele ({v0})
+333	🔁 Otomatik yenileme: {v0}
+334	👤 Hedef kitle: {v0}
+335	🗑 Sil ve iade al
+336	⏸ Duraklat
+337	▶️ Devam et
+338	✅ Evet, sil
+339	◀️ Hayır
+340	❌ Premium hedef kitle en az {v0:,} GRAM ödül gerektirir.
+341	👁 Gönderiyi aç, görüntüle, sonra gönderiyi gösteren bir ekran görüntüsü gönder.
+342	🤖 Botu aç ve <b>Start</b> düğmesine bas, sonra bot sohbetinin ekran görüntüsünü gönder.
+343	❤️ Gönderiye tepki ver, sonra tepkini gösteren bir ekran görüntüsü gönder.
+346	💲 Ödül: <b>{v2:,.0f} GRAM</b>
+347	⏳ Reklam veren {v3} saat içinde inceler.
+348	⚠️ Bir ekran görüntüsü iki kez kullanılamaz. Sahte kanıt hesabının engellenmesine neden olabilir.
+349	✅ <b>Kanıt gönderildi</b>
+350	Reklam veren onayladığında <b>{v0:,.0f} GRAM</b> eklenecek.
+351	✅ Kanıtın onaylandı!
+352	💲 +{v0:,.0f} GRAM · 💰 {v1:,.1f}
+353	❌ Kanıtın reddedildi. Bunun yanlış olduğunu düşünüyorsan {v0} saat içinde itiraz edebilirsin — bir yönetici karar verecek.
+354	❌ Bu ekran görüntüsü daha önce kullanıldı. Yenisini gönder.
+355	❌ Bu görev için artık kanıt gönderemezsin.
+356	❌ Tüm kontenjanlar az önce doldu.
+357	❌ Tüm kontenjanlar dolu.
+358	❌ Bu ekran görüntüsü daha önce kullanıldı.
+359	ℹ️ Bu görev için zaten kanıt gönderdin.
+360	⏳ Çok sayıda kanıtın inceleme bekliyor.
+361	⚖️ İtiraz et
+362	🎟 <b>Promosyon kodu</b>
+363	Kodunu gönder:
+364	❌ Geçersiz kod.
+365	❌ Bu kod tamamen kullanıldı.
+366	❌ Bu kodu zaten kullandın.
+367	🎉 Kod kullanıldı! <b>+{v0:,.0f} GRAM</b> eklendi.
+368	💰 Bakiye: <b>{v1:,.0f}</b>
+369	Kanallar
+370	Gruplar
+371	Görüntülemeler
+372	Botlar
+373	Tepkiler
+374	Geçmiş
+375	Promosyon kodu
+376	Kurallar
+377	AÇIK
+378	KAPALI
