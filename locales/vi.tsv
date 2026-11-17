@@ -1,0 +1,370 @@
+# Vietnamese
+0	💰 Thu nhập
+1	📢 Quảng bá
+2	📋 Séc
+3	👤 Tài khoản của tôi
+4	🛡 Kiểm tra đăng ký
+5	📊 Bot & thống kê của chúng tôi
+6	🔗 Liên kết hữu ích
+7	ℹ️ Hướng dẫn
+8	💸 Rút tiền
+9	👋 Chào mừng bạn đến với <b>{bot_name}</b>, {first_name}!
+10	🚀 Hoàn thành nhiệm vụ, kiếm xu GRAM và quảng bá kênh của bạn ngay lập tức!
+11	✅ Đã đổi ngôn ngữ thành công!
+12	⚠️ Vui lòng nhấn /start trước.
+13	⚠️ Vui lòng gửi dưới dạng tin nhắn văn bản.
+14	👤 <b>Tài khoản của bạn:</b>
+15	🆔 ID của tôi: <code>{user_id}</code>
+16	🏅 Cấp độ: {level_emoji} {level}
+17	💰 Số dư: <code>{balance:,.0f}</code> GRAM
+18	⚡ XP: {xp}/{next_xp}
+19	🎯 Nhiệm vụ đã hoàn thành: {tasks}
+20	🪙 Nạp số dư
+21	👥 Hệ thống giới thiệu
+22	📊 Hệ thống cấp độ
+23	📋 Nhiệm vụ của tôi
+24	🌐 Đổi ngôn ngữ
+25	🔕 Tắt thông báo
+26	🔔 Bật thông báo
+27	◀️ Quay lại
+28	🎯 Hiện chưa có nhiệm vụ nào. Hãy quay lại sau!
+29	ℹ️ Bạn chưa đăng ký kênh/cuộc trò chuyện. Hãy đăng ký rồi thử lại.
+30	✅ Nhiệm vụ №{tid} đã hoàn thành
+31	💲 Bạn nhận được +{reward:,.0f} GRAM
+32	💰 Số dư: {balance:,.1f} GRAM
+33	📝 Chọn danh mục nhiệm vụ để kiếm tiền
+34	❌ Bạn đã hoàn thành nhiệm vụ này rồi!
+35	❌ Đã đạt giới hạn nhiệm vụ.
+36	⭐ Nhiệm vụ này chỉ dành cho người dùng Telegram Premium.
+37	🚀 Mở liên kết
+38	✅ Xác minh
+39	◀️ Quay lại danh sách
+40	⭐ Chỉ Premium (2x)
+41	👥 Tất cả người dùng
+42	❌ Số dư không đủ!
+43	Cần: <code>{required:,.0f}</code> GRAM
+44	Số dư của bạn: <code>{balance:,.0f}</code> GRAM
+45	❌ Đã hủy.
+46	🔒 <b>Rút tiền bị khóa</b>
+47	Đạt cấp {required} để mở khóa rút tiền.
+48	Cấp hiện tại của bạn: {current}
+49	💸 <b>Rút tiền</b>
+50	Tối thiểu: <code>{min:,.0f}</code> GRAM
+51	Tối đa: <code>{max:,.0f}</code> GRAM
+52	Gửi số tiền:
+53	❌ Số tiền phải nằm trong khoảng <code>{min:,.0f}</code> đến <code>{max:,.0f}</code> GRAM.
+54	❌ Số dư không đủ.
+55	💳 Chọn phương thức thanh toán:
+56	📝 Gửi thông tin thanh toán (ví/tài khoản):
+57	✅ Đã gửi yêu cầu rút tiền!
+58	Số tiền: <code>{amount:,.0f}</code> GRAM
+59	Trạng thái: Chờ quản trị viên duyệt
+60	📋 <b>Hệ thống séc</b>
+61	Tạo phiếu GRAM để chia sẻ hoặc đổi các phiếu hiện có.
+62	🎫 Tạo séc
+63	💳 Kích hoạt séc
+64	💰 Gửi số GRAM cho mỗi lần kích hoạt:
+65	👥 Gửi số lần kích hoạt:
+66	🔐 Đặt mật khẩu (hoặc nhập <code>skip</code>):
+67	✅ <b>Đã tạo séc!</b>
+68	🎫 Mã: <code>{code}</code>
+69	💰 Số tiền: <code>{amount:,.0f}</code> GRAM
+70	👥 Số lần kích hoạt: {activations}
+71	🔗 Liên kết:
+73	🎫 Gửi mã séc:
+74	🔐 Séc này cần mật khẩu. Hãy gửi mật khẩu:
+75	❌ Mã không hợp lệ hoặc đã hết hạn.
+76	❌ Sai mật khẩu.
+77	✅ Đã đổi séc! +<code>{amount:,.0f}</code> GRAM
+78	👥 <b>Hệ thống giới thiệu</b>
+79	Nhận <code>{base:,.0f}</code> GRAM cho mỗi lượt giới thiệu trực tiếp!
+80	📊 <b>Thưởng theo tầng:</b>
+81	• Tầng 1 (trực tiếp): 8%
+82	• Tầng 2: 5%
+83	• Tầng 3: 2%
+84	📈 Giới thiệu trực tiếp: <code>{direct}</code>
+85	💰 Tổng thu nhập: <code>{earned:,.0f}</code> GRAM
+86	🔗 Liên kết của bạn:
+87	📊 <b>Hệ thống cấp độ</b>
+88	🏅 Cấp độ: {emoji} <code>{level}</code>
+89	⚡ Tổng XP: <code>{xp:,}</code>
+90	📈 Tiến độ: {progress}
+91	💡 Rút tiền được mở khóa ở cấp {min_level}.
+92	📊 <b>Thống kê Boost Gram</b>
+93	👥 Người dùng: <code>{users:,}</code>
+94	📢 Chiến dịch đang chạy: <code>{active:,}</code>
+95	✅ Nhiệm vụ đã hoàn thành: <code>{completed:,}</code>
+96	💎 Tổng đã chi trả: <code>{paid:,.0f}</code> GRAM
+97	⚠️ <b>Quy tắc kiếm tiền</b>
+98	🚫 <b>Cấm:</b>
+99	• Hủy đăng ký trong vòng 7 ngày
+100	• Gỡ bỏ biểu cảm
+101	• Nhiều tài khoản
+102	• Lưu lượng giả / bot
+103	• Công cụ tự động hóa
+104	⚡ <b>Hình phạt:</b>
+105	• Cấm làm nhiệm vụ: 7 ngày
+106	• Tái phạm: thêm 7 ngày
+107	• Thu hồi toàn bộ phần thưởng nhiệm vụ
+108	ℹ️ <b>Cách sử dụng Boost Gram</b>
+109	1️⃣ Hoàn thành nhiệm vụ trong 💰 Thu nhập
+110	2️⃣ Quảng bá kênh của bạn trong 📢 Quảng bá
+111	3️⃣ Tặng/đổi trong 📋 Séc
+112	4️⃣ Quản lý trong 👤 Tài khoản của tôi
+113	5️⃣ Mời bạn bè: 5,000 GRAM + thưởng theo tầng
+114	🔗 <b>Liên kết hữu ích</b>
+115	• Bot: @{bot}
+116	• Hỗ trợ: liên hệ quản trị viên
+117	🛡 <b>Xác minh đăng ký</b>
+118	Mọi đăng ký đều được xác minh trực tiếp qua Telegram Bot API.
+119	📌 Chủ kênh/nhóm phải thêm @{bot} làm <b>quản trị viên</b>.
+120	⚠️ <b>Cảnh báo duy trì!</b>
+121	Bạn đã rời <b>{target}</b> trước 7 ngày.
+122	Hãy tham gia lại ngay để tránh bị phạt:
+124	🚫 <b>Đã áp dụng hình phạt!</b>
+125	Bạn đã rời {target}. Phần thưởng <code>{reward:,.0f}</code> GRAM đã bị thu hồi.
+126	❌ Đã xảy ra lỗi. Hãy thử lại.
+127	⭐ <b>Nạp số dư</b>
+128	Thanh toán bằng Telegram Stars. Chọn một gói:
+129	❌ Tài khoản của bạn đã bị tắt chức năng rút tiền.
+130	⏳ Bạn đã có một yêu cầu rút tiền đang chờ xử lý.
+131	ℹ️ Phần thưởng trong thời gian duy trì 7 ngày không thể rút.
+132	⭐ Bao nhiêu Stars? (1 Star = {v0:,} GRAM)
+133	Gửi một số từ 1 đến 10000:
+134	⏳ Hãy đợi yêu cầu rút tiền trước được xử lý xong.
+135	⭐ Số tiền tùy chọn
+136	💳 bKash / Nagad / Rocket
+137	⏳ Quá nhiều mã không hợp lệ. Hãy thử lại sau một giờ.
+138	⏳ Quá nhiều mật khẩu sai. Hãy thử lại sau.
+139	❌ Gửi một số nguyên từ 1 đến {v0:,.0f}.
+140	✅ Khoản nạp <b>{v0:,.2f} BDT</b> của bạn đã được duyệt.
+141	💲 Đã cộng: <b>{v1:,.0f} GRAM</b>
+142	❌ Không thể xác minh khoản nạp {v0:,.2f} BDT của bạn. Hãy thử lại với TrxID và ảnh chụp màn hình đúng.
+143	💳 <b>Nạp thủ công</b>
+144	Tỷ giá: 1 BDT = <b>{v0:,.0f} GRAM</b>
+145	Tối thiểu {v1:,.0f} · Tối đa {v2:,.0f} BDT
+146	Chọn phương thức thanh toán:
+148	Trước tiên hãy <b>Send Money</b> tới số này:
+150	Sau đó nhập số tiền bạn đã gửi bằng BDT ({v2:,.0f}–{v3:,.0f}):
+151	❌ Đã hủy nạp tiền.
+152	✅ {v0:,.2f} BDT = <b>{v1:,.0f} GRAM</b>
+153	Bây giờ hãy gửi <b>TrxID</b> của khoản thanh toán:
+154	📸 Bây giờ hãy gửi <b>ảnh chụp màn hình</b> của khoản thanh toán.
+155	❌ Vui lòng gửi một ảnh (ảnh chụp màn hình).
+156	Nạp thủ công hiện không khả dụng.
+157	Vui lòng đợi các yêu cầu trước đó được xem xét.
+158	❌ TrxID phải gồm 6–32 chữ cái/chữ số.
+159	❌ TrxID này đã được sử dụng.
+160	✅ <b>Đã gửi yêu cầu</b>
+161	💳 {v0} · {v1:,.2f} BDT
+163	Sau khi quản trị viên xác minh, GRAM sẽ được cộng vào số dư của bạn.
+164	❌ Gửi một số từ {v0:,.0f} đến {v1:,.0f}.
+165	⏳ Hãy đợi các yêu cầu trước đó được xem xét.
+166	❌ Hủy
+167	Đăng ký
+168	Tham gia
+169	Xem
+170	Bắt đầu
+171	Biểu cảm
+172	Tăng cường
+173	🎯 <b>Nhiệm vụ khả dụng</b>
+174	Chạm vào nút để làm nhiệm vụ, sau đó nhấn <b>Xác minh</b> hoặc <b>Bằng chứng</b> (ảnh chụp màn hình).
+175	⚠️ Nhiệm vụ kênh/nhóm/tăng cường phải được duy trì ít nhất {v0} ngày.
+176	💰 Phần thưởng: <code>{v0:,.0f}</code> GRAM
+177	👥 Số suất còn lại: <code>{v1}</code>
+178	⏰ Bạn phải ở lại <b>{v2} ngày</b>, nếu không phần thưởng sẽ bị thu hồi.
+179	1) Chạm <b>Mở</b> rồi tham gia
+180	2) Sau đó chạm <b>Xác minh</b>
+181	❌ Nhiệm vụ này không hoạt động.
+182	Mở
+183	🔜 Loại nhiệm vụ này sẽ mở khi có thể xác minh an toàn.
+184	🚩 <b>Bạn muốn báo cáo nhiệm vụ nào?</b>
+185	Chỉ báo cáo nhiệm vụ giả hoặc gây hiểu lầm.
+186	✅ Đã gửi báo cáo, cảm ơn bạn.
+187	❌ Nhiệm vụ bị tắt đối với tài khoản của bạn.
+188	❌ Bạn không thể hoàn thành chiến dịch của chính mình.
+189	📸 Gửi ảnh chụp màn hình làm bằng chứng cho nhiệm vụ này.
+190	⏳ Đã đạt giới hạn nhiệm vụ hằng ngày. Hãy thử lại vào ngày mai.
+191	Bạn đã báo cáo nhiệm vụ này rồi.
+192	📭 Hiện không còn bài đăng nào.
+193	❌ Hãy mở bài đăng trước.
+194	⏳ Vui lòng đợi một chút.
+195	⏳ Telegram đang bận, hãy thử lại sau giây lát.
+196	⚠️ Nhiệm vụ này tạm thời không khả dụng.
+197	ℹ️ Bạn chưa tăng cường kênh/nhóm này. Hãy tăng cường rồi thử lại.
+198	⭐ Chỉ dành cho người dùng Telegram Premium.
+199	⚠️ Bài đăng này không khả dụng. Hãy thử bài khác.
+200	Bằng chứng
+201	Xác minh
+202	💲 Bạn đã kiếm được <b>{v0:,.0f} GRAM</b> khi xem bài đăng #{v1}!
+203	💰 Số dư của bạn: <b>{v2:,.1f}</b> GRAM
+204	ℹ️ Bạn đã xem bài đăng này rồi.
+205	⚠️ Không thể chuyển tiếp bài đăng của “{v0}” (đã xóa hoặc bị hạn chế chuyển tiếp). Chiến dịch đã được tạm dừng.
+206	Báo cáo
+207	⏳ Đã đạt giới hạn nhiệm vụ hằng ngày.
+208	Bài đăng tiếp theo
+209	Xem bài đăng
+210	📜 <b>Lịch sử giao dịch</b>
+211	Chưa có giao dịch nào.
+212	📢 <b>Bạn muốn quảng bá gì?</b>
+213	💲 Số dư: <b>{b:,.0f} GRAM</b>
+214	🚧 Loại nhiệm vụ này sẽ được bật khi có thể xác minh việc tham gia một cách an toàn.
+215	Menu chính
+216	📢 Kênh
+217	👥 Nhóm
+218	👁 Bài đăng
+219	🤖 Bot
+220	⚡ Tăng cường Premium
+221	❤️ Biểu cảm
+222	⚙️ Cài đặt nhiệm vụ tự động
+223	📋 Nhiệm vụ của tôi
+224	📢 <b>Chọn {v0} để quảng bá</b> (bot phải là quản trị viên ở đó)
+225	🏠 <b>Tôi là quản trị viên</b> — chọn {v0} bạn quản lý
+226	👤 <b>Tôi không phải quản trị viên</b> — chọn bất kỳ {v0} công khai nào, hoặc gửi <code>@username</code> / liên kết của nó
+227	⚠️ Trong cả hai trường hợp, bot phải là <b>quản trị viên</b> ở đó (có quyền mời), nếu không sẽ không thể xác minh thành viên.
+228	🏠 Tôi là quản trị viên
+229	👤 Tôi không phải quản trị viên
+230	🎯 <b>Đối tượng nhiệm vụ</b> — {v0}
+231	<b>1️⃣ Tất cả người dùng</b>
+232	Tiếp cận rộng rãi tất cả người dùng.
+233	💡 Giá tối thiểu: {v1:,} GRAM/đơn vị.
+234	<b>2️⃣ Chỉ Telegram Premium</b>
+235	Chỉ hiển thị cho người dùng Premium — đối tượng chất lượng cao hơn.
+236	💡 Giá tối thiểu: {v2:,} GRAM/đơn vị.
+237	💲 <b>Nhập phần thưởng (GRAM) cho mỗi {v0}</b>
+238	Tối thiểu: <b>{v1:,}</b> · Gợi ý: <b>{v2:,}</b> · Tối đa: <b>{v3:,}</b>
+239	💡 Phần thưởng càng cao càng hoàn thành nhanh. Chạm vào nút hoặc nhập một số.
+240	ℹ️ Hoa hồng tạo nhiệm vụ — <b>{v0:.0f}%</b>
+241	<blockquote>💲 Giá mỗi người đăng ký — {v1:,.0f} GRAM
+242	💰 Số dư của bạn — {v2:,.1f} GRAM</blockquote>
+243	✏️ <b>Nhập số người đăng ký bạn muốn</b>
+244	✅ <b>Sẵn sàng đăng</b>
+246	👥 Người đăng ký: <b>{v1:,}</b> × <b>{v2:,.0f}</b> GRAM = {v3:,.0f}
+247	🏷 Hoa hồng ({v4:.0f}%): {v5:,.0f}
+248	💲 <b>Tổng phí: {v6:,.0f} GRAM</b>
+249	Chạm “Đăng nhiệm vụ” để đăng.
+250	kênh
+251	nhóm
+252	👁 <b>Lượt xem bài đăng</b>
+253	<b>Hãy chuyển tiếp bài đăng bạn muốn quảng bá.</b>
+254	<blockquote>Mở kênh → chọn bài đăng → Chuyển tiếp → @{bot}</blockquote>
+255	Hoặc gửi liên kết bài đăng của một kênh công khai (<code>https://t.me/channel/123</code>).
+256	✅ Người thực hiện xem bài đăng ngay trong bot (cũng được tính vào bộ đếm lượt xem của bài gốc) — không cần ảnh chụp màn hình hay phê duyệt.
+257	❤️ <b>Biểu cảm bài đăng</b>
+258	Gửi liên kết bài đăng trong một kênh công khai.
+259	Ví dụ: <code>https://t.me/channel/123</code>
+260	ℹ️ Người thực hiện gửi ảnh chụp màn hình biểu cảm của họ và bạn phê duyệt.
+261	🤖 <b>Lượt khởi động bot</b>
+262	Gửi liên kết bot của bạn hoặc <code>@username</code> (liên kết giới thiệu cũng dùng được).
+263	Ví dụ: <code>https://t.me/mybot?start=promo</code>
+264	ℹ️ Người thực hiện gửi ảnh chụp màn hình việc khởi động bot và bạn phê duyệt.
+265	nhiệm vụ
+266	⚠️ Số dư không đủ. Hãy nạp trước.
+267	🏠 Menu chính
+268	👆 Người thực hiện sẽ thấy bài đăng của bạn đúng như thế này.
+269	Cho phép tối đa {v0} chiến dịch đang chạy.
+270	❌ Hãy đặt bot làm quản trị viên trong cuộc trò chuyện đó rồi thử lại.
+271	❌ Bạn không phải quản trị viên của cuộc trò chuyện đó. Hãy dùng tùy chọn “Tôi không phải quản trị viên”.
+272	❌ Nhiệm vụ tăng cường cần kênh/nhóm công khai (có username).
+273	❌ Cuộc trò chuyện này đã có chiến dịch đang chạy thuộc loại này.
+274	❌ Bài đăng này đã có chiến dịch đang chạy.
+275	❌ Vui lòng gửi một liên kết ở đây.
+276	❌ Hãy chuyển tiếp một bài đăng từ kênh.
+277	❌ Liên kết này đã có chiến dịch đang chạy.
+278	❌ Hãy gửi <code>@username</code> hoặc liên kết <code>t.me/username</code> hợp lệ (chỉ cuộc trò chuyện công khai).
+279	❌ Đó không phải là {v0}.
+280	người đăng ký
+281	thành viên
+282	lượt xem
+283	lượt khởi động bot
+284	biểu cảm
+285	lượt tăng cường
+286	⏳ Đang tạo nhiệm vụ của bạn, vui lòng đợi...
+287	✅ <b>Đã đăng nhiệm vụ №{v0}</b>
+288	💲 Đã trừ khỏi số dư: {v1:,.1f} GRAM
+289	❌ Bot không phải quản trị viên trong cuộc trò chuyện đó. Hãy thêm làm quản trị viên rồi thử lại.
+290	❌ Bot không thể chuyển tiếp bài đăng này. Kênh phải công khai và cho phép chuyển tiếp, hoặc đặt bot làm quản trị viên của kênh.
+291	❌ Hãy gửi liên kết bot hoặc @username hợp lệ (tên phải kết thúc bằng <code>bot</code>).
+292	❌ Hãy gửi liên kết bài đăng của kênh công khai, ví dụ <code>https://t.me/channel/123</code>.
+293	❌ Đây không phải bài đăng của kênh/nhóm.
+294	❌ Không tìm thấy kênh/nhóm công khai có tên đó.
+295	❌ Hãy gửi một số nguyên.
+296	❌ Gửi một số từ {v0} đến {v1:,}.
+297	❌ Số dư không đủ. Cần {v0:,.0f} GRAM.
+298	❌ Cuộc trò chuyện này đã có chiến dịch.
+299	❌ Bot cần quyền “mời người dùng”.
+300	❌ Không tìm thấy bot có tên đó.
+301	❌ Không tìm thấy kênh công khai đó.
+302	{v0:,} (tối đa theo số dư của bạn)
+303	Đăng nhiệm vụ
+304	1️⃣ Tất cả người dùng
+305	2️⃣ Chỉ Telegram Premium
+306	Đang chạy
+307	Hoàn thành
+308	Tạm dừng
+309	📋 <b>Nhiệm vụ của bạn</b>
+312	👥 Đã xong: <b>{v3}/{v4}</b>
+313	💲 Mỗi người dùng: <b>{v5:,.0f}</b> GRAM
+314	💰 Đã chi: <b>{v6:,.0f}</b> · Ngân sách còn lại: <b>{v7:,.0f}</b>
+315	⚙️ <b>Cài đặt nhiệm vụ tự động</b>
+316	🔁 <b>Tự động gia hạn</b>: khi một nhiệm vụ kết thúc, chính nhiệm vụ đó được đăng lại để chiến dịch quảng bá của bạn không bao giờ dừng.
+317	• Tối đa {v0} lần lặp lại
+318	• Mỗi lần lặp lại bị trừ từ số dư của bạn
+319	• Tự dừng (và báo cho bạn) nếu số dư quá thấp
+320	Chạm vào một nhiệm vụ để bật hoặc tắt:
+321	Danh sách này chưa có gì.
+322	Chỉ Telegram Premium
+323	Tất cả người dùng
+324	📭 Bạn chưa có nhiệm vụ nào.
+325	🛑 Xóa sẽ hoàn lại <b>{v0:,.0f} GRAM</b>. (Hoa hồng nền tảng không được hoàn lại.)
+326	✅ <b>Xong! Đã xóa nhiệm vụ.</b>
+327	Đã hoàn lại: <b>{v0:,.1f} GRAM</b> 💲
+328	Số dư của bạn: <b>{v1:,.1f} GRAM</b> 💰
+329	➕ Tạo nhiệm vụ mới
+330	🔁 Đã BẬT tự động gia hạn: khi nhiệm vụ này kết thúc, nó sẽ được đăng lại tối đa {v0} lần và trừ vào số dư của bạn.
+331	🔁 Đã tắt tự động gia hạn.
+332	📥 Xem xét bằng chứng ({v0})
+333	🔁 Tự động gia hạn: {v0}
+334	👤 Đối tượng: {v0}
+335	🗑 Xóa & hoàn tiền
+336	⏸ Tạm dừng
+337	▶️ Tiếp tục
+338	✅ Có, xóa
+339	◀️ Không
+340	❌ Đối tượng Premium cần phần thưởng tối thiểu {v0:,} GRAM.
+341	👁 Mở bài đăng, xem nó, rồi gửi ảnh chụp màn hình có bài đăng.
+342	🤖 Mở bot và nhấn <b>Start</b>, rồi gửi ảnh chụp màn hình cuộc trò chuyện với bot.
+343	❤️ Thả biểu cảm cho bài đăng, rồi gửi ảnh chụp màn hình có biểu cảm của bạn.
+346	💲 Phần thưởng: <b>{v2:,.0f} GRAM</b>
+347	⏳ Nhà quảng cáo xem xét trong vòng {v3} giờ.
+348	⚠️ Một ảnh chụp màn hình không thể dùng hai lần. Bằng chứng giả có thể khiến tài khoản bị khóa.
+349	✅ <b>Đã gửi bằng chứng</b>
+350	<b>{v0:,.0f} GRAM</b> sẽ được cộng khi nhà quảng cáo phê duyệt.
+351	✅ Bằng chứng của bạn đã được duyệt!
+352	💲 +{v0:,.0f} GRAM · 💰 {v1:,.1f}
+353	❌ Bằng chứng của bạn bị từ chối. Nếu cho rằng sai, bạn có thể khiếu nại trong {v0} giờ — quản trị viên sẽ quyết định.
+354	❌ Ảnh chụp màn hình này đã được dùng. Hãy gửi ảnh mới.
+355	❌ Bạn không thể gửi thêm bằng chứng cho nhiệm vụ này.
+356	❌ Tất cả các suất vừa được lấp đầy.
+357	❌ Tất cả các suất đã đầy.
+358	❌ Ảnh chụp màn hình này đã được dùng.
+359	ℹ️ Bạn đã gửi bằng chứng cho nhiệm vụ này rồi.
+360	⏳ Có quá nhiều bằng chứng của bạn đang chờ xem xét.
+361	⚖️ Khiếu nại
+362	🎟 <b>Mã khuyến mãi</b>
+363	Gửi mã của bạn:
+364	❌ Mã không hợp lệ.
+365	❌ Mã này đã được dùng hết.
+366	❌ Bạn đã dùng mã này rồi.
+367	🎉 Đã đổi mã! Đã cộng <b>+{v0:,.0f} GRAM</b>.
+368	💰 Số dư: <b>{v1:,.0f}</b>
+369	Kênh
+370	Nhóm
+371	Lượt xem
+372	Bot
+373	Biểu cảm
+374	Lịch sử
+375	Mã khuyến mãi
+376	Quy tắc
+377	BẬT
+378	TẮT
