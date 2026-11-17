@@ -1,0 +1,370 @@
+# Uzbek (Latin)
+0	💰 Daromad
+1	📢 Reklama
+2	📋 Cheklar
+3	👤 Mening hisobim
+4	🛡 Obunani tekshirish
+5	📊 Botlarimiz va statistika
+6	🔗 Foydali havolalar
+7	ℹ️ Yo'riqnoma
+8	💸 Pul yechish
+9	👋 <b>{bot_name}</b> ga xush kelibsiz, {first_name}!
+10	🚀 Vazifalarni bajaring, GRAM tangalarini ishlang va kanallaringizni zudlik bilan reklama qiling!
+11	✅ Til muvaffaqiyatli o'zgartirildi!
+12	⚠️ Avval /start ni bosing.
+13	⚠️ Iltimos, buni matnli xabar sifatida yuboring.
+14	👤 <b>Sizning hisobingiz:</b>
+15	🆔 ID raqamim: <code>{user_id}</code>
+16	🏅 Daraja: {level_emoji} {level}
+17	💰 Balans: <code>{balance:,.0f}</code> GRAM
+18	⚡ XP: {xp}/{next_xp}
+19	🎯 Bajarilgan vazifalar: {tasks}
+20	🪙 Balansni to'ldirish
+21	👥 Referal tizimi
+22	📊 Daraja tizimi
+23	📋 Mening vazifalarim
+24	🌐 Tilni o'zgartirish
+25	🔕 Bildirishnomalarni o'chirish
+26	🔔 Bildirishnomalarni yoqish
+27	◀️ Orqaga
+28	🎯 Hozircha faol vazifalar yo'q. Keyinroq qayta tekshiring!
+29	ℹ️ Siz hali kanal/chatga obuna bo'lmagansiz. Obuna bo'ling va qayta urinib ko'ring.
+30	✅ №{tid} vazifa bajarildi
+31	💲 Siz +{reward:,.0f} GRAM oldingiz
+32	💰 Balans: {balance:,.1f} GRAM
+33	📝 Daromad uchun vazifa toifasini tanlang
+34	❌ Siz bu vazifani allaqachon bajargansiz!
+35	❌ Vazifalar limitiga yetildi.
+36	⭐ Bu vazifa faqat Telegram Premium foydalanuvchilari uchun.
+37	🚀 Havolani ochish
+38	✅ Tekshirish
+39	◀️ Ro'yxatga qaytish
+40	⭐ Faqat Premium (2x)
+41	👥 Barcha foydalanuvchilar
+42	❌ Balans yetarli emas!
+43	Kerak: <code>{required:,.0f}</code> GRAM
+44	Sizning balansingiz: <code>{balance:,.0f}</code> GRAM
+45	❌ Bekor qilindi.
+46	🔒 <b>Pul yechish bloklangan</b>
+47	Pul yechishni ochish uchun {required}-darajaga yeting.
+48	Joriy darajangiz: {current}
+49	💸 <b>Pul yechish</b>
+50	Min: <code>{min:,.0f}</code> GRAM
+51	Maks: <code>{max:,.0f}</code> GRAM
+52	Summani yuboring:
+53	❌ Summa <code>{min:,.0f}</code> va <code>{max:,.0f}</code> GRAM oralig'ida bo'lishi kerak.
+54	❌ Balans yetarli emas.
+55	💳 To'lov usulini tanlang:
+56	📝 To'lov ma'lumotlarini (hamyon/hisob) yuboring:
+57	✅ Pul yechish so'rovi yuborildi!
+58	Summa: <code>{amount:,.0f}</code> GRAM
+59	Holati: administrator tasdig'i kutilmoqda
+60	📋 <b>Chek tizimi</b>
+61	Ulashish mumkin bo'lgan GRAM vaucherlarini yarating yoki mavjudlarini faollashtiring.
+62	🎫 Chek yaratish
+63	💳 Chekni faollashtirish
+64	💰 Har bir faollashtirish uchun GRAM summasini yuboring:
+65	👥 Faollashtirishlar sonini yuboring:
+66	🔐 Parol o'rnating (yoki <code>skip</code> deb yozing):
+67	✅ <b>Chek yaratildi!</b>
+68	🎫 Kod: <code>{code}</code>
+69	💰 Summa: <code>{amount:,.0f}</code> GRAM
+70	👥 Faollashtirishlar: {activations}
+71	🔗 Havola:
+73	🎫 Chek kodini yuboring:
+74	🔐 Bu chek parol talab qiladi. Parolni yuboring:
+75	❌ Kod noto'g'ri yoki muddati tugagan.
+76	❌ Parol noto'g'ri.
+77	✅ Chek faollashtirildi! +<code>{amount:,.0f}</code> GRAM
+78	👥 <b>Referal tizimi</b>
+79	Har bir bevosita referal uchun <code>{base:,.0f}</code> GRAM ishlang!
+80	📊 <b>Bosqichli bonuslar:</b>
+81	• 1-bosqich (bevosita): 8%
+82	• 2-bosqich: 5%
+83	• 3-bosqich: 2%
+84	📈 Bevosita referallar: <code>{direct}</code>
+85	💰 Jami daromad: <code>{earned:,.0f}</code> GRAM
+86	🔗 Sizning havolangiz:
+87	📊 <b>Daraja tizimi</b>
+88	🏅 Daraja: {emoji} <code>{level}</code>
+89	⚡ Jami XP: <code>{xp:,}</code>
+90	📈 Jarayon: {progress}
+91	💡 Pul yechish {min_level}-darajada ochiladi.
+92	📊 <b>Boost Gram statistikasi</b>
+93	👥 Foydalanuvchilar: <code>{users:,}</code>
+94	📢 Faol kampaniyalar: <code>{active:,}</code>
+95	✅ Bajarilgan vazifalar: <code>{completed:,}</code>
+96	💎 Jami to'langan: <code>{paid:,.0f}</code> GRAM
+97	⚠️ <b>Daromad qoidalari</b>
+98	🚫 <b>Taqiqlangan:</b>
+99	• 7 kun ichida obunani bekor qilish
+100	• Reaksiyalarni olib tashlash
+101	• Bir nechta hisob
+102	• Soxta trafik / botlar
+103	• Avtomatlashtirish vositalari
+104	⚡ <b>Jarimalar:</b>
+105	• Vazifalarga taqiq: 7 kun
+106	• Takrorlansa: yana 7 kun
+107	• Vazifa mukofotini to'liq bekor qilish
+108	ℹ️ <b>Boost Gram'dan qanday foydalanish</b>
+109	1️⃣ 💰 Daromad bo'limida vazifalarni bajaring
+110	2️⃣ 📢 Reklama bo'limida kanalingizni reklama qiling
+111	3️⃣ 📋 Cheklar bo'limida sovg'a qiling/faollashtiring
+112	4️⃣ 👤 Mening hisobim bo'limida boshqaring
+113	5️⃣ Do'stlarni taklif qiling: 5,000 GRAM + bosqichli bonuslar
+114	🔗 <b>Foydali havolalar</b>
+115	• Bot: @{bot}
+116	• Yordam: administrator bilan bog'laning
+117	🛡 <b>Obunani tasdiqlash</b>
+118	Barcha obunalar Telegram Bot API orqali real vaqtda tekshiriladi.
+119	📌 Kanal/guruh egasi @{bot} ni <b>administrator</b> qilib qo'shishi kerak.
+120	⚠️ <b>Saqlash haqida ogohlantirish!</b>
+121	Siz <b>{target}</b> dan 7 kundan oldin chiqib ketdingiz.
+122	Jarimadan qochish uchun hoziroq qayta qo'shiling:
+124	🚫 <b>Jarima qo'llandi!</b>
+125	Siz {target} dan chiqib ketdingiz. <code>{reward:,.0f}</code> GRAM mukofoti bekor qilindi.
+126	❌ Xatolik yuz berdi. Qayta urinib ko'ring.
+127	⭐ <b>Balansni to'ldirish</b>
+128	Telegram Stars orqali to'lang. Paketni tanlang:
+129	❌ Hisobingiz uchun pul yechish o'chirilgan.
+130	⏳ Sizda allaqachon kutilayotgan pul yechish so'rovi bor.
+131	ℹ️ 7 kunlik saqlash muddatidagi mukofotlarni yechib bo'lmaydi.
+132	⭐ Nechta Stars? (1 Star = {v0:,} GRAM)
+133	1 dan 10000 gacha son yuboring:
+134	⏳ Oldingi pul yechish ko'rib chiqilguncha kuting.
+135	⭐ Boshqa summa
+136	💳 bKash / Nagad / Rocket
+137	⏳ Noto'g'ri kodlar juda ko'p. Bir soatdan keyin qayta urinib ko'ring.
+138	⏳ Noto'g'ri parollar juda ko'p. Keyinroq urinib ko'ring.
+139	❌ 1 dan {v0:,.0f} gacha butun son yuboring.
+140	✅ <b>{v0:,.2f} BDT</b> depozitingiz tasdiqlandi.
+141	💲 Qo'shildi: <b>{v1:,.0f} GRAM</b>
+142	❌ {v0:,.2f} BDT depozitingizni tasdiqlab bo'lmadi. To'g'ri TrxID va skrinshot bilan qayta urinib ko'ring.
+143	💳 <b>Qo'lda depozit</b>
+144	Kurs: 1 BDT = <b>{v0:,.0f} GRAM</b>
+145	Min {v1:,.0f} · Maks {v2:,.0f} BDT
+146	To'lov usulini tanlang:
+148	Avval shu raqamga <b>Send Money</b> qiling:
+150	Keyin yuborgan summangizni BDT da kiriting ({v2:,.0f}–{v3:,.0f}):
+151	❌ Depozit bekor qilindi.
+152	✅ {v0:,.2f} BDT = <b>{v1:,.0f} GRAM</b>
+153	Endi to'lovning <b>TrxID</b> sini yuboring:
+154	📸 Endi to'lovning <b>skrinshotini</b> yuboring.
+155	❌ Iltimos, rasm (skrinshot) yuboring.
+156	Qo'lda depozit hozircha mavjud emas.
+157	Oldingi so'rovlar ko'rib chiqilguncha kuting.
+158	❌ TrxID 6–32 ta harf/raqamdan iborat bo'lishi kerak.
+159	❌ Bu TrxID allaqachon ishlatilgan.
+160	✅ <b>So'rov yuborildi</b>
+161	💳 {v0} · {v1:,.2f} BDT
+163	Administrator tasdiqlagach, GRAM balansingizga qo'shiladi.
+164	❌ {v0:,.0f} dan {v1:,.0f} gacha son yuboring.
+165	⏳ Oldingi so'rovlar ko'rib chiqilguncha kuting.
+166	❌ Bekor qilish
+167	Obuna bo'lish
+168	Qo'shilish
+169	Ko'rish
+170	Boshlash
+171	Reaksiya
+172	Boost
+173	🎯 <b>Mavjud vazifalar</b>
+174	Vazifani bajarish uchun tugmani bosing, so'ng <b>Tekshirish</b> yoki <b>Isbot</b> (skrinshot) tugmasini bosing.
+175	⚠️ Kanal/guruh/boost vazifalarini kamida {v0} kun saqlash kerak.
+176	💰 Mukofot: <code>{v0:,.0f}</code> GRAM
+177	👥 Qolgan o'rinlar: <code>{v1}</code>
+178	⏰ Siz <b>{v2} kun</b> qolishingiz kerak, aks holda mukofot bekor qilinadi.
+179	1) <b>Ochish</b> tugmasini bosing va qo'shiling
+180	2) So'ng <b>Tekshirish</b> tugmasini bosing
+181	❌ Bu vazifa faol emas.
+182	Ochish
+183	🔜 Bu vazifa turi xavfsiz tekshirish mumkin bo'lganda ochiladi.
+184	🚩 <b>Qaysi vazifa ustidan shikoyat qilmoqchisiz?</b>
+185	Faqat soxta yoki chalg'ituvchi vazifalar haqida xabar bering.
+186	✅ Shikoyat yuborildi, rahmat.
+187	❌ Hisobingiz uchun vazifalar o'chirilgan.
+188	❌ O'zingizning kampaniyangizni bajara olmaysiz.
+189	📸 Bu vazifa uchun isbot sifatida skrinshot yuboring.
+190	⏳ Kunlik vazifalar limitiga yetildi. Ertaga urinib ko'ring.
+191	Siz bu vazifa haqida allaqachon xabar bergansiz.
+192	📭 Hozircha boshqa postlar yo'q.
+193	❌ Avval postni oching.
+194	⏳ Iltimos, biroz kuting.
+195	⏳ Telegram band, birozdan keyin qayta urinib ko'ring.
+196	⚠️ Bu vazifa vaqtincha mavjud emas.
+197	ℹ️ Siz hali bu kanal/guruhni boost qilmagansiz. Boost qiling va qayta urinib ko'ring.
+198	⭐ Faqat Telegram Premium foydalanuvchilari uchun.
+199	⚠️ Bu post mavjud emas. Boshqasini sinab ko'ring.
+200	Isbot
+201	Tekshirish
+202	💲 #{v1} postni ko'rganingiz uchun <b>{v0:,.0f} GRAM</b> ishladingiz!
+203	💰 Sizning balansingiz: <b>{v2:,.1f}</b> GRAM
+204	ℹ️ Siz bu postni allaqachon ko'rgansiz.
+205	⚠️ “{v0}” postini yo'naltirib bo'lmaydi (o'chirilgan yoki yo'naltirish cheklangan). Kampaniya to'xtatildi.
+206	Shikoyat
+207	⏳ Kunlik vazifalar limitiga yetildi.
+208	Keyingi post
+209	Postni ko'rish
+210	📜 <b>Tranzaksiyalar tarixi</b>
+211	Hozircha tranzaksiyalar yo'q.
+212	📢 <b>Nimani reklama qilmoqchisiz?</b>
+213	💲 Balans: <b>{b:,.0f} GRAM</b>
+214	🚧 Bu vazifa turi ishtirokni xavfsiz tekshirish mumkin bo'lganda yoqiladi.
+215	Asosiy menyu
+216	📢 Kanal
+217	👥 Guruh
+218	👁 Post
+219	🤖 Bot
+220	⚡ Premium boost
+221	❤️ Reaksiya
+222	⚙️ Avtomatik vazifalar sozlamalari
+223	📋 Mening vazifalarim
+224	📢 <b>Reklama qilish uchun {v0}ni tanlang</b> (bot u yerda administrator bo'lishi kerak)
+225	🏠 <b>Men administratorman</b> — o'zingiz boshqaradigan {v0}ni tanlang
+226	👤 <b>Men administrator emasman</b> — istalgan ochiq {v0}ni tanlang yoki uning <code>@username</code> / havolasini yuboring
+227	⚠️ Ikkala holatda ham bot u yerda <b>administrator</b> bo'lishi kerak (taklif qilish huquqi bilan), aks holda a'zolarni tekshirib bo'lmaydi.
+228	🏠 Men administratorman
+229	👤 Men administrator emasman
+230	🎯 <b>Vazifa auditoriyasi</b> — {v0}
+231	<b>1️⃣ Barcha foydalanuvchilar</b>
+232	Barcha foydalanuvchilar orasida keng qamrov.
+233	💡 Minimal narx: {v1:,} GRAM/birlik.
+234	<b>2️⃣ Faqat Telegram Premium</b>
+235	Faqat Premium foydalanuvchilarga ko'rsatiladi — sifatliroq auditoriya.
+236	💡 Minimal narx: {v2:,} GRAM/birlik.
+237	💲 <b>Har bir {v0} uchun mukofotni (GRAM) kiriting</b>
+238	Min: <b>{v1:,}</b> · Tavsiya: <b>{v2:,}</b> · Maks: <b>{v3:,}</b>
+239	💡 Mukofot qancha yuqori bo'lsa, vazifa shuncha tez bajariladi. Tugmani bosing yoki son kiriting.
+240	ℹ️ Vazifa yaratish komissiyasi — <b>{v0:.0f}%</b>
+241	<blockquote>💲 Obunachi uchun narx — {v1:,.0f} GRAM
+242	💰 Sizning balansingiz — {v2:,.1f} GRAM</blockquote>
+243	✏️ <b>Nechta obunachi kerakligini yozing</b>
+244	✅ <b>Nashr etishga tayyor</b>
+246	👥 Obunachilar: <b>{v1:,}</b> × <b>{v2:,.0f}</b> GRAM = {v3:,.0f}
+247	🏷 Komissiya ({v4:.0f}%): {v5:,.0f}
+248	💲 <b>Jami to'lov: {v6:,.0f} GRAM</b>
+249	Joylash uchun “Vazifani nashr etish” tugmasini bosing.
+250	kanal
+251	guruh
+252	👁 <b>Post ko'rishlari</b>
+253	<b>Reklama qilmoqchi bo'lgan postingizni yo'naltiring.</b>
+254	<blockquote>Kanalni oching → postni tanlang → Yo'naltirish → @{bot}</blockquote>
+255	Yoki ochiq kanal postining havolasini yuboring (<code>https://t.me/channel/123</code>).
+256	✅ Ijrochilar postni bot ichida to'g'ridan-to'g'ri ko'radi (bu asl postning ko'rishlar hisoblagichiga ham qo'shiladi) — skrinshot yoki tasdiqlash shart emas.
+257	❤️ <b>Post reaksiyalari</b>
+258	Ochiq kanaldagi postning havolasini yuboring.
+259	Misol: <code>https://t.me/channel/123</code>
+260	ℹ️ Ijrochilar reaksiyasi ko'ringan skrinshotni yuboradi, siz uni tasdiqlaysiz.
+261	🤖 <b>Botni ishga tushirish</b>
+262	Botingiz havolasini yoki <code>@username</code> ni yuboring (referal havolalar ham ishlaydi).
+263	Misol: <code>https://t.me/mybot?start=promo</code>
+264	ℹ️ Ijrochilar botni ishga tushirgan skrinshotni yuboradi, siz uni tasdiqlaysiz.
+265	vazifa
+266	⚠️ Balans yetarli emas. Avval to'ldiring.
+267	🏠 Asosiy menyu
+268	👆 Ijrochilar postingizni aynan shunday ko'radi.
+269	Ko'pi bilan {v0} ta faol kampaniyaga ruxsat beriladi.
+270	❌ Botni o'sha chatda administrator qiling va qayta urinib ko'ring.
+271	❌ Siz o'sha chatning administratori emassiz. “Men administrator emasman” variantidan foydalaning.
+272	❌ Boost vazifalari uchun ochiq kanal/guruh (username bilan) kerak.
+273	❌ Bu chatda allaqachon shu turdagi faol kampaniya bor.
+274	❌ Bu postda allaqachon faol kampaniya bor.
+275	❌ Iltimos, bu yerga havola yuboring.
+276	❌ Kanaldagi postni yo'naltiring.
+277	❌ Bu havolada allaqachon faol kampaniya bor.
+278	❌ To'g'ri <code>@username</code> yoki <code>t.me/username</code> havolasini yuboring (faqat ochiq chatlar).
+279	❌ Bu {v0} emas.
+280	obunachi
+281	a'zo
+282	ko'rish
+283	botni ishga tushirish
+284	reaksiya
+285	boost
+286	⏳ Vazifangiz yaratilmoqda, iltimos kuting...
+287	✅ <b>№{v0} vazifa nashr etildi</b>
+288	💲 Balansdan yechildi: {v1:,.1f} GRAM
+289	❌ Bot o'sha chatda administrator emas. Uni administrator sifatida qo'shing va qayta urinib ko'ring.
+290	❌ Bot bu postni yo'naltira olmaydi. Kanal ochiq va yo'naltirishga ruxsat berilgan bo'lishi kerak, yoki botni kanal administratori qiling.
+291	❌ To'g'ri bot havolasi yoki @username yuboring (nomi <code>bot</code> bilan tugashi kerak).
+292	❌ Ochiq kanal postining havolasini yuboring, masalan <code>https://t.me/channel/123</code>.
+293	❌ Bu kanal/guruh posti emas.
+294	❌ Bunday nomli ochiq kanal/guruh topilmadi.
+295	❌ Butun son yuboring.
+296	❌ {v0} dan {v1:,} gacha son yuboring.
+297	❌ Balans yetarli emas. {v0:,.0f} GRAM kerak.
+298	❌ Bu chat uchun kampaniya allaqachon mavjud.
+299	❌ Botga “foydalanuvchilarni taklif qilish” huquqi kerak.
+300	❌ Bunday nomli bot topilmadi.
+301	❌ Bu ochiq kanal topilmadi.
+302	{v0:,} (balansingiz uchun maksimum)
+303	Vazifani nashr etish
+304	1️⃣ Barcha foydalanuvchilar
+305	2️⃣ Faqat Telegram Premium
+306	Faol
+307	Tugallangan
+308	To'xtatilgan
+309	📋 <b>Sizning vazifalaringiz</b>
+312	👥 Bajarildi: <b>{v3}/{v4}</b>
+313	💲 Foydalanuvchi uchun: <b>{v5:,.0f}</b> GRAM
+314	💰 Sarflandi: <b>{v6:,.0f}</b> · Qolgan byudjet: <b>{v7:,.0f}</b>
+315	⚙️ <b>Avtomatik vazifalar sozlamalari</b>
+316	🔁 <b>Avtomatik yangilash</b>: vazifa tugaganda xuddi shu vazifa qayta nashr etiladi, shunda reklamangiz hech qachon to'xtamaydi.
+317	• {v0} martagacha takrorlanadi
+318	• Har bir takrorlash balansingizdan yechiladi
+319	• Balans kam bo'lsa o'zi to'xtaydi (va sizga xabar beradi)
+320	Yoqish yoki o'chirish uchun vazifani bosing:
+321	Bu ro'yxatda hozircha hech narsa yo'q.
+322	Faqat Telegram Premium
+323	Barcha foydalanuvchilar
+324	📭 Sizda hali vazifalar yo'q.
+325	🛑 O'chirish <b>{v0:,.0f} GRAM</b> qaytaradi. (Platforma komissiyasi qaytarilmaydi.)
+326	✅ <b>Tayyor! Vazifa o'chirildi.</b>
+327	Qaytarildi: <b>{v0:,.1f} GRAM</b> 💲
+328	Sizning balansingiz: <b>{v1:,.1f} GRAM</b> 💰
+329	➕ Yangi vazifa yaratish
+330	🔁 Avtomatik yangilash YOQILDI: bu vazifa tugaganda {v0} martagacha qayta nashr etiladi va balansingizdan yechiladi.
+331	🔁 Avtomatik yangilash o'chirildi.
+332	📥 Isbotlarni ko'rib chiqish ({v0})
+333	🔁 Avtomatik yangilash: {v0}
+334	👤 Auditoriya: {v0}
+335	🗑 O'chirish va pulni qaytarish
+336	⏸ To'xtatish
+337	▶️ Davom ettirish
+338	✅ Ha, o'chirish
+339	◀️ Yo'q
+340	❌ Premium auditoriya uchun kamida {v0:,} GRAM mukofot kerak.
+341	👁 Postni oching, ko'ring, so'ng postni ko'rsatgan skrinshot yuboring.
+342	🤖 Botni oching va <b>Start</b> ni bosing, so'ng bot bilan chat skrinshotini yuboring.
+343	❤️ Postga reaksiya bildiring, so'ng reaksiyangiz ko'ringan skrinshot yuboring.
+346	💲 Mukofot: <b>{v2:,.0f} GRAM</b>
+347	⏳ Reklama beruvchi {v3} soat ichida ko'rib chiqadi.
+348	⚠️ Bitta skrinshotni ikki marta ishlatib bo'lmaydi. Soxta isbot hisobingiz bloklanishiga olib kelishi mumkin.
+349	✅ <b>Isbot yuborildi</b>
+350	Reklama beruvchi tasdiqlagach, <b>{v0:,.0f} GRAM</b> qo'shiladi.
+351	✅ Isbotingiz tasdiqlandi!
+352	💲 +{v0:,.0f} GRAM · 💰 {v1:,.1f}
+353	❌ Isbotingiz rad etildi. Agar bu xato deb hisoblasangiz, {v0} soat ichida e'tiroz bildirishingiz mumkin — administrator hal qiladi.
+354	❌ Bu skrinshot allaqachon ishlatilgan. Yangisini yuboring.
+355	❌ Siz bu vazifa uchun endi isbot yubora olmaysiz.
+356	❌ Barcha o'rinlar hozirgina band bo'ldi.
+357	❌ Barcha o'rinlar band.
+358	❌ Bu skrinshot allaqachon ishlatilgan.
+359	ℹ️ Siz bu vazifa uchun allaqachon isbot yuborgansiz.
+360	⏳ Ko'rib chiqishni kutayotgan isbotlaringiz juda ko'p.
+361	⚖️ E'tiroz bildirish
+362	🎟 <b>Promokod</b>
+363	Kodingizni yuboring:
+364	❌ Kod noto'g'ri.
+365	❌ Bu kod to'liq ishlatib bo'lingan.
+366	❌ Siz bu koddan allaqachon foydalangansiz.
+367	🎉 Kod faollashtirildi! <b>+{v0:,.0f} GRAM</b> qo'shildi.
+368	💰 Balans: <b>{v1:,.0f}</b>
+369	Kanallar
+370	Guruhlar
+371	Ko'rishlar
+372	Botlar
+373	Reaksiyalar
+374	Tarix
+375	Promokod
+376	Qoidalar
+377	YOQILGAN
+378	O'CHIRILGAN
