@@ -1,0 +1,370 @@
+# Portuguese (Brazil)
+0	💰 Ganhos
+1	📢 Promover
+2	📋 Cheques
+3	👤 Minha conta
+4	🛡 Verificação de inscrição
+5	📊 Nossos bots e estatísticas
+6	🔗 Links úteis
+7	ℹ️ Instruções
+8	💸 Sacar
+9	👋 Bem-vindo ao <b>{bot_name}</b>, {first_name}!
+10	🚀 Complete tarefas, ganhe moedas GRAM e promova seus canais na hora!
+11	✅ Idioma alterado com sucesso!
+12	⚠️ Toque em /start primeiro.
+13	⚠️ Envie isto como mensagem de texto.
+14	👤 <b>Sua conta:</b>
+15	🆔 Meu ID: <code>{user_id}</code>
+16	🏅 Nível: {level_emoji} {level}
+17	💰 Saldo: <code>{balance:,.0f}</code> GRAM
+18	⚡ XP: {xp}/{next_xp}
+19	🎯 Tarefas concluídas: {tasks}
+20	🪙 Recarregar saldo
+21	👥 Sistema de indicação
+22	📊 Sistema de níveis
+23	📋 Minhas tarefas
+24	🌐 Mudar idioma
+25	🔕 Desativar notificações
+26	🔔 Ativar notificações
+27	◀️ Voltar
+28	🎯 Nenhuma tarefa ativa no momento. Volte em breve!
+29	ℹ️ Você ainda não se inscreveu no canal/chat. Inscreva-se e tente novamente.
+30	✅ Tarefa №{tid} concluída
+31	💲 Você recebeu +{reward:,.0f} GRAM
+32	💰 Saldo: {balance:,.1f} GRAM
+33	📝 Escolha uma categoria de tarefa para ganhar
+34	❌ Você já concluiu esta tarefa!
+35	❌ Limite de tarefas atingido.
+36	⭐ Esta tarefa é apenas para usuários do Telegram Premium.
+37	🚀 Abrir link
+38	✅ Verificar
+39	◀️ Voltar à lista
+40	⭐ Somente Premium (2x)
+41	👥 Todos os usuários
+42	❌ Saldo insuficiente!
+43	Necessário: <code>{required:,.0f}</code> GRAM
+44	Seu saldo: <code>{balance:,.0f}</code> GRAM
+45	❌ Cancelado.
+46	🔒 <b>Saque bloqueado</b>
+47	Alcance o nível {required} para liberar saques.
+48	Seu nível atual: {current}
+49	💸 <b>Saque</b>
+50	Mín.: <code>{min:,.0f}</code> GRAM
+51	Máx.: <code>{max:,.0f}</code> GRAM
+52	Envie o valor:
+53	❌ O valor deve estar entre <code>{min:,.0f}</code> e <code>{max:,.0f}</code> GRAM.
+54	❌ Saldo insuficiente.
+55	💳 Escolha a forma de pagamento:
+56	📝 Envie os dados de pagamento (carteira/conta):
+57	✅ Pedido de saque enviado!
+58	Valor: <code>{amount:,.0f}</code> GRAM
+59	Status: aguardando aprovação do administrador
+60	📋 <b>Sistema de cheques</b>
+61	Crie vales GRAM para compartilhar ou resgate os existentes.
+62	🎫 Criar cheque
+63	💳 Ativar cheque
+64	💰 Envie o valor de GRAM por ativação:
+65	👥 Envie o número de ativações:
+66	🔐 Defina uma senha (ou digite <code>skip</code>):
+67	✅ <b>Cheque criado!</b>
+68	🎫 Código: <code>{code}</code>
+69	💰 Valor: <code>{amount:,.0f}</code> GRAM
+70	👥 Ativações: {activations}
+71	🔗 Link:
+73	🎫 Envie o código do cheque:
+74	🔐 Este cheque exige senha. Envie-a:
+75	❌ Código inválido ou expirado.
+76	❌ Senha incorreta.
+77	✅ Cheque resgatado! +<code>{amount:,.0f}</code> GRAM
+78	👥 <b>Sistema de indicação</b>
+79	Ganhe <code>{base:,.0f}</code> GRAM por cada indicação direta!
+80	📊 <b>Bônus por níveis:</b>
+81	• Nível 1 (direto): 8%
+82	• Nível 2: 5%
+83	• Nível 3: 2%
+84	📈 Indicações diretas: <code>{direct}</code>
+85	💰 Total ganho: <code>{earned:,.0f}</code> GRAM
+86	🔗 Seu link:
+87	📊 <b>Sistema de níveis</b>
+88	🏅 Nível: {emoji} <code>{level}</code>
+89	⚡ XP total: <code>{xp:,}</code>
+90	📈 Progresso: {progress}
+91	💡 O saque é liberado no nível {min_level}.
+92	📊 <b>Estatísticas do Boost Gram</b>
+93	👥 Usuários: <code>{users:,}</code>
+94	📢 Campanhas ativas: <code>{active:,}</code>
+95	✅ Tarefas concluídas: <code>{completed:,}</code>
+96	💎 Total pago: <code>{paid:,.0f}</code> GRAM
+97	⚠️ <b>Regras de ganhos</b>
+98	🚫 <b>Proibido:</b>
+99	• Cancelar a inscrição em menos de 7 dias
+100	• Remover reações
+101	• Várias contas
+102	• Tráfego falso / bots
+103	• Ferramentas de automação
+104	⚡ <b>Penalidades:</b>
+105	• Banimento de tarefas: 7 dias
+106	• Em caso de reincidência: mais 7 dias
+107	• Revogação total da recompensa da tarefa
+108	ℹ️ <b>Como usar o Boost Gram</b>
+109	1️⃣ Complete tarefas em 💰 Ganhos
+110	2️⃣ Promova seu canal em 📢 Promover
+111	3️⃣ Presenteie/resgate em 📋 Cheques
+112	4️⃣ Gerencie em 👤 Minha conta
+113	5️⃣ Convide amigos: 5,000 GRAM + bônus por níveis
+114	🔗 <b>Links úteis</b>
+115	• Bot: @{bot}
+116	• Suporte: fale com o administrador
+117	🛡 <b>Verificação de inscrições</b>
+118	Todas as inscrições são verificadas ao vivo pela Telegram Bot API.
+119	📌 O dono do canal/grupo deve adicionar @{bot} como <b>administrador</b>.
+120	⚠️ <b>Aviso de permanência!</b>
+121	Você saiu de <b>{target}</b> antes de 7 dias.
+122	Entre novamente agora para evitar a penalidade:
+124	🚫 <b>Penalidade aplicada!</b>
+125	Você saiu de {target}. A recompensa de <code>{reward:,.0f}</code> GRAM foi revogada.
+126	❌ Algo deu errado. Tente novamente.
+127	⭐ <b>Recarregar saldo</b>
+128	Pague com Telegram Stars. Escolha um pacote:
+129	❌ Os saques estão desativados para sua conta.
+130	⏳ Você já tem um saque pendente.
+131	ℹ️ Recompensas dentro do período de permanência de 7 dias não podem ser sacadas.
+132	⭐ Quantas Stars? (1 Star = {v0:,} GRAM)
+133	Envie um número de 1 a 10000:
+134	⏳ Aguarde o processamento do saque anterior.
+135	⭐ Valor personalizado
+136	💳 bKash / Nagad / Rocket
+137	⏳ Muitos códigos inválidos. Tente novamente em uma hora.
+138	⏳ Muitas senhas incorretas. Tente novamente mais tarde.
+139	❌ Envie um número inteiro entre 1 e {v0:,.0f}.
+140	✅ Seu depósito de <b>{v0:,.2f} BDT</b> foi aprovado.
+141	💲 Adicionado: <b>{v1:,.0f} GRAM</b>
+142	❌ Não foi possível verificar seu depósito de {v0:,.2f} BDT. Tente novamente com o TrxID e a captura de tela corretos.
+143	💳 <b>Depósito manual</b>
+144	Taxa: 1 BDT = <b>{v0:,.0f} GRAM</b>
+145	Mín. {v1:,.0f} · Máx. {v2:,.0f} BDT
+146	Escolha uma forma de pagamento:
+148	Primeiro faça um <b>Send Money</b> para este número:
+150	Depois informe o valor enviado em BDT ({v2:,.0f}–{v3:,.0f}):
+151	❌ Depósito cancelado.
+152	✅ {v0:,.2f} BDT = <b>{v1:,.0f} GRAM</b>
+153	Agora envie o <b>TrxID</b> do pagamento:
+154	📸 Agora envie uma <b>captura de tela</b> do pagamento.
+155	❌ Envie uma foto (captura de tela).
+156	Depósitos manuais estão indisponíveis no momento.
+157	Aguarde a análise dos seus pedidos anteriores.
+158	❌ O TrxID deve ter de 6 a 32 letras/dígitos.
+159	❌ Este TrxID já foi usado.
+160	✅ <b>Pedido enviado</b>
+161	💳 {v0} · {v1:,.2f} BDT
+163	Depois que um administrador verificar, os GRAM serão adicionados ao seu saldo.
+164	❌ Envie um número entre {v0:,.0f} e {v1:,.0f}.
+165	⏳ Aguarde a análise dos seus pedidos anteriores.
+166	❌ Cancelar
+167	Inscrever-se
+168	Entrar
+169	Ver
+170	Iniciar
+171	Reagir
+172	Impulsionar
+173	🎯 <b>Tarefas disponíveis</b>
+174	Toque no botão para fazer a tarefa e depois em <b>Verificar</b> ou <b>Prova</b> (captura de tela).
+175	⚠️ Tarefas de canal/grupo/impulso devem ser mantidas por pelo menos {v0} dias.
+176	💰 Recompensa: <code>{v0:,.0f}</code> GRAM
+177	👥 Vagas restantes: <code>{v1}</code>
+178	⏰ Você deve permanecer por <b>{v2} dias</b>, caso contrário a recompensa é revogada.
+179	1) Toque em <b>Abrir</b> e entre
+180	2) Depois toque em <b>Verificar</b>
+181	❌ Esta tarefa não está ativa.
+182	Abrir
+183	🔜 Este tipo de tarefa será aberto quando puder ser verificado com segurança.
+184	🚩 <b>Qual tarefa você quer denunciar?</b>
+185	Denuncie apenas tarefas falsas ou enganosas.
+186	✅ Denúncia enviada, obrigado.
+187	❌ As tarefas estão desativadas para sua conta.
+188	❌ Você não pode concluir sua própria campanha.
+189	📸 Envie uma captura de tela como prova desta tarefa.
+190	⏳ Limite diário de tarefas atingido. Tente novamente amanhã.
+191	Você já denunciou esta tarefa.
+192	📭 Não há mais publicações no momento.
+193	❌ Abra a publicação primeiro.
+194	⏳ Aguarde um momento.
+195	⏳ O Telegram está ocupado, tente novamente em instantes.
+196	⚠️ Esta tarefa está temporariamente indisponível.
+197	ℹ️ Você ainda não impulsionou este canal/grupo. Impulsione e tente novamente.
+198	⭐ Apenas para usuários do Telegram Premium.
+199	⚠️ Esta publicação não está disponível. Tente outra.
+200	Prova
+201	Verificar
+202	💲 Você ganhou <b>{v0:,.0f} GRAM</b> por ver a publicação #{v1}!
+203	💰 Seu saldo: <b>{v2:,.1f}</b> GRAM
+204	ℹ️ Você já viu esta publicação.
+205	⚠️ A publicação de “{v0}” não pode ser encaminhada (excluída ou encaminhamento restrito). A campanha foi pausada.
+206	Denunciar
+207	⏳ Limite diário de tarefas atingido.
+208	Próxima publicação
+209	Ver publicação
+210	📜 <b>Histórico de transações</b>
+211	Ainda não há transações.
+212	📢 <b>O que você quer promover?</b>
+213	💲 Saldo: <b>{b:,.0f} GRAM</b>
+214	🚧 Este tipo de tarefa será ativado quando a participação puder ser verificada com segurança.
+215	Menu principal
+216	📢 Canal
+217	👥 Grupo
+218	👁 Publicação
+219	🤖 Bot
+220	⚡ Impulso Premium
+221	❤️ Reação
+222	⚙️ Configurações de tarefas automáticas
+223	📋 Minhas tarefas
+224	📢 <b>Escolha um {v0} para promover</b> (o bot precisa ser administrador lá)
+225	🏠 <b>Sou administrador</b> — escolha um {v0} que você administra
+226	👤 <b>Não sou administrador</b> — escolha qualquer {v0} público ou envie o <code>@username</code> / link dele
+227	⚠️ Nos dois casos o bot precisa ser <b>administrador</b> lá (com permissão de convidar); caso contrário os membros não podem ser verificados.
+228	🏠 Sou administrador
+229	👤 Não sou administrador
+230	🎯 <b>Público da tarefa</b> — {v0}
+231	<b>1️⃣ Todos os usuários</b>
+232	Amplo alcance entre todos os usuários.
+233	💡 Preço mínimo: {v1:,} GRAM/unidade.
+234	<b>2️⃣ Somente Telegram Premium</b>
+235	Exibido apenas para usuários Premium — um público de maior qualidade.
+236	💡 Preço mínimo: {v2:,} GRAM/unidade.
+237	💲 <b>Informe a recompensa (GRAM) por {v0}</b>
+238	Mín.: <b>{v1:,}</b> · Sugerido: <b>{v2:,}</b> · Máx.: <b>{v3:,}</b>
+239	💡 Recompensas maiores são concluídas mais rápido. Toque em um botão ou digite um número.
+240	ℹ️ Comissão de criação da tarefa — <b>{v0:.0f}%</b>
+241	<blockquote>💲 Preço por inscrito — {v1:,.0f} GRAM
+242	💰 Seu saldo — {v2:,.1f} GRAM</blockquote>
+243	✏️ <b>Digite quantos inscritos você quer</b>
+244	✅ <b>Pronto para publicar</b>
+246	👥 Inscritos: <b>{v1:,}</b> × <b>{v2:,.0f}</b> GRAM = {v3:,.0f}
+247	🏷 Comissão ({v4:.0f}%): {v5:,.0f}
+248	💲 <b>Total a pagar: {v6:,.0f} GRAM</b>
+249	Toque em “Publicar tarefa” para postá-la.
+250	canal
+251	grupo
+252	👁 <b>Visualizações de publicação</b>
+253	<b>Encaminhe a publicação que você quer promover.</b>
+254	<blockquote>Abra o canal → escolha a publicação → Encaminhar → @{bot}</blockquote>
+255	Ou envie o link de uma publicação de um canal público (<code>https://t.me/channel/123</code>).
+256	✅ Os trabalhadores veem a publicação dentro do bot (isso também conta no contador de visualizações da publicação original) — sem capturas de tela nem aprovações.
+257	❤️ <b>Reações em publicações</b>
+258	Envie o link de uma publicação em um canal público.
+259	Exemplo: <code>https://t.me/channel/123</code>
+260	ℹ️ Os trabalhadores enviam uma captura de tela da reação e você aprova.
+261	🤖 <b>Inícios de bot</b>
+262	Envie o link do seu bot ou <code>@username</code> (links de indicação também funcionam).
+263	Exemplo: <code>https://t.me/mybot?start=promo</code>
+264	ℹ️ Os trabalhadores enviam uma captura de tela do início do bot e você aprova.
+265	tarefa
+266	⚠️ Saldo insuficiente. Recarregue primeiro.
+267	🏠 Menu principal
+268	👆 É exatamente assim que os trabalhadores verão sua publicação.
+269	Máximo de {v0} campanhas ativas permitido.
+270	❌ Torne o bot administrador desse chat e tente novamente.
+271	❌ Você não é administrador desse chat. Use a opção “Não sou administrador”.
+272	❌ Tarefas de impulso exigem um canal/grupo público (com username).
+273	❌ Este chat já tem uma campanha ativa deste tipo.
+274	❌ Esta publicação já tem uma campanha ativa.
+275	❌ Envie um link aqui.
+276	❌ Encaminhe uma publicação de um canal.
+277	❌ Este link já tem uma campanha ativa.
+278	❌ Envie um <code>@username</code> ou link <code>t.me/username</code> válido (apenas chats públicos).
+279	❌ Isso não é um {v0}.
+280	inscrito
+281	membro
+282	visualização
+283	início de bot
+284	reação
+285	impulso
+286	⏳ Criando sua tarefa, aguarde...
+287	✅ <b>Tarefa №{v0} publicada</b>
+288	💲 Descontado do saldo: {v1:,.1f} GRAM
+289	❌ O bot não é administrador nesse chat. Adicione-o como administrador e tente novamente.
+290	❌ O bot não pode encaminhar esta publicação. O canal deve ser público e permitir encaminhamento, ou torne o bot administrador do canal.
+291	❌ Envie um link de bot ou @username válido (o nome deve terminar em <code>bot</code>).
+292	❌ Envie o link de uma publicação de canal público, como <code>https://t.me/channel/123</code>.
+293	❌ Isso não é uma publicação de canal/grupo.
+294	❌ Nenhum canal/grupo público encontrado com esse nome.
+295	❌ Envie um número inteiro.
+296	❌ Envie um número entre {v0} e {v1:,}.
+297	❌ Saldo insuficiente. Você precisa de {v0:,.0f} GRAM.
+298	❌ Já existe uma campanha para este chat.
+299	❌ O bot precisa da permissão “convidar usuários”.
+300	❌ Nenhum bot encontrado com esse nome.
+301	❌ Esse canal público não foi encontrado.
+302	{v0:,} (máximo para o seu saldo)
+303	Publicar tarefa
+304	1️⃣ Todos os usuários
+305	2️⃣ Somente Telegram Premium
+306	Ativas
+307	Concluídas
+308	Pausadas
+309	📋 <b>Suas tarefas</b>
+312	👥 Concluído: <b>{v3}/{v4}</b>
+313	💲 Por usuário: <b>{v5:,.0f}</b> GRAM
+314	💰 Gasto: <b>{v6:,.0f}</b> · Orçamento restante: <b>{v7:,.0f}</b>
+315	⚙️ <b>Configurações de tarefas automáticas</b>
+316	🔁 <b>Renovação automática</b>: quando uma tarefa termina, a mesma tarefa é publicada novamente para que sua promoção nunca pare.
+317	• Até {v0} repetições
+318	• Cada repetição é cobrada do seu saldo
+319	• Para sozinha (e avisa você) se o saldo estiver baixo
+320	Toque em uma tarefa para ligar ou desligar:
+321	Ainda não há nada nesta lista.
+322	Somente Telegram Premium
+323	Todos os usuários
+324	📭 Você ainda não tem tarefas.
+325	🛑 Excluir reembolsa <b>{v0:,.0f} GRAM</b>. (A comissão da plataforma não é reembolsável.)
+326	✅ <b>Pronto! A tarefa foi excluída.</b>
+327	Reembolsado: <b>{v0:,.1f} GRAM</b> 💲
+328	Seu saldo: <b>{v1:,.1f} GRAM</b> 💰
+329	➕ Criar nova tarefa
+330	🔁 Renovação automática LIGADA: quando esta tarefa terminar, será publicada novamente até {v0} vezes, cobrando do seu saldo.
+331	🔁 Renovação automática desligada.
+332	📥 Revisar provas ({v0})
+333	🔁 Renovação automática: {v0}
+334	👤 Público: {v0}
+335	🗑 Excluir e reembolsar
+336	⏸ Pausar
+337	▶️ Retomar
+338	✅ Sim, excluir
+339	◀️ Não
+340	❌ O público Premium exige uma recompensa de pelo menos {v0:,} GRAM.
+341	👁 Abra a publicação, veja-a e depois envie uma captura de tela que a mostre.
+342	🤖 Abra o bot e toque em <b>Start</b>, depois envie uma captura de tela da conversa com o bot.
+343	❤️ Reaja à publicação e depois envie uma captura de tela mostrando sua reação.
+346	💲 Recompensa: <b>{v2:,.0f} GRAM</b>
+347	⏳ O anunciante analisa em até {v3} horas.
+348	⚠️ Uma captura de tela não pode ser usada duas vezes. Prova falsa pode bloquear sua conta.
+349	✅ <b>Prova enviada</b>
+350	<b>{v0:,.0f} GRAM</b> serão adicionados quando o anunciante aprovar.
+351	✅ Sua prova foi aprovada!
+352	💲 +{v0:,.0f} GRAM · 💰 {v1:,.1f}
+353	❌ Sua prova foi rejeitada. Se acha que é um erro, você pode contestar em até {v0} h — um administrador decidirá.
+354	❌ Esta captura de tela já foi usada. Envie uma nova.
+355	❌ Você não pode mais enviar prova para esta tarefa.
+356	❌ Todas as vagas acabaram de ser preenchidas.
+357	❌ Todas as vagas estão preenchidas.
+358	❌ Esta captura de tela já foi usada.
+359	ℹ️ Você já enviou prova para esta tarefa.
+360	⏳ Muitas das suas provas aguardam análise.
+361	⚖️ Contestar
+362	🎟 <b>Código promocional</b>
+363	Envie seu código:
+364	❌ Código inválido.
+365	❌ Este código já foi totalmente utilizado.
+366	❌ Você já usou este código.
+367	🎉 Código resgatado! <b>+{v0:,.0f} GRAM</b> adicionados.
+368	💰 Saldo: <b>{v1:,.0f}</b>
+369	Canais
+370	Grupos
+371	Visualizações
+372	Bots
+373	Reações
+374	Histórico
+375	Código promocional
+376	Regras
+377	LIGADO
+378	DESLIGADO
