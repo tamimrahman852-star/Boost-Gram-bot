@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070912">
+  <title>Boost Gram</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="css/app.css">
+  <style>
+    #splash { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: var(--bg); transition: opacity .45s, visibility .45s; }
+    #splash.gone { opacity: 0; visibility: hidden; }
+    #splash .logo { width: 84px; height: 84px; border-radius: 28px; background: var(--grad); display: grid; place-items: center; font-size: 40px; box-shadow: 0 20px 50px -14px var(--a1); animation: pulse 1.4s ease-in-out infinite; margin: 0 auto 16px; }
+    #splash .name { font-weight: 850; font-size: 22px; letter-spacing: -.02em; text-align: center; }
+    @keyframes pulse { 50% { transform: scale(1.08) rotate(-3deg); box-shadow: 0 26px 60px -12px var(--a2); } }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs><linearGradient id="gradStroke" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+  </svg>
+  <div id="bg"><i></i><i></i><i></i></div>
+  <div id="splash"><div><div class="logo">🚀</div><div class="name grad-text">Boost Gram</div></div></div>
+  <div id="app">
+    <main id="view"></main>
+    <div id="actionbar"></div>
+    <nav class="tabbar" id="tabbar"></nav>
+  </div>
+  <div id="toasts"></div>
+  <script src="config.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
