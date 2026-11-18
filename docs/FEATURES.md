@@ -48,20 +48,19 @@ Earn → 👁 Views → tap "View post +N": the bot forwards the post into the w
 original post) and pays automatically after a few seconds. Safety: one view per post per user, minimum dwell time, daily task limit,
 tap cooldown, own posts excluded, campaigns auto-pause if the post can't be forwarded any more.
 
-## Languages (all 21 supported)
-Bangla and English are hand-written. Every other language (hi, ru, ar, es, de, fr, pt, id, tr, fa, uz, kk, uk, zh, vi, th, ja, ko, my)
-is translated automatically the first time it is needed and stored in the `translations` table, so it is instant afterwards.
-Placeholders (`{amount}`), HTML tags and numbers are protected and verified; if a translation can't be verified the English text is used.
-Set ONE of these in Render for the translator:
-| Env | Provider |
-|---|---|
-| `GEMINI_API_KEY` (+ optional `GEMINI_MODEL`, `GEMINI_MIN_INTERVAL`) | Google AI Studio / Gemini — best quality (used first if set) |
-| `GOOGLE_TRANSLATE_API_KEY` | official Google Cloud Translation (recommended) |
-| `LIBRETRANSLATE_URL` (+ `LIBRETRANSLATE_API_KEY`) | your LibreTranslate server |
-| nothing | free public Google endpoint (works, but best-effort) |
-
-When a user picks a language the bot translates it (up to ~45 s the first time), then shows the menu in that language.
-Polish any text by hand: `locales/overrides/<lang>.json` → `{"English text": "your translation"}` (always wins).
-After adding new texts to the code run `python tools/extract_catalog.py` and commit `locales/catalog.json`.
-
-Admin command `/i18n` (private chat): shows the active provider, cached text counts per language and runs a live test (shows the last error if the key is wrong).
+## Languages (21 — all hand-written, no API)
+Bangla and English are in the code. The other 19 languages
+(hi ar ru es tr id fa fr de pt uk zh ja ko vi th uz kk my) are **manual translation files**: `locales/<lang>.tsv`.
+Each line is `<line number><TAB><translation>`; the line numbers refer to `locales/lines.json` (the English texts).
+* No internet / API is used. A user picks a language and sees the whole bot in it immediately (menu, buttons, messages).
+* **Improve a translation:** open `locales/hi.tsv` in any text editor, change the text after the TAB, commit. Keep
+  placeholders such as `{amount}`, `{v0:,.0f}` and tags such as `<b>` exactly as they are.
+* **Check your edits:** `python tools/check_locales.py` (all languages) or `python tools/check_locales.py hi`.
+* **Admin `/i18n`** shows how complete each language file is (translated texts / total).
+* **Adding new bot texts:** write them with `L(lang, "bangla", "english")` in the code, run
+  `python tools/extract_catalog.py` (it only APPENDS to `lines.json`, so existing line numbers never change), then add
+  the new line numbers to each `locales/<lang>.tsv` (the checker tells you which are missing). A language that lacks a
+  text simply shows that text in English until you add it — nothing breaks.
+* Hand-polished single texts can also go into `locales/overrides/<lang>.json` (`{"English text": "translation"}`); it always wins.
+* Optional (off by default): automatic translation through an API (Gemini / Google / LibreTranslate) can be switched on
+  with `I18N_AUTO_TRANSLATE=1` + a key, but the manual files always take priority over it.

@@ -640,9 +640,9 @@ def _load_overrides() -> None:
 
 
 async def load_cache() -> None:
-    """Load the manual locale files (and any stored automatic translations) into memory at startup."""
-    manual = load_manual()
-    logger.info(f"i18n manual files loaded: {manual}")
+    """Fill the in-memory cache at startup. Priority (lowest -> highest):
+    stored automatic translations (DB)  <  manual locales/<lang>.tsv  <  locales/overrides/*.json
+    so hand-written texts always win over anything machine-made."""
     from sqlalchemy import select
     from database import AsyncSessionLocal, Translation
     try:
@@ -651,8 +651,9 @@ async def load_cache() -> None:
                 _cache.setdefault(row[0], {})[row[1]] = row[2]
     except Exception as e:
         logger.warning(f"translation cache load failed: {e}")
+    manual = load_manual()
     _load_overrides()
-    logger.info(f"i18n cache loaded: { {k: len(v) for k, v in _cache.items()} }")
+    logger.info(f"i18n ready - manual files: {manual}")
 
 
 async def _store(lang: str, items: Dict[str, str]) -> None:
