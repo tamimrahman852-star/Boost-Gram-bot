@@ -99,7 +99,7 @@
  "Start",
  "React",
  "Boost",
- "🎯 <b>Available tasks</b>\n\nTap the button to do the task, then press <b>Check</b> or <b>Proof</b> (screenshot).\n⚠️ Channel/group/boost tasks must be kept for at least {v0} days.",
+ "🎯 <b>Available tasks</b>\n\nTap the button to do the task, then press <b>Check</b> or <b>Proof</b> (screenshot).\n⚠️ Don't leave channels/groups earlier than {v0} days. Otherwise task completion will be blocked and the GRAM earned from them will be revoked.",
  "💰 Reward: <code>{v0:,.0f}</code> GRAM\n👥 Slots left: <code>{v1}</code>\n⏰ You must stay for <b>{v2} days</b>, otherwise the reward is revoked.\n\n1) Tap <b>Open</b> and join\n2) Then tap <b>Verify</b>",
  "❌ This task is not active.",
  "Open",
@@ -234,6 +234,15 @@
  "ℹ️ You already submitted proof for this task.",
  "⏳ Too many of your proofs are awaiting review.",
  "⚖️ Dispute",
+ "⚠️ You unsubscribed from the channel/chat earlier than required (task №{v0})\nTo avoid blocking, please re-subscribe within {v1} hours.\n\n💲 We deducted {v2:,.0f} GRAM from your balance. After re-subscribing, your coins will be returned.",
+ "ℹ️ Restore your subscriptions or pay a penalty to regain access to tasks.",
+ "ℹ️ You are not subscribed yet. Subscribe first, then tap Refresh list.",
+ "✅ Penalty paid: {v0:,.0f} GRAM. Access to tasks is restored.",
+ "✅ Subscription restored! {v0:,.0f} GRAM were returned to your balance.",
+ "🔄 Refresh list",
+ "💲 Return coins",
+ "🔄 Re-subscribe",
+ "Subscribe - №{v0}",
  "🎟 <b>Promo code</b>\n\nSend your code:",
  "❌ Invalid code.",
  "❌ This code has been fully used.",
@@ -246,5 +255,6 @@
  "Reactions",
  "History",
  "Promo code",
- "Rules"
+ "Rules",
+ "⚠️ You did not re-subscribe in time. {v0:,.0f} GRAM were revoked."
 ]

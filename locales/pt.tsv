@@ -368,3 +368,18 @@
 376	Regras
 377	LIGADO
 378	DESLIGADO
+
+# --- retention warning / restore screen ---
+379	⚠️ Não saia de canais/grupos antes de {v0} dias. Caso contrário, a conclusão de tarefas será bloqueada e os GRAM ganhos com elas serão revogados.
+380	⚠️ Você cancelou a inscrição no canal/chat antes do exigido (tarefa №{v0})
+381	Para evitar o bloqueio, inscreva-se novamente em até {v1} horas.
+382	💲 Descontamos {v2:,.0f} GRAM do seu saldo. Depois de se inscrever novamente, suas moedas serão devolvidas.
+383	ℹ️ Restaure suas inscrições ou pague uma penalidade para recuperar o acesso às tarefas.
+384	ℹ️ Você ainda não está inscrito. Inscreva-se primeiro e depois toque em Atualizar lista.
+385	✅ Penalidade paga: {v0:,.0f} GRAM. O acesso às tarefas foi restaurado.
+386	✅ Inscrição restaurada! {v0:,.0f} GRAM foram devolvidos ao seu saldo.
+387	🔄 Atualizar lista
+388	💲 Devolver moedas
+389	🔄 Inscrever-se novamente
+390	Inscrever-se - №{v0}
+391	⚠️ Você não se inscreveu novamente a tempo. {v0:,.0f} GRAM foram revogados.

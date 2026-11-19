@@ -32,6 +32,7 @@ from handlers.deposits import router as deposits_router
 from handlers.vouchers import router as vouchers_router
 from handlers.history import router as history_router
 from handlers.proofs import router as proofs_router
+from handlers.retention import router as retention_router
 from handlers.broadcast import router as broadcast_router
 
 
@@ -77,12 +78,21 @@ class GuardMiddleware(BaseMiddleware):
                     await event.answer("🚫 Your account is blocked.", show_alert=True)
                 return None
 
-        if isinstance(event, Message) and is_menu_text(event.text):
+        is_tap = isinstance(event, Message) and (is_menu_text(event.text) or (event.text or "").startswith("/"))
+        if is_tap and is_menu_text(event.text):
             state = data.get("state")
             if state is not None:
                 await state.clear()
 
-        return await handler(event, data)
+        result = await handler(event, data)
+
+        # Menu taps and commands vanish from the chat once the bot has answered; only the result stays.
+        if is_tap and event.chat.type == "private":
+            try:
+                await event.delete()
+            except Exception:
+                pass
+        return result
 
 
 async def main():
@@ -98,6 +108,7 @@ async def main():
     dp.message.outer_middleware(DBSessionMiddleware())
     dp.callback_query.outer_middleware(DBSessionMiddleware())
     dp.pre_checkout_query.outer_middleware(DBSessionMiddleware())
+    dp.chat_member.outer_middleware(DBSessionMiddleware())
     dp.message.outer_middleware(GuardMiddleware())
     dp.callback_query.outer_middleware(GuardMiddleware())
 
@@ -115,6 +126,7 @@ async def main():
     dp.include_router(vouchers_router)
     dp.include_router(history_router)
     dp.include_router(proofs_router)
+    dp.include_router(retention_router)
     dp.include_router(broadcast_router)
     dp.include_router(admin_router)
 

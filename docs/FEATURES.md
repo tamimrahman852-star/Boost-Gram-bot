@@ -64,3 +64,16 @@ Each line is `<line number><TAB><translation>`; the line numbers refer to `local
 * Hand-polished single texts can also go into `locales/overrides/<lang>.json` (`{"English text": "translation"}`); it always wins.
 * Optional (off by default): automatic translation through an API (Gemini / Google / LibreTranslate) can be switched on
   with `I18N_AUTO_TRANSLATE=1` + a key, but the manual files always take priority over it.
+
+## Leaving early (retention) and clean chat
+* The bot is admin in every promoted channel/group, so Telegram tells it **the moment** a worker leaves (`chat_member` update).
+  If this happens before the 7 days are over:
+  1. the reward is **held** (deducted from the balance) and the user gets a warning with a "Re-subscribe" button;
+  2. earning is blocked: the Earnings button shows *"Restore your subscriptions or pay a penalty"* with
+     **[Subscribe - №…] [Refresh list] [Return coins]**;
+  3. *Refresh list* (or simply re-joining) returns the coins and re-opens earning — the original 7-day timer keeps running;
+  4. *Return coins* pays the penalty at once (coins stay revoked, small risk score);
+  5. after 24 h without re-subscribing the penalty becomes final automatically.
+  A periodic check (every hour) catches missed events and removed boosts.
+* Menu taps and commands (Earnings, Promote, /start ...) are deleted from the chat once the bot has answered, so only the
+  result stays (inputs such as amounts or TrxID are not deleted).

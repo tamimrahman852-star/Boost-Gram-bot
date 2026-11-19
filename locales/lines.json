@@ -377,5 +377,18 @@
 "Promo code",
 "Rules",
 "ON",
-"OFF"
+"OFF",
+"⚠️ Don't leave channels/groups earlier than {v0} days. Otherwise task completion will be blocked and the GRAM earned from them will be revoked.",
+"⚠️ You unsubscribed from the channel/chat earlier than required (task №{v0})",
+"To avoid blocking, please re-subscribe within {v1} hours.",
+"💲 We deducted {v2:,.0f} GRAM from your balance. After re-subscribing, your coins will be returned.",
+"ℹ️ Restore your subscriptions or pay a penalty to regain access to tasks.",
+"ℹ️ You are not subscribed yet. Subscribe first, then tap Refresh list.",
+"✅ Penalty paid: {v0:,.0f} GRAM. Access to tasks is restored.",
+"✅ Subscription restored! {v0:,.0f} GRAM were returned to your balance.",
+"🔄 Refresh list",
+"💲 Return coins",
+"🔄 Re-subscribe",
+"Subscribe - №{v0}",
+"⚠️ You did not re-subscribe in time. {v0:,.0f} GRAM were revoked."
 ]

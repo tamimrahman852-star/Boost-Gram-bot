@@ -368,3 +368,18 @@
 376	Kurallar
 377	AÇIK
 378	KAPALI
+
+# --- retention warning / restore screen ---
+379	⚠️ Kanalları/grupları {v0} günden önce terk etme. Aksi halde görev tamamlama engellenir ve onlardan kazanılan GRAM iptal edilir.
+380	⚠️ Kanaldan/sohbetten gerekenden önce ayrıldın (görev №{v0})
+381	Engellenmemek için lütfen {v1} saat içinde tekrar abone ol.
+382	💲 Bakiyenden {v2:,.0f} GRAM düştük. Tekrar abone olduğunda coinlerin iade edilecek.
+383	ℹ️ Görevlere erişimi geri kazanmak için aboneliklerini geri yükle veya ceza öde.
+384	ℹ️ Henüz abone değilsin. Önce abone ol, sonra Listeyi yenile'ye dokun.
+385	✅ Ceza ödendi: {v0:,.0f} GRAM. Görevlere erişim geri yüklendi.
+386	✅ Abonelik geri yüklendi! {v0:,.0f} GRAM bakiyene iade edildi.
+387	🔄 Listeyi yenile
+388	💲 Coinleri iade et
+389	🔄 Tekrar abone ol
+390	Abone ol - №{v0}
+391	⚠️ Zamanında tekrar abone olmadın. {v0:,.0f} GRAM iptal edildi.

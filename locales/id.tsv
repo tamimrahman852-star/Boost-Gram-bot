@@ -368,3 +368,18 @@
 376	Aturan
 377	AKTIF
 378	MATI
+
+# --- retention warning / restore screen ---
+379	⚠️ Jangan keluar dari channel/grup sebelum {v0} hari. Jika tidak, penyelesaian tugas akan diblokir dan GRAM yang diperoleh darinya dicabut.
+380	⚠️ Anda berhenti berlangganan channel/chat lebih awal dari yang diwajibkan (tugas №{v0})
+381	Untuk menghindari pemblokiran, harap berlangganan kembali dalam {v1} jam.
+382	💲 Kami memotong {v2:,.0f} GRAM dari saldo Anda. Setelah berlangganan kembali, koin Anda akan dikembalikan.
+383	ℹ️ Pulihkan langganan Anda atau bayar denda untuk mendapatkan kembali akses ke tugas.
+384	ℹ️ Anda belum berlangganan. Berlangganan dulu, lalu ketuk Segarkan daftar.
+385	✅ Denda dibayar: {v0:,.0f} GRAM. Akses ke tugas dipulihkan.
+386	✅ Langganan dipulihkan! {v0:,.0f} GRAM dikembalikan ke saldo Anda.
+387	🔄 Segarkan daftar
+388	💲 Kembalikan koin
+389	🔄 Berlangganan lagi
+390	Berlangganan - №{v0}
+391	⚠️ Anda tidak berlangganan kembali tepat waktu. {v0:,.0f} GRAM dicabut.

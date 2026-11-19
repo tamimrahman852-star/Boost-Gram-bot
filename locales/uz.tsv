@@ -368,3 +368,18 @@
 376	Qoidalar
 377	YOQILGAN
 378	O'CHIRILGAN
+
+# --- retention warning / restore screen ---
+379	⚠️ {v0} kundan oldin kanal/guruhlarni tark etmang. Aks holda vazifalarni bajarish bloklanadi va ulardan ishlangan GRAM bekor qilinadi.
+380	⚠️ Siz kanal/chatdan talab qilingan muddatdan oldin obunani bekor qildingiz (№{v0}-vazifa)
+381	Bloklanishdan qochish uchun {v1} soat ichida qayta obuna bo'ling.
+382	💲 Balansingizdan {v2:,.0f} GRAM yechib qo'ydik. Qayta obuna bo'lgach, tangalaringiz qaytariladi.
+383	ℹ️ Vazifalarga qayta kirish uchun obunalaringizni tiklang yoki jarima to'lang.
+384	ℹ️ Siz hali obuna bo'lmagansiz. Avval obuna bo'ling, so'ng Ro'yxatni yangilash tugmasini bosing.
+385	✅ Jarima to'landi: {v0:,.0f} GRAM. Vazifalarga kirish tiklandi.
+386	✅ Obuna tiklandi! {v0:,.0f} GRAM balansingizga qaytarildi.
+387	🔄 Ro'yxatni yangilash
+388	💲 Tangalarni qaytarish
+389	🔄 Qayta obuna bo'lish
+390	Obuna bo'lish - №{v0}
+391	⚠️ Siz o'z vaqtida qayta obuna bo'lmadingiz. {v0:,.0f} GRAM bekor qilindi.

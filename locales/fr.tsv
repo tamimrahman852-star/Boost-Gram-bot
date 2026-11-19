@@ -368,3 +368,18 @@
 376	Règles
 377	ACTIVÉ
 378	DÉSACTIVÉ
+
+# --- retention warning / restore screen ---
+379	⚠️ Ne quittez pas les chaînes/groupes avant {v0} jours. Sinon l'accomplissement des tâches sera bloqué et les GRAM gagnés grâce à elles seront annulés.
+380	⚠️ Vous vous êtes désabonné de la chaîne/du chat plus tôt que requis (tâche №{v0})
+381	Pour éviter le blocage, veuillez vous réabonner dans les {v1} heures.
+382	💲 Nous avons déduit {v2:,.0f} GRAM de votre solde. Après votre réabonnement, vos pièces seront restituées.
+383	ℹ️ Rétablissez vos abonnements ou payez une pénalité pour retrouver l'accès aux tâches.
+384	ℹ️ Vous n'êtes pas encore abonné. Abonnez-vous d'abord, puis appuyez sur Actualiser la liste.
+385	✅ Pénalité payée : {v0:,.0f} GRAM. L'accès aux tâches est rétabli.
+386	✅ Abonnement rétabli ! {v0:,.0f} GRAM ont été restitués sur votre solde.
+387	🔄 Actualiser la liste
+388	💲 Restituer les pièces
+389	🔄 Se réabonner
+390	S'abonner - №{v0}
+391	⚠️ Vous ne vous êtes pas réabonné à temps. {v0:,.0f} GRAM ont été annulés.

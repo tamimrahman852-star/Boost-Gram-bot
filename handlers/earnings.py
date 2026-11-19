@@ -20,6 +20,7 @@ from localization import L10N, t
 from keyboards import category_kb, task_detail_kb
 from helpers import esc, L, alert_admins
 from services import settle_referrals
+from handlers.retention import block_if_held
 
 router = Router()
 
@@ -34,6 +35,8 @@ async def earnings_cmd(message: Message, session):
     user = await get_user(session, message.from_user.id)
     if not user:
         await message.answer(t("en", "not_started"))
+        return
+    if await block_if_held(message, session, user):
         return
     await _render_categories(message, session, user, edit=False)
 
@@ -96,6 +99,8 @@ async def earn_back(query: CallbackQuery, session):
 @router.callback_query(F.data.startswith("earn:cat:"))
 async def earn_category(query: CallbackQuery, session):
     tt = query.data.split(":")[2]
+    if await block_if_held(query, session, await get_user(session, query.from_user.id)):
+        return
     await _show_task_list(query, session, tt, 0)
     await query.answer()
 
@@ -177,9 +182,12 @@ async def _show_task_list(query, session, task_type, page):
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="earn:back")])
     text = (
         L(lang, "🎯 <b>উপলব্ধ টাস্ক</b>\n\nবাটনে চেপে কাজটি করুন, তারপর <b>যাচাই</b> বা <b>প্রমাণ</b> (স্ক্রিনশট) চাপুন।\n"
-                f"⚠️ চ্যানেল/গ্রুপ/বুস্ট কমপক্ষে {BusinessRules.RETENTION_DAYS} দিন বজায় রাখতে হবে।",
+                f"⚠️ {BusinessRules.RETENTION_DAYS} দিনের আগে চ্যানেল/গ্রুপ ছাড়বেন না। নাহলে টাস্ক সম্পন্ন করা ব্লক হবে এবং তা থেকে অর্জিত GRAM বাতিল হবে।",
                 "🎯 <b>Available tasks</b>\n\nTap the button to do the task, then press <b>Check</b> or <b>Proof</b> (screenshot).\n"
-                f"⚠️ Channel/group/boost tasks must be kept for at least {BusinessRules.RETENTION_DAYS} days.", _tpl='🎯 <b>Available tasks</b>\n\nTap the button to do the task, then press <b>Check</b> or <b>Proof</b> (screenshot).\n⚠️ Channel/group/boost tasks must be kept for at least {v0} days.', _kw={"v0": BusinessRules.RETENTION_DAYS})
+                f"⚠️ Don't leave channels/groups earlier than {BusinessRules.RETENTION_DAYS} days. Otherwise task completion will be blocked and the GRAM earned from them will be revoked.",
+                _tpl="🎯 <b>Available tasks</b>\n\nTap the button to do the task, then press <b>Check</b> or <b>Proof</b> (screenshot).\n"
+                     "⚠️ Don't leave channels/groups earlier than {v0} days. Otherwise task completion will be blocked and the GRAM earned from them will be revoked.",
+                _kw={"v0": BusinessRules.RETENTION_DAYS})
         if items else t(lang, "no_tasks")
     )
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -191,6 +199,8 @@ async def _show_task_list(query, session, task_type, page):
 
 @router.callback_query(F.data.startswith("earn:page:"))
 async def earn_page(query: CallbackQuery, session):
+    if await block_if_held(query, session, await get_user(session, query.from_user.id)):
+        return
     try:
         _, _, tt, p = query.data.split(":")
         await _show_task_list(query, session, tt, int(p))
@@ -256,34 +266,15 @@ async def earn_view(query: CallbackQuery, session):
     await query.answer()
 
 
-async def has_active_boost(bot: Bot, target, uid: int) -> bool:
-    """Telegram tells us (bot must be admin) whether this user currently boosts the chat."""
-    res = await bot.get_user_chat_boosts(target, uid)
-    now = datetime.now(timezone.utc)
-    for b in res.boosts or []:
-        exp = b.expiration_date
-        if exp is not None and exp.tzinfo is None:
-            exp = exp.replace(tzinfo=timezone.utc)
-        if exp is None or exp > now:
-            return True
-    return False
-
-
-async def _is_member(bot: Bot, target, uid: int) -> bool:
-    """True if the user is really inside the chat. May raise Telegram errors."""
-    m = await bot.get_chat_member(target, uid)
-    if m.status in (ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR):
-        return True
-    if m.status == ChatMemberStatus.RESTRICTED:
-        # a restricted user who already left is still reported as "restricted"
-        return bool(getattr(m, "is_member", False))
-    return False
+from membership import has_active_boost, is_member as _is_member  # noqa: E402,F401  (kept importable from here)
 
 
 @router.callback_query(F.data.startswith("earn:verify:"))
 async def earn_verify(query: CallbackQuery, session, bot: Bot):
     cid = query.data.split(":")[2]
     uid = query.from_user.id
+    if await block_if_held(query, session, await get_user(session, uid)):
+        return
     lock = f"lock:task:{uid}:{cid}"
     if not await redis_client.set(lock, "1", nx=True, ex=15):
         await query.answer("⏳", show_alert=False)
@@ -498,6 +489,8 @@ async def _start_view(query: CallbackQuery, session, bot: Bot, cid: str):
     user = await get_user(session, uid)
     if not user:
         await query.answer()
+        return
+    if await block_if_held(query, session, user):
         return
     lang = user.language
     if not await redis_client.set(f"pvcool:{uid}", "1", nx=True, ex=max(1, int(BusinessRules.VIEW_COOLDOWN_SECONDS))):

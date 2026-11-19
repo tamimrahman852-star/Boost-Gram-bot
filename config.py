@@ -90,6 +90,9 @@ class BusinessRules:
     PROOF_REVIEW_HOURS = 48            # advertiser has this long to approve/reject, then auto-approve
     PROOF_DISPUTE_HOURS = 24           # after a rejection the worker may dispute once within this time
     PROOF_MAX_PENDING_PER_USER = 10
+    EARLY_LEAVE_GRACE_HOURS = 24        # time to re-subscribe after leaving early, before the penalty becomes final
+    EARLY_LEAVE_VOLUNTARY_RISK = 5      # risk score added when the user pays the penalty ("Return coins")
+    EARLY_LEAVE_EXPIRED_RISK = 10       # ...or when the 24h grace period ran out
     AUTO_RENEW_DEFAULT = 3             # how many times a campaign may renew itself
 
 

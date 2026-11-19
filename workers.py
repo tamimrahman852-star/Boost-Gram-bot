@@ -15,7 +15,11 @@ from database import (
 )
 from localization import t
 from helpers import alert_admins, esc
-from services import settle_referrals, approve_submission, finalize_rejection, campaign_cost
+from services import (
+    settle_referrals, approve_submission, finalize_rejection, campaign_cost,
+    hold_early_leave, finalize_hold,
+)
+from database import EarlyLeave
 
 CHECK_INTERVAL = 3600  # seconds between retention sweeps
 
@@ -212,10 +216,71 @@ async def _sweep_auto_renew(bot: Bot) -> None:
                 pass
 
 
+async def _sweep_early_leavers(bot: Bot) -> None:
+    """Safety net for missed chat_member updates (and for expired boosts): check pending completions that
+    are still inside the retention window and have not been checked for a while."""
+    from handlers.retention import notify_early_leave
+    from membership import has_active_boost, is_member
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(TaskCompletion.id, TaskCompletion.user_id, Campaign.target_chat_id, Campaign.target_username, Campaign.task_type)
+            .join(Campaign, Campaign.id == TaskCompletion.campaign_id)
+            .where(TaskCompletion.retention_status == RetentionStatus.PENDING,
+                   TaskCompletion.retention_deadline > now,
+                   (TaskCompletion.retention_checked_at == None) | (TaskCompletion.retention_checked_at < now - timedelta(hours=6)))  # noqa: E711
+            .order_by(TaskCompletion.retention_checked_at).limit(100))).all()
+    for cid, uid, chat_id, username, ttype in rows:
+        target = chat_id or (f"@{username}" if username else None)
+        if not target:
+            continue
+        try:
+            ok = await has_active_boost(bot, target, uid) if ttype == TaskType.BOOST_7DAY else await is_member(bot, target, uid)
+        except (TelegramRetryAfter, TelegramNetworkError):
+            break
+        except (TelegramBadRequest, TelegramForbiddenError):
+            ok = True                              # the bot lost access: never punish the user for that
+        async with AsyncSessionLocal() as s:
+            if ok:
+                tc = (await s.execute(select(TaskCompletion).where(TaskCompletion.id == cid))).scalar_one_or_none()
+                if tc:
+                    tc.retention_checked_at = now
+                    await s.commit()
+            else:
+                info = await hold_early_leave(s, cid)
+                if info:
+                    await notify_early_leave(bot, info)
+        await asyncio.sleep(0.05)
+
+
+async def _sweep_expired_holds(bot: Bot) -> None:
+    """The user did not re-subscribe within the grace period: the penalty becomes final."""
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(select(EarlyLeave.id, EarlyLeave.user_id, EarlyLeave.amount).where(
+            EarlyLeave.status == "held",
+            EarlyLeave.created_at <= now - timedelta(hours=BusinessRules.EARLY_LEAVE_GRACE_HOURS)).limit(100))).all()
+    for el_id, uid, amount in rows:
+        async with AsyncSessionLocal() as s:
+            ok = await finalize_hold(s, el_id, BusinessRules.EARLY_LEAVE_EXPIRED_RISK)
+            lang = (await s.execute(select(User.language).where(User.id == uid))).scalar() or "en"
+        if ok:
+            try:
+                from helpers import L
+                await bot.send_message(uid, L(
+                    lang, f"⚠️ আপনি সময়মতো আবার সাবস্ক্রাইব করেননি। {amount:,.0f} GRAM বাতিল করা হয়েছে।",
+                    f"⚠️ You did not re-subscribe in time. {amount:,.0f} GRAM were revoked.",
+                    _tpl="⚠️ You did not re-subscribe in time. {v0:,.0f} GRAM were revoked.", _kw={"v0": amount}))
+            except Exception:
+                pass
+
+
 async def retention_worker(bot: Bot):
     while True:
         try:
             await _sweep(bot)
+            await _sweep_early_leavers(bot)
+            await _sweep_expired_holds(bot)
             await _sweep_proofs(bot)
             await _sweep_auto_renew(bot)
             await asyncio.sleep(CHECK_INTERVAL)

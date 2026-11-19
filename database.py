@@ -469,8 +469,27 @@ class Translation(Base):
     text: Mapped[str] = mapped_column(Text)
 
 
+class EarlyLeave(Base):
+    """A user left a channel/group (or removed a boost) before the retention period ended.
+    The reward is HELD (deducted) and the user must re-subscribe within 24h or pay the penalty."""
+    __tablename__ = "early_leaves"
+    __table_args__ = (
+        Index("ix_early_leave_user_status", "user_id", "status"),
+        Index("ix_early_leave_completion", "completion_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    completion_id: Mapped[str] = mapped_column(String(36), ForeignKey("task_completions.id"))   # one row per leave (re-joining and leaving again creates a new one)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    campaign_id: Mapped[str] = mapped_column(String(36), ForeignKey("campaigns.id"))
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    status: Mapped[str] = mapped_column(String(20), default="held")     # held / restored / penalized
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
 NEW_TABLES = [DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__,
-              TaskSubmission.__table__, AutoRenew.__table__, CampaignPost.__table__, Translation.__table__]
+              TaskSubmission.__table__, AutoRenew.__table__, CampaignPost.__table__, Translation.__table__, EarlyLeave.__table__]
 
 
 async def ensure_new_tables():

@@ -20,6 +20,7 @@ from database import (
     User, Campaign, TaskCompletion, TaskSubmission, CampaignStatus, redis_client,
 )
 from helpers import esc, L, ProofState
+from handlers.retention import block_if_held
 from services import (
     reserve_slot, approve_submission, reject_submission, finalize_rejection,
 )
@@ -71,6 +72,8 @@ async def proof_start(query: CallbackQuery, session, state: FSMContext):
     user = await _user(session, uid)
     if not user:
         await query.answer()
+        return
+    if await block_if_held(query, session, user):
         return
     lang = user.language
     c = (await session.execute(select(Campaign).where(Campaign.id == cid))).scalar_one_or_none()

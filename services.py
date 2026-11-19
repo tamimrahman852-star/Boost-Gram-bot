@@ -11,7 +11,7 @@ from config import BusinessRules
 from datetime import datetime, timezone
 from database import (
     User, Transaction, ReferralEarning, TaskCompletion, TransactionType, TaskSubmission,
-    Campaign, CampaignStatus, RetentionStatus,
+    Campaign, CampaignStatus, RetentionStatus, EarlyLeave, FraudReport,
 )
 
 
@@ -233,3 +233,105 @@ def campaign_cost(reward: Decimal, slots: int):
     budget = reward * slots
     fee = (budget * BusinessRules.PLATFORM_COMMISSION).to_integral_value(rounding="ROUND_UP")
     return budget, fee, budget + fee
+
+
+# ---------------------------------------------------------------------------------------
+# Early leave: the reward is held at once; re-subscribing returns it, otherwise it is revoked
+# ---------------------------------------------------------------------------------------
+async def hold_early_leave(session, completion_id: str):
+    """Deduct the reward from the balance and mark the completion as FAILED (= waiting for re-subscribe).
+    Returns a dict for the notification, or None if there is nothing to hold."""
+    tc = (await session.execute(select(TaskCompletion).where(TaskCompletion.id == completion_id).with_for_update())).scalar_one_or_none()
+    if not tc or tc.retention_status != RetentionStatus.PENDING:
+        await session.rollback()
+        return None
+    if (await session.execute(select(EarlyLeave.id).where(
+            EarlyLeave.completion_id == tc.id, EarlyLeave.status == "held"))).first():
+        await session.rollback()
+        return None
+    c = (await session.execute(select(Campaign).where(Campaign.id == tc.campaign_id))).scalar_one()
+    u = (await session.execute(select(User).where(User.id == tc.user_id).with_for_update())).scalar_one_or_none()
+    if not u:
+        await session.rollback()
+        return None
+    amount = tc.reward
+    u.balance -= amount
+    session.add(Transaction(
+        user_id=u.id, amount=-amount, type=TransactionType.PENALTY_REVOKE,
+        description=f"Held (left early): {c.title}"[:255], reference_id=c.id,
+        reference_type="campaign", balance_after=u.balance))
+    tc.retention_status = RetentionStatus.FAILED
+    tc.retention_checked_at = datetime.now(timezone.utc)
+    el = EarlyLeave(completion_id=tc.id, user_id=u.id, campaign_id=c.id, amount=amount, status="held")
+    session.add(el)
+    info = {"id": None, "user_id": u.id, "language": u.language, "amount": amount, "campaign_id": c.id,
+            "title": c.title, "link": c.target_link or (f"https://t.me/{c.target_username}" if c.target_username else None),
+            "boost": c.task_type.value == "boost_7day" if hasattr(c.task_type, "value") else False}
+    await session.flush()
+    info["id"] = el.id
+    await session.commit()
+    return info
+
+
+async def restore_hold(session, el_id: str) -> bool:
+    el = (await session.execute(select(EarlyLeave).where(EarlyLeave.id == el_id).with_for_update())).scalar_one_or_none()
+    if not el or el.status != "held":
+        await session.rollback()
+        return False
+    tc = (await session.execute(select(TaskCompletion).where(TaskCompletion.id == el.completion_id).with_for_update())).scalar_one()
+    u = (await session.execute(select(User).where(User.id == el.user_id).with_for_update())).scalar_one()
+    c = (await session.execute(select(Campaign).where(Campaign.id == el.campaign_id))).scalar_one()
+    u.balance += el.amount
+    session.add(Transaction(
+        user_id=u.id, amount=el.amount, type=TransactionType.ADMIN_ADJUSTMENT,
+        description=f"Restored (re-subscribed): {c.title}"[:255], reference_id=c.id,
+        reference_type="campaign", balance_after=u.balance))
+    tc.retention_status = RetentionStatus.PENDING          # the original retention deadline keeps running
+    el.status = "restored"
+    el.resolved_at = datetime.now(timezone.utc)
+    await session.commit()
+    return True
+
+
+async def finalize_hold(session, el_id: str, risk_add: int) -> bool:
+    """Make the penalty final: the coins stay revoked, the campaign slot is re-opened."""
+    el = (await session.execute(select(EarlyLeave).where(EarlyLeave.id == el_id).with_for_update())).scalar_one_or_none()
+    if not el or el.status != "held":
+        await session.rollback()
+        return False
+    tc = (await session.execute(select(TaskCompletion).where(TaskCompletion.id == el.completion_id).with_for_update())).scalar_one()
+    c = (await session.execute(select(Campaign).where(Campaign.id == el.campaign_id).with_for_update())).scalar_one()
+    u = (await session.execute(select(User).where(User.id == el.user_id).with_for_update())).scalar_one()
+    u.total_earned -= el.amount                       # the balance was already reduced when the reward was held
+    u.completed_tasks_count = max(0, u.completed_tasks_count - 1)
+    u.risk_score += risk_add
+    c.spent_budget = max(Decimal("0"), c.spent_budget - el.amount)
+    c.completed_count = max(0, c.completed_count - 1)
+    if c.status == CampaignStatus.COMPLETED:
+        c.status = CampaignStatus.ACTIVE
+    elif c.status == CampaignStatus.CANCELLED:        # budget was already refunded on cancel: give this slot back too
+        adv = (await session.execute(select(User).where(User.id == c.advertiser_id).with_for_update())).scalar_one_or_none()
+        if adv:
+            adv.balance += el.amount
+            c.refunded_budget += el.amount
+            session.add(Transaction(
+                user_id=adv.id, amount=el.amount, type=TransactionType.CAMPAIGN_REFUND,
+                description=f"Revoked reward refund: {c.title}"[:255], reference_id=c.id,
+                reference_type="campaign", balance_after=adv.balance))
+    tc.retention_status = RetentionStatus.PENALIZED
+    tc.penalty_applied = True
+    el.status = "penalized"
+    el.resolved_at = datetime.now(timezone.utc)
+    session.add(FraudReport(user_id=u.id, campaign_id=c.id, completion_id=tc.id,
+                            report_type="retention_fail", description="Left before the retention period ended"))
+    await session.commit()
+    return True
+
+
+async def held_records(session, uid: int):
+    """Open early-leave records of a user, with the campaign link/title (for the block screen)."""
+    rows = (await session.execute(
+        select(EarlyLeave, Campaign).join(Campaign, Campaign.id == EarlyLeave.campaign_id)
+        .where(EarlyLeave.user_id == uid, EarlyLeave.status == "held")
+        .order_by(EarlyLeave.created_at))).all()
+    return rows

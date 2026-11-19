@@ -368,3 +368,18 @@
 376	Reglas
 377	SÍ
 378	NO
+
+# --- retention warning / restore screen ---
+379	⚠️ No abandones canales/grupos antes de {v0} días. De lo contrario se bloqueará la realización de tareas y se revocarán los GRAM ganados con ellas.
+380	⚠️ Cancelaste la suscripción al canal/chat antes de lo requerido (tarea №{v0})
+381	Para evitar el bloqueo, vuelve a suscribirte en un plazo de {v1} horas.
+382	💲 Hemos descontado {v2:,.0f} GRAM de tu saldo. Al volver a suscribirte, se te devolverán las monedas.
+383	ℹ️ Restablece tus suscripciones o paga una penalización para recuperar el acceso a las tareas.
+384	ℹ️ Aún no estás suscrito. Suscríbete primero y luego pulsa Actualizar lista.
+385	✅ Penalización pagada: {v0:,.0f} GRAM. Se restableció el acceso a las tareas.
+386	✅ ¡Suscripción restablecida! Se devolvieron {v0:,.0f} GRAM a tu saldo.
+387	🔄 Actualizar lista
+388	💲 Devolver monedas
+389	🔄 Volver a suscribirse
+390	Suscribirse - №{v0}
+391	⚠️ No volviste a suscribirte a tiempo. Se revocaron {v0:,.0f} GRAM.

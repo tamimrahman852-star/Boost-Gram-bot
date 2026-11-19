@@ -368,3 +368,18 @@
 376	Quy tắc
 377	BẬT
 378	TẮT
+
+# --- retention warning / restore screen ---
+379	⚠️ Đừng rời kênh/nhóm trước {v0} ngày. Nếu không, việc hoàn thành nhiệm vụ sẽ bị chặn và số GRAM kiếm được từ đó sẽ bị thu hồi.
+380	⚠️ Bạn đã hủy đăng ký kênh/cuộc trò chuyện sớm hơn quy định (nhiệm vụ №{v0})
+381	Để tránh bị chặn, vui lòng đăng ký lại trong vòng {v1} giờ.
+382	💲 Chúng tôi đã trừ {v2:,.0f} GRAM khỏi số dư của bạn. Sau khi đăng ký lại, xu của bạn sẽ được hoàn trả.
+383	ℹ️ Hãy khôi phục các đăng ký hoặc nộp phạt để lấy lại quyền truy cập nhiệm vụ.
+384	ℹ️ Bạn chưa đăng ký. Hãy đăng ký trước, rồi chạm Làm mới danh sách.
+385	✅ Đã nộp phạt: {v0:,.0f} GRAM. Quyền truy cập nhiệm vụ đã được khôi phục.
+386	✅ Đã khôi phục đăng ký! {v0:,.0f} GRAM đã được hoàn lại vào số dư của bạn.
+387	🔄 Làm mới danh sách
+388	💲 Hoàn trả xu
+389	🔄 Đăng ký lại
+390	Đăng ký - №{v0}
+391	⚠️ Bạn đã không đăng ký lại kịp thời. {v0:,.0f} GRAM đã bị thu hồi.

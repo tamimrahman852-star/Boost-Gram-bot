@@ -368,3 +368,18 @@
 376	Regeln
 377	AN
 378	AUS
+
+# --- retention warning / restore screen ---
+379	⚠️ Verlasse Kanäle/Gruppen nicht vor Ablauf von {v0} Tagen. Sonst wird das Erledigen von Aufgaben gesperrt und die damit verdienten GRAM werden entzogen.
+380	⚠️ Du hast den Kanal/Chat früher als erforderlich abbestellt (Aufgabe №{v0})
+381	Um eine Sperre zu vermeiden, abonniere bitte innerhalb von {v1} Stunden erneut.
+382	💲 Wir haben {v2:,.0f} GRAM von deinem Guthaben abgezogen. Nach erneutem Abonnieren werden deine Coins zurückgegeben.
+383	ℹ️ Stelle deine Abos wieder her oder zahle eine Strafe, um wieder Zugriff auf Aufgaben zu erhalten.
+384	ℹ️ Du bist noch nicht abonniert. Abonniere zuerst und tippe dann auf Liste aktualisieren.
+385	✅ Strafe bezahlt: {v0:,.0f} GRAM. Der Zugriff auf Aufgaben ist wiederhergestellt.
+386	✅ Abo wiederhergestellt! {v0:,.0f} GRAM wurden deinem Guthaben gutgeschrieben.
+387	🔄 Liste aktualisieren
+388	💲 Coins zurückgeben
+389	🔄 Erneut abonnieren
+390	Abonnieren - №{v0}
+391	⚠️ Du hast nicht rechtzeitig erneut abonniert. {v0:,.0f} GRAM wurden entzogen.
