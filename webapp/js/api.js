@@ -47,6 +47,18 @@ const real = {
   redeemCheck: (code, password) => req("POST", "/checks/redeem", { code, password }),
   referrals: () => req("GET", "/referrals"),
   saveSettings: (data) => req("POST", "/settings", data),
+  depositStars: (stars) => req("POST", "/deposits/stars", { stars }),
+  // ads marketplace
+  adChannels: () => req("GET", "/channels"),
+  adAddChannel: (data) => req("POST", "/channels", data),
+  adChannelStats: (id, days) => req("GET", `/channels/${id}/stats` + qs({ days })),
+  adChannelUpdate: (id, data) => req("POST", `/channels/${id}/update`, data),
+  adChannelAction: (id, action) => req("POST", `/channels/${id}/${action}`),
+  adEstimate: (o) => req("GET", "/ads/estimate" + qs(o)),
+  adCampaigns: () => req("GET", "/ads/campaigns"),
+  adCreateCampaign: ({ blob, ...o }) => { const f = new FormData(); Object.entries(o).forEach(([k, v]) => f.append(k, v)); if (blob) f.append("image", blob, "ad.jpg"); return req("POST", "/ads/campaigns", f); },
+  adCampaign: (id, days) => req("GET", `/ads/campaigns/${id}` + qs({ days })),
+  adCampaignAction: (id, action, body) => req("POST", `/ads/campaigns/${id}/${action}`, body),
 };
 
 export const api = demo ? mock.api : real;

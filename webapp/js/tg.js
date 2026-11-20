@@ -86,6 +86,10 @@ export function openTelegramLink(url) {
   if (W && W.openTelegramLink && /^https:\/\/t\.me\//i.test(url)) return W.openTelegramLink(url);
   window.open(url, "_blank", "noopener");
 }
+export function openInvoice(url, cb) {
+  if (W && W.openInvoice) W.openInvoice(url, (status) => cb && cb(status));
+  else { openLink(url); cb && cb("unknown"); }
+}
 export function openLink(url) { (W && W.openLink) ? W.openLink(url) : window.open(url, "_blank", "noopener"); }
 export function shareLink(url, text) {
   openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text || "")}`);

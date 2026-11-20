@@ -9,10 +9,11 @@ import * as promote from "./views/promote.js";
 import * as wallet from "./views/wallet.js";
 import * as invite from "./views/invite.js";
 import * as me from "./views/me.js";
+import * as ads from "./views/ads.js";
 
-const VIEWS = { home, earn, promote, wallet, me, invite, history: { render: wallet.history } };
-const TABS = [["home", "home"], ["earn", "bolt"], ["promote", "megaphone"], ["wallet", "wallet"], ["me", "user"]];
-const START_MAP = { earn: "earn", promote: "promote", wallet: "wallet", invite: "invite", deposit: "wallet" };
+const VIEWS = { home, earn, promote, wallet, me, invite, ads, history: { render: wallet.history }, adaddchannel: { render: ads.addChannel }, adchannel: { render: ads.channel }, adcreate: { render: ads.create }, adcampaign: { render: ads.campaign } };
+const TABS = [["home", "home"], ["earn", "bolt"], ["promote", "megaphone"], ["ads", "trend"], ["wallet", "wallet"], ["me", "user"]];
+const START_MAP = { earn: "earn", promote: "promote", ads: "ads", wallet: "wallet", invite: "invite", deposit: "wallet" };
 
 const viewEl = () => document.getElementById("view");
 let stack = [];        // navigation stack of {name, params, tab}
@@ -54,7 +55,7 @@ async function show(entry) {
   const isSub = !TABS.some((x) => x[0] === entry.name);
   isSub ? tgw.back.show(popBack) : tgw.back.hide();
   try {
-    const c = await VIEWS[entry.name].render({ root, params: entry.params, go: (n, p) => navigate(n, p), push: (n, p) => navigate(n, p, { push: true }), back: popBack });
+    const c = await VIEWS[entry.name].render({ root, params: entry.params, go: (n, p) => navigate(n, p), push: (n, p) => navigate(n, p, { push: true }), back: popBack, replace: (n, p) => { stack.pop(); navigate(n, p, { push: true }); } });
     if (my !== navId) { c && c(); return; }
     cleanup = c || null;
     if (isSub && !tgw.inTelegram) {

@@ -34,6 +34,8 @@ from handlers.history import router as history_router
 from handlers.proofs import router as proofs_router
 from handlers.retention import router as retention_router
 from handlers.broadcast import router as broadcast_router
+from handlers.ads import router as ads_router
+from ads import ads_worker
 
 
 class DBSessionMiddleware(BaseMiddleware):
@@ -128,6 +130,7 @@ async def main():
     dp.include_router(proofs_router)
     dp.include_router(retention_router)
     dp.include_router(broadcast_router)
+    dp.include_router(ads_router)
     dp.include_router(admin_router)
 
     await bot.set_my_commands([BotCommand(command="start", description="🚀 Start")])
@@ -147,6 +150,7 @@ async def main():
 
     # Start background retention worker
     worker_task = asyncio.create_task(retention_worker(bot))  # noqa: F841 (keep reference)
+    ads_task = asyncio.create_task(ads_worker(bot))  # noqa: F841 (channel-monetization scheduler)
 
     # Start FastAPI server in background or via uvicorn runner
     uv_config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=PORT, log_level="warning")

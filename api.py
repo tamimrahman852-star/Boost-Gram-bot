@@ -38,12 +38,12 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import (
     TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError, TelegramRetryAfter,
 )
-from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
 
 import i18n
 from config import (
     ADMIN_IDS, BOT_TOKEN, BOT_USERNAME, DEPOSIT_MAX_BDT, DEPOSIT_MIN_BDT, DEPOSIT_RATE_PER_BDT,
-    PAY_NUMBERS, BusinessRules, TaskPricing, WEBAPP_ORIGINS, logger,
+    PAY_NUMBERS, AdRules, BusinessRules, TaskPricing, WEBAPP_ORIGINS, logger,
 )
 from database import (
     AsyncSessionLocal, AutoRenew, Campaign, CampaignPost, CampaignStatus, Check, CheckActivation,
@@ -317,6 +317,10 @@ async def bootstrap(ctx: Ctx = Depends(auth)):
         "deposit": {"rate": num(DEPOSIT_RATE_PER_BDT), "min": num(DEPOSIT_MIN_BDT), "max": num(DEPOSIT_MAX_BDT)},
         "withdraw": {"methods": ["usdt_trc20", "usdt_erc20", "bank", "mobile"]},
         "referral": {"base": num(BusinessRules.REFERRAL_BASE_REWARD), "tiers": {str(k): float(v) for k, v in BusinessRules.REFERRAL_TIER_BONUSES.items()}},
+        "stars": {"rate": num(BusinessRules.STAR_TO_COIN_RATE), "packages": [50, 100, 250, 750, 1499, 2499], "min": 1, "max": 10000},
+        "ads": {"commission": float(AdRules.COMMISSION), "min_members": AdRules.MIN_MEMBERS, "min_budget": num(AdRules.MIN_BUDGET),
+                "lifetimes": list(AdRules.LIFETIMES), "external_links": AdRules.ALLOW_EXTERNAL_LINKS},
+        "legal": {"terms": "terms.html", "privacy": "privacy.html"},
     }
     return {
         "user": await user_dict(ctx), "config": cfg, "daily": await daily_info(ctx.uid),
@@ -899,6 +903,27 @@ async def deposit_create(method: str = Form(...), amount_bdt: str = Form(...), t
         await redis_client.delete(lock)
 
 
+@router.post("/deposits/stars")
+async def deposit_stars(body: dict = Body(...), ctx: Ctx = Depends(auth)):
+    """Telegram Stars top-up: returns an invoice link for Telegram.WebApp.openInvoice().
+    Payment is completed and credited by the bot's existing pre_checkout / successful_payment handlers."""
+    try:
+        n = int(body.get("stars"))
+    except (TypeError, ValueError):
+        raise ctx.err("range", "❌ ভুল সংখ্যা।", "❌ Invalid number.")
+    if not 1 <= n <= 10000:
+        raise ctx.err("range", "❌ ১–১০০০০ Stars।", "❌ Choose between 1 and 10,000 Stars.")
+    coins = n * int(BusinessRules.STAR_TO_COIN_RATE)
+    try:
+        url = await get_bot().create_invoice_link(
+            title="GRAM Top-Up", description=f"{coins:,} GRAM", payload=f"topup_{n}", currency="XTR",
+            prices=[LabeledPrice(label=f"{coins:,} GRAM", amount=n)])
+    except (TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError) as e:
+        logger.warning(f"createInvoiceLink failed: {e}")
+        raise ctx.err("unavailable", "❌ এখন Stars পেমেন্ট চালু করা যাচ্ছে না।", "❌ Stars payments are unavailable right now.")
+    return {"url": url, "gram": coins, "stars": n}
+
+
 @router.post("/withdrawals")
 async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
     try:
@@ -1143,7 +1168,9 @@ def install(app) -> None:
         app.add_middleware(
             CORSMiddleware, allow_origins=WEBAPP_ORIGINS, allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=["Authorization", "Content-Type"], max_age=600)
+    import api_ads
     app.include_router(router)
+    app.include_router(api_ads.router)
     try:
         app.router.on_shutdown.append(close_bot)
     except Exception:

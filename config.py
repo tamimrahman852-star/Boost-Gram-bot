@@ -48,6 +48,30 @@ if WEBAPP_URL:
         _origins.append(f"{_u.scheme}://{_u.netloc}")
 WEBAPP_ORIGINS = _origins
 
+# ---- Channel monetization / ad marketplace ----
+PUBLIC_URL = (os.getenv("PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or "https://boost-gram-bot.onrender.com").rstrip("/")
+
+
+class AdRules:
+    COMMISSION = Decimal(os.getenv("AD_COMMISSION", "0.20"))        # platform fee, charged on top of the publisher's price
+    MIN_MEMBERS = int(os.getenv("AD_MIN_MEMBERS", "100"))            # smallest channel that can monetize
+    PRICE_PER_1K_MIN = Decimal(os.getenv("AD_PRICE_PER_1K_MIN", "20000"))    # GRAM per post per 1,000 members (lower bound)
+    PRICE_PER_1K_MAX = Decimal(os.getenv("AD_PRICE_PER_1K_MAX", "600000"))   # ... upper bound
+    PRICE_FLOOR = Decimal("10000")
+    PRICE_CEIL = Decimal("50000000")
+    MIN_BUDGET = Decimal(os.getenv("AD_MIN_BUDGET", "100000"))
+    MAX_BUDGET = Decimal("100000000")
+    MAX_ACTIVE_CAMPAIGNS = 10
+    MAX_CHANNELS_PER_USER = 10
+    MAX_STRIKES = 3                                                  # early deletions before a channel is paused
+    # Only t.me links by default (keeps scams/phishing out of publishers' channels)
+    ALLOW_EXTERNAL_LINKS = os.getenv("AD_ALLOW_EXTERNAL_LINKS", "0") == "1"
+    # Read the public view counter of OUR OWN ad posts through Telegram's official post-widget (t.me/<chan>/<id>?embed=1)
+    VIEW_SYNC = os.getenv("AD_VIEW_SYNC", "1") == "1"
+    LIFETIMES = (6, 12, 24, 48, 72)                                  # hours an ad stays in the channel
+    TICK = 60                                                        # scheduler interval, seconds
+
+
 if not BOT_TOKEN or not DATABASE_URL or not REDIS_URL:
     logger.critical("Missing required env: BOT_TOKEN, DATABASE_URL, REDIS_URL")
     sys.exit(1)

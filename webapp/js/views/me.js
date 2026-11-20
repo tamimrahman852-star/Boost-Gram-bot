@@ -43,7 +43,13 @@ export async function render({ root, push }) {
       switchRow("sparkles", t("me.haptics"), t("me.haptics_sub"), localStorage.getItem("bg:haptics") !== "0", (v) => { localStorage.setItem("bg:haptics", v ? "1" : "0"); store.set("haptics", v ? "1" : "0"); import("../tg.js").then((m) => m.haptic.enable(v)); }),
       h("div", { class: "card tap flat", onclick: () => push("invite") }, h("div", { class: "row" }, h("div", { class: "ico g4" }, icon("gift", 19)), h("div", { class: "grow" }, h("div", { class: "h3" }, t("invite.title")), h("div", { class: "small muted" }, t("me.invite_sub"))), icon("chevR", 18))),
       h("div", { class: "card tap flat", onclick: () => openLink("https://t.me/" + S.config.bot_username) }, h("div", { class: "row" }, h("div", { class: "ico g1" }, icon("send", 19)), h("div", { class: "grow" }, h("div", { class: "h3" }, t("me.open_bot")), h("div", { class: "small muted" }, "@" + S.config.bot_username)), icon("chevR", 18))))));
-  root.append(h("div", { class: "center tiny faint", style: { marginTop: "26px" } }, "Boost Gram Mini App · v1.0"));
+  const L = S.config.legal || {}, base = (location.origin + location.pathname).replace(/[^/]*$/, ""), lang = getLang() === "bn" ? "?lang=bn" : "";
+  root.append(h("div", { class: "section" }, h("div", { class: "card flat", style: { padding: "2px 14px" } }, h("div", { class: "list" },
+    [["shield", t("legal.privacy"), L.privacy || "privacy.html"], ["info", t("legal.terms"), L.terms || "terms.html"]].map(([ic, label, page]) =>
+      h("div", { class: "item tap", onclick: () => openLink(base + page + lang) }, h("div", { class: "ico g5" }, icon(ic, 18)), h("div", { class: "grow h3", style: { fontSize: "14px" } }, label), icon("chevR", 18))),
+    h("div", { class: "item tap", onclick: () => openLink("https://telegram.org/privacy") }, h("div", { class: "ico g1" }, icon("send", 18)), h("div", { class: "grow h3", style: { fontSize: "14px" } }, t("legal.tg_privacy")), icon("chevR", 18)),
+    h("div", { class: "item tap", onclick: () => openLink("https://telegram.org/tos") }, h("div", { class: "ico g1" }, icon("send", 18)), h("div", { class: "grow h3", style: { fontSize: "14px" } }, t("legal.tg_terms")), icon("chevR", 18))))));
+  root.append(h("div", { class: "center tiny faint", style: { margin: "18px 0 8px" } }, "Boost Gram Mini App · v1.1 · " + t("legal.not_affiliated")));
 }
 
 const mini = (v, k) => h("div", { class: "stat center" }, h("div", { class: "v num" }, v), h("div", { class: "k" }, k));

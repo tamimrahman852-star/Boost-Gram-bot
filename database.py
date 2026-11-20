@@ -488,8 +488,89 @@ class EarlyLeave(Base):
     resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
+class AdChannel(Base):
+    """A channel its owner monetizes: the bot posts advertisers' ads there inside the owner's schedule."""
+    __tablename__ = "ad_channels"
+    __table_args__ = (Index("ix_adch_owner", "owner_id"), Index("ix_adch_status", "status"))
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    owner_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    chat_id: Mapped[int] = mapped_column(BigInteger, unique=True)
+    username: Mapped[Optional[str]] = mapped_column(String(64))
+    title: Mapped[str] = mapped_column(String(255))
+    members: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(12), default="active")           # active / paused / removed
+    price_per_post: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    tz_offset_min: Mapped[int] = mapped_column(Integer, default=0)              # owner's UTC offset in minutes
+    window_start: Mapped[int] = mapped_column(Integer, default=8)               # local hour the ads may start
+    window_end: Mapped[int] = mapped_column(Integer, default=23)                # local hour they must stop (exclusive)
+    max_posts_per_day: Mapped[int] = mapped_column(Integer, default=2)
+    min_gap_hours: Mapped[int] = mapped_column(Integer, default=6)
+    post_lifetime_hours: Mapped[int] = mapped_column(Integer, default=24)
+    auto_delete: Mapped[bool] = mapped_column(Boolean, default=True)
+    strikes: Mapped[int] = mapped_column(Integer, default=0)
+    total_posts: Mapped[int] = mapped_column(Integer, default=0)
+    total_earned: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))
+    pause_reason: Mapped[Optional[str]] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class AdCampaign(Base):
+    """An advertiser's budget-limited ad. Runs between start_at and end_at, stops when the budget is used up."""
+    __tablename__ = "ad_campaigns"
+    __table_args__ = (Index("ix_adcamp_adv", "advertiser_id"), Index("ix_adcamp_status", "status"))
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    advertiser_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(120))
+    text: Mapped[str] = mapped_column(Text)
+    media_file_id: Mapped[Optional[str]] = mapped_column(String(256))
+    button_text: Mapped[str] = mapped_column(String(40))
+    button_url: Mapped[str] = mapped_column(String(512))
+    # pending_review / active / paused / stopped / finished / exhausted / rejected
+    status: Mapped[str] = mapped_column(String(16), default="pending_review")
+    budget: Mapped[Decimal] = mapped_column(Numeric(18, 4))                     # escrow taken from the balance
+    spent: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))      # reserved/paid for placements (price + fee)
+    refunded: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))   # returned to the advertiser
+    max_price_per_post: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    posts_per_day: Mapped[int] = mapped_column(Integer, default=3)
+    min_members: Mapped[int] = mapped_column(Integer, default=0)
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    end_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    total_posts: Mapped[int] = mapped_column(Integer, default=0)
+    reject_reason: Mapped[Optional[str]] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class AdPlacement(Base):
+    """One ad post in one channel (reserved -> posted -> completed / failed / removed_early)."""
+    __tablename__ = "ad_placements"
+    __table_args__ = (Index("ix_adpl_status", "status", "scheduled_for"), Index("ix_adpl_campaign", "campaign_id"), Index("ix_adpl_channel", "channel_id"))
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    campaign_id: Mapped[str] = mapped_column(String(36), ForeignKey("ad_campaigns.id"))
+    channel_id: Mapped[str] = mapped_column(String(36), ForeignKey("ad_channels.id"))
+    owner_id: Mapped[int] = mapped_column(BigInteger)                           # publisher
+    advertiser_id: Mapped[int] = mapped_column(BigInteger)
+    price: Mapped[Decimal] = mapped_column(Numeric(18, 4))                      # publisher's share
+    fee: Mapped[Decimal] = mapped_column(Numeric(18, 4))                        # platform commission
+    status: Mapped[str] = mapped_column(String(16), default="scheduled")
+    scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    posted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    message_id: Mapped[Optional[int]] = mapped_column(BigInteger)
+    members_at_post: Mapped[int] = mapped_column(Integer, default=0)
+    views: Mapped[int] = mapped_column(Integer, default=0)
+    clicks: Mapped[int] = mapped_column(Integer, default=0)
+    bot_starts: Mapped[int] = mapped_column(Integer, default=0)
+    views_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    failure: Mapped[Optional[str]] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 NEW_TABLES = [DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__,
-              TaskSubmission.__table__, AutoRenew.__table__, CampaignPost.__table__, Translation.__table__, EarlyLeave.__table__]
+              TaskSubmission.__table__, AutoRenew.__table__, CampaignPost.__table__, Translation.__table__, EarlyLeave.__table__,
+              AdChannel.__table__, AdCampaign.__table__, AdPlacement.__table__]
 
 
 async def ensure_new_tables():

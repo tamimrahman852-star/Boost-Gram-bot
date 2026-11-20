@@ -48,6 +48,7 @@ async def cmd_start(message: Message, session, bot: Bot, state: FSMContext):
     args = message.text.split(maxsplit=1)
     referrer_id = None
     check_code = None
+    ad_prefix = None
 
     if len(args) > 1:
         payload = args[1].strip()[:64]
@@ -57,6 +58,8 @@ async def cmd_start(message: Message, session, bot: Bot, state: FSMContext):
             ref_user = r.scalar_one_or_none()
             if ref_user and ref_user.id != uid and not ref_user.is_blocked:
                 referrer_id = ref_user.id
+        elif payload.startswith("ad_"):
+            ad_prefix = payload[3:35]
         elif payload.startswith("check_"):
             check_code = payload[6:].upper()
 
@@ -66,6 +69,18 @@ async def cmd_start(message: Message, session, bot: Bot, state: FSMContext):
     # invited user completes a task and stays for the retention period
     # (see services.settle_referrals). Paying on /start was trivially farmable.
     await session.commit()
+
+    if ad_prefix and len(ad_prefix) >= 8:
+        # someone arrived through the "via @bot" button of a channel ad: count it once per person
+        try:
+            from database import AdPlacement, redis_client as _r
+            from sqlalchemy import update as _upd
+            pid = (await session.execute(select(AdPlacement.id).where(AdPlacement.id.like(ad_prefix + "%")).limit(1))).scalar()
+            if pid and await _r.set(f"adstart:{pid}:{uid}", "1", nx=True, ex=30 * 86400):
+                await session.execute(_upd(AdPlacement).where(AdPlacement.id == pid).values(bot_starts=AdPlacement.bot_starts + 1))
+                await session.commit()
+        except Exception as e:
+            logger.debug(f"ad start tracking failed: {e}")
 
     welcome = t(user.language, "welcome", bot_name=esc(BOT_USERNAME), first_name=esc(message.from_user.first_name))
     kb = main_menu(user.language)

@@ -2,7 +2,7 @@ import { h, icon, fmt, short, skeleton, sheet, toast, confetti, compressImage, a
 import { t } from "../i18n.js";
 import { api } from "../api.js";
 import { S, fail, patchUser, emit, TX } from "../state.js";
-import { haptic, copyText, mainButton, shareLink } from "../tg.js";
+import { haptic, copyText, mainButton, shareLink, openInvoice } from "../tg.js";
 import { txRow } from "./home.js";
 
 const METHOD = { bkash: { name: "bKash", color: "#e2136e" }, nagad: { name: "Nagad", color: "#f6921e" }, rocket: { name: "Rocket", color: "#8c3494" } };
@@ -46,6 +46,57 @@ export async function render({ root, params, push }) {
 
 // ---------------- Deposit ----------------
 function deposit(root) {
+  const cfg = S.config, local = Object.keys(METHOD).some((k) => cfg.pay[k]);
+  if (!cfg.stars) return local ? localDeposit(root) : localDeposit(root);
+  let mode = "stars", clean = null;
+  const seg = h("div", { class: "seg", style: { marginBottom: "14px" } }), body = h("div");
+  root.append(...(local ? [seg] : []), body);
+  const draw = () => {
+    clean && clean(); clean = null; mainButton.hide(); body.replaceChildren();
+    seg.replaceChildren(...[["stars", "⭐ " + t("wallet.stars")], ["local", t("wallet.local")]].map(([k, l]) => h("button", { class: k === mode ? "on" : "", onclick: () => { if (mode === k) return; mode = k; haptic.select(); draw(); } }, l)));
+    clean = (mode === "stars" ? starsDeposit : localDeposit)(body);
+  };
+  draw();
+  return () => { clean && clean(); };
+}
+
+function starsDeposit(root) {
+  const cfg = S.config.stars, st = { stars: cfg.packages[1] || cfg.packages[0], busy: false };
+  const wrap = h("div", { class: "col gap-lg" }); root.append(wrap);
+  const ok = () => st.stars >= cfg.min && st.stars <= cfg.max;
+  const sync = () => mainButton.set({ text: t("wallet.pay_stars", { n: fmt(st.stars) }), disabled: !ok() || st.busy, loading: st.busy, onClick: pay });
+  function draw() {
+    const inp = h("input", { class: "input num", inputmode: "numeric", value: st.stars || "", oninput: (e) => { st.stars = parseInt(e.target.value.replace(/\D/g, "")) || 0; preview(); sync(); } });
+    const prev = h("div", { class: "hint ok num" });
+    const preview = () => { prev.textContent = ok() ? "= " + fmt(st.stars * cfg.rate) + " GRAM" : t("wallet.stars_range", { a: fmt(cfg.min), b: fmt(cfg.max) }); prev.className = "hint num " + (ok() ? "ok" : "err"); };
+    wrap.replaceChildren(
+      h("div", { class: "card flat center" }, h("div", { style: { fontSize: "40px" } }, "⭐"), h("div", { class: "h3" }, t("wallet.stars_title")), h("div", { class: "small muted" }, t("wallet.stars_rate", { r: fmt(cfg.rate) }))),
+      h("div", { class: "grid2" }, cfg.packages.map((n) => h("button", { class: "lang" + (st.stars === n ? " on" : ""), onclick: () => { st.stars = n; haptic.select(); draw(); } }, h("span", { class: "num" }, "⭐ " + fmt(n)), h("span", { class: "small muted num" }, short(n * cfg.rate))))),
+      h("div", { class: "field" }, h("label", null, t("wallet.stars_custom")), h("div", { class: "input-wrap" }, inp, h("span", { class: "suffix" }, "⭐")), prev),
+      h("div", { class: "callout" }, icon("shield", 18), h("div", null, t("wallet.stars_note"))));
+    preview(); sync();
+  }
+  async function pay() {
+    if (!ok() || st.busy) return; st.busy = true; sync();
+    try {
+      const r = await api.depositStars(st.stars), before = S.user.balance;
+      openInvoice(r.url, async (status) => {
+        if (status === "paid" || status === "unknown") {
+          haptic.ok(); toast(t("wallet.stars_wait"), "ok");
+          for (let i = 0; i < 8; i++) {
+            await new Promise((x) => setTimeout(x, 1500));
+            try { const b = await api.bootstrap(); if (b.user.balance > before) { patchUser({ balance: b.user.balance }); confetti(60); toast("+" + fmt(r.gram) + " GRAM", "ok"); break; } } catch (_) {}
+          }
+        } else if (status === "failed") toast(t("err.generic"), "err");
+        st.busy = false; sync();
+      });
+    } catch (e) { fail(e); st.busy = false; sync(); }
+  }
+  draw();
+  return () => mainButton.hide();
+}
+
+function localDeposit(root) {
   const cfg = S.config, methods = Object.keys(METHOD).filter((k) => cfg.pay[k]);
   if (!methods.length) { root.append(h("div", { class: "empty" }, h("div", { class: "big" }, "🛠"), t("wallet.dep_off"))); return; }
   const st = { method: methods[0], amount: 500, trx: "", blob: null, preview: null, busy: false };
