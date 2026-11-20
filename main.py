@@ -8,7 +8,7 @@ from aiogram import Bot, Dispatcher, BaseMiddleware
 from aiogram.types import BotCommand, ErrorEvent, Message, CallbackQuery
 from aiogram.fsm.storage.redis import RedisStorage
 
-from config import BOT_TOKEN, PORT, ADMIN_IDS, BusinessRules, logger
+from config import BOT_TOKEN, PORT, ADMIN_IDS, WEBAPP_URL, BusinessRules, logger
 from database import AsyncSessionLocal, redis_client, User, ensure_new_tables
 from localization import L10N
 from i18n_filters import is_menu_text
@@ -131,6 +131,12 @@ async def main():
     dp.include_router(admin_router)
 
     await bot.set_my_commands([BotCommand(command="start", description="🚀 Start")])
+    if WEBAPP_URL.startswith("https://"):
+        try:
+            from aiogram.types import MenuButtonWebApp, WebAppInfo
+            await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="🚀 App", web_app=WebAppInfo(url=WEBAPP_URL)))
+        except Exception as e:
+            logger.warning(f"could not set Mini App menu button: {e}")
 
     @dp.error()
     async def on_error(event: ErrorEvent):

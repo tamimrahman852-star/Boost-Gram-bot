@@ -132,12 +132,13 @@ function withdraw(root) {
 function gifts(root) {
   const promo = h("input", { class: "input", placeholder: "PROMO CODE", autocapitalize: "characters", style: { textTransform: "uppercase" } });
   const chk = h("input", { class: "input", placeholder: "CHECK CODE", autocapitalize: "characters", style: { textTransform: "uppercase" } });
+  const chkPw = h("input", { class: "input", type: "password", placeholder: t("wallet.check_pw_ph"), autocomplete: "off" });
   const busy = (btn, on) => { btn.disabled = on; };
   const redeemPromo = h("button", { class: "btn", onclick: async () => { if (!promo.value.trim()) return; busy(redeemPromo, true); try { const r = await api.redeemVoucher(promo.value.trim()); patchUser({ balance: r.balance }); confetti(); haptic.ok(); toast("+" + fmt(r.amount) + " GRAM"); promo.value = ""; } catch (e) { fail(e); } busy(redeemPromo, false); } }, icon("ticket", 19), t("wallet.redeem"));
-  const redeemChk = h("button", { class: "btn sec", onclick: async () => { if (!chk.value.trim()) return; busy(redeemChk, true); try { const r = await api.redeemCheck(chk.value.trim()); patchUser({ balance: r.balance }); confetti(); haptic.ok(); toast("+" + fmt(r.amount) + " GRAM"); chk.value = ""; } catch (e) { fail(e); } busy(redeemChk, false); } }, icon("gift", 19), t("wallet.redeem_check"));
+  const redeemChk = h("button", { class: "btn sec", onclick: async () => { if (!chk.value.trim()) return; busy(redeemChk, true); try { const r = await api.redeemCheck(chk.value.trim(), chkPw.value.trim() || null); patchUser({ balance: r.balance }); confetti(); haptic.ok(); toast("+" + fmt(r.amount) + " GRAM"); chk.value = ""; } catch (e) { fail(e); } busy(redeemChk, false); } }, icon("gift", 19), t("wallet.redeem_check"));
   root.append(h("div", { class: "col gap-lg" },
     h("div", { class: "card flat col" }, h("div", { class: "row" }, h("div", { class: "ico g4" }, icon("ticket", 20)), h("div", null, h("div", { class: "h3" }, t("wallet.promo"), ), h("div", { class: "small muted" }, t("wallet.promo_sub")))), promo, redeemPromo),
-    h("div", { class: "card flat col" }, h("div", { class: "row" }, h("div", { class: "ico g1" }, icon("gift", 20)), h("div", null, h("div", { class: "h3" }, t("wallet.checks")), h("div", { class: "small muted" }, t("wallet.checks_sub")))), chk, redeemChk,
+    h("div", { class: "card flat col" }, h("div", { class: "row" }, h("div", { class: "ico g1" }, icon("gift", 20)), h("div", null, h("div", { class: "h3" }, t("wallet.checks")), h("div", { class: "small muted" }, t("wallet.checks_sub")))), chk, chkPw, redeemChk,
       h("button", { class: "btn sec", onclick: createCheckSheet }, icon("plus", 19), t("wallet.create_check")))));
 }
 

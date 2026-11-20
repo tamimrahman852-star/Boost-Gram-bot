@@ -85,7 +85,7 @@ async function boot() {
   applyTheme(theme || "auto");
   tgw.onThemeChange(() => themePref === "auto" && applyTheme("auto"));
   tgw.haptic.enable(hap !== "0");
-  if (lang) setLang(lang);
+  if (lang) await setLang(lang);
 
   window.addEventListener("offline", () => { const el = h("div", { class: "offline", id: "off" }, t("err.offline")); document.body.append(el); });
   window.addEventListener("online", () => document.getElementById("off")?.remove());
@@ -98,7 +98,7 @@ async function boot() {
     return;
   }
   S.user = data.user; S.config = data.config; S.daily = data.daily; S.badges = data.badges || { reviews: 0 };
-  if (!lang && S.user.language) setLang(S.user.language, false);
+  if (!lang && S.user.language) await setLang(S.user.language, false);
   S.startParam = tgw.startParam;
 
   const q = new URLSearchParams(location.search);

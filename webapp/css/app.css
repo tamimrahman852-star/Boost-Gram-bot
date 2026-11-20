@@ -313,3 +313,11 @@ input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border: 0; bord
 .demo { pointer-events: none; position: fixed; top: 1px; left: 50%; transform: translateX(-50%); z-index: 60; font-size: 8.5px; line-height: 1; font-weight: 800; letter-spacing: .1em; padding: 3px 7px; border-radius: 0 0 8px 8px; background: rgba(255,201,77,.2); color: var(--gold); border: 1px solid rgba(255,201,77,.35); border-top: 0; }
 
 .backbtn { flex: none; }
+
+/* ---- right-to-left languages (Arabic, Persian) ---- */
+[dir="rtl"] body { text-align: right; }
+[dir="rtl"] .typecard { text-align: right; }
+[dir="rtl"] .reward { text-align: left; align-items: flex-start; }
+[dir="rtl"] .num, [dir="rtl"] input[type="number"], [dir="rtl"] input[inputmode="numeric"] { direction: ltr; unicode-bidi: plaintext; }
+[dir="rtl"] input.input { text-align: right; }
+[dir="rtl"] .callout, [dir="rtl"] .steps li { text-align: right; }

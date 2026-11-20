@@ -36,7 +36,7 @@ const real = {
   resolveTarget: (type, link) => req("POST", "/campaigns/resolve", { type, link }),
   createCampaign: (data) => req("POST", "/campaigns", data),
   campaignAction: (id, action) => req("POST", `/campaigns/${id}/${action}`),
-  reviews: () => req("GET", "/proofs/review"),
+  reviews: () => req("GET", "/proofs/review").then((r) => { r.items.forEach((p) => { if (p.image && p.image.startsWith("/api/")) p.image = BASE + p.image.slice(4); }); return r; }),
   reviewAction: (id, action) => req("POST", `/proofs/${id}/${action}`),
   history: (cursor, kind) => req("GET", "/wallet/history" + qs({ cursor, kind })),
   requests: () => req("GET", "/wallet/requests"),

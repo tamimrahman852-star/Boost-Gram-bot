@@ -4,6 +4,9 @@ from fastapi.responses import HTMLResponse
 
 fastapi_app = FastAPI(title="BoostGram")
 
+import api as _api  # noqa: E402  (Mini App REST API)
+_api.install(fastapi_app)
+
 
 @fastapi_app.get("/", response_class=HTMLResponse)
 async def index():

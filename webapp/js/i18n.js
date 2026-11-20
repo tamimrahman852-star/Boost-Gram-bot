@@ -74,7 +74,7 @@ const en = {
   "err.premium_only": "This task is for Telegram Premium users", "err.daily_limit": "Daily task limit reached — come back tomorrow", "err.not_member": "We couldn't find you in the chat yet. Join first, then verify again.",
   "err.bad_link": "That doesn't look like a valid @username or t.me link", "err.not_bot": "A bot username must end with “bot”", "err.no_post": "Paste the link of a specific post, e.g. t.me/channel/123",
   "err.insufficient_balance": "Not enough balance", "err.too_many": "You've reached the limit for open items", "err.bad_trx": "That TrxID looks invalid", "err.level_locked": "Your level is too low to withdraw yet",
-  "err.range": "Amount is out of range", "err.bad_code": "Invalid or expired code", "err.not_found": "Not found", "err.blocked": "Your account is blocked", "err.cooldown": "Too fast — wait a moment",
+  "err.range": "Amount is out of range", "err.bot_not_admin": "Make the bot an administrator of that chat first, then try again", "err.duplicate": "That screenshot or target is already in use", "err.own_task": "You can't complete your own campaign", "err.already_done": "You already did this task", "err.slots_full": "All slots are taken", "err.unavailable": "This task isn't available right now", "err.bad_file": "Please upload a JPG, PNG or WebP image under 8 MB", "err.need_password": "This check is password-protected — enter its password below", "err.unauthorized": "Session expired — reopen the app from Telegram", "wallet.check_pw_ph": "Password (only if the check has one)", "err.bad_code": "Invalid or expired code", "err.not_found": "Not found", "err.blocked": "Your account is blocked", "err.cooldown": "Too fast — wait a moment",
 };
 
 const bn = {
@@ -149,15 +149,28 @@ const bn = {
   "err.premium_only": "এই টাস্ক শুধু টেলিগ্রাম প্রিমিয়াম ইউজারদের জন্য", "err.daily_limit": "দৈনিক টাস্ক লিমিট শেষ — আগামীকাল আসুন", "err.not_member": "আপনাকে এখনও চ্যাটে পাওয়া যায়নি। আগে জয়েন করুন, তারপর ভেরিফাই করুন।",
   "err.bad_link": "এটি সঠিক @ইউজারনেম বা t.me লিংক মনে হচ্ছে না", "err.not_bot": "বটের ইউজারনেম “bot” দিয়ে শেষ হতে হবে", "err.no_post": "নির্দিষ্ট পোস্টের লিংক দিন, যেমন t.me/channel/123",
   "err.insufficient_balance": "ব্যালেন্স যথেষ্ট নয়", "err.too_many": "খোলা আইটেমের সীমা শেষ", "err.bad_trx": "TrxID সঠিক মনে হচ্ছে না", "err.level_locked": "উইথড্র করতে আপনার লেভেল এখনও কম",
-  "err.range": "পরিমাণ সীমার বাইরে", "err.bad_code": "কোড ভুল বা মেয়াদোত্তীর্ণ", "err.not_found": "পাওয়া যায়নি", "err.blocked": "আপনার অ্যাকাউন্ট ব্লক করা", "err.cooldown": "খুব দ্রুত — একটু অপেক্ষা করুন",
+  "err.range": "পরিমাণ সীমার বাইরে", "err.bot_not_admin": "আগে বটকে ওই চ্যাটের অ্যাডমিন বানান, তারপর আবার চেষ্টা করুন", "err.duplicate": "এই স্ক্রিনশট বা টার্গেট আগেই ব্যবহৃত হয়েছে", "err.own_task": "নিজের ক্যাম্পেইন নিজে করা যায় না", "err.already_done": "আপনি এই টাস্ক আগেই করেছেন", "err.slots_full": "সব স্লট পূর্ণ", "err.unavailable": "এই টাস্ক এখন পাওয়া যাচ্ছে না", "err.bad_file": "৮ MB এর কম JPG, PNG বা WebP ছবি দিন", "err.need_password": "এই চেকে পাসওয়ার্ড আছে — নিচে পাসওয়ার্ড দিন", "err.unauthorized": "সেশন শেষ — টেলিগ্রাম থেকে অ্যাপ আবার খুলুন", "wallet.check_pw_ph": "পাসওয়ার্ড (চেকে থাকলে)", "err.bad_code": "কোড ভুল বা মেয়াদোত্তীর্ণ", "err.not_found": "পাওয়া যায়নি", "err.blocked": "আপনার অ্যাকাউন্ট ব্লক করা", "err.cooldown": "খুব দ্রুত — একটু অপেক্ষা করুন",
 };
 
 const DICTS = { en, bn };
+const RTL = new Set(["ar", "fa"]);
 let lang = "en";
 export const getLang = () => lang;
-export function setLang(code, persist = true) {
-  const ok = !!DICTS[code];
-  if (ok) { lang = code; document.documentElement.lang = code; persist && store.set("lang", code); }
+// Every other bot language lives in ./locales/<code>.js and is loaded on demand (falls back to English per key).
+export async function loadLang(code) {
+  if (DICTS[code]) return true;
+  if (!/^[a-z]{2}$/.test(code)) return false;
+  try { const m = await import(`./locales/${code}.js`); DICTS[code] = m.default; return true; }
+  catch (_) { return false; }
+}
+export async function setLang(code, persist = true) {
+  const ok = await loadLang(code);
+  if (ok) {
+    lang = code;
+    document.documentElement.lang = code;
+    document.documentElement.dir = RTL.has(code) ? "rtl" : "ltr";
+    persist && store.set("lang", code);
+  }
   return ok;
 }
 export function t(key, vars) {

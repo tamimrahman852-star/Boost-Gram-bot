@@ -73,3 +73,9 @@ the existing business functions (so bot and app can never disagree).
 5. `requirements.txt` — add `python-multipart` (file uploads) and `aiofiles` if missing.
 6. BotFather → `/mybots` → Bot Settings → Menu Button → set `WEBAPP_URL`; optionally `/newapp` for a `t.me/bot/app` link.
 Nothing else (workers, alembic, handlers, locales) needs to change; no new tables are required.
+
+
+## Implemented
+`api.py` in the repo root implements everything above (mounted by `web.py`). Extra codes it can return:
+`bot_not_admin duplicate own_task already_done slots_full unavailable bad_file need_password unauthorized`.
+Campaign actions: `pause | resume | cancel | renew | audience`. Proof images are returned as short-lived signed URLs (`/api/proofs/{id}/image?exp=&sig=`).

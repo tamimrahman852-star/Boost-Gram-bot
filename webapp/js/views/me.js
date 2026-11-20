@@ -55,7 +55,7 @@ function langSheet() {
       h("div", { class: "lang-grid" }, Object.entries(S.config.langs).map(([code, name]) => h("button", { class: "lang" + (code === cur ? " on" : ""), onclick: async () => {
         haptic.select(); S.user.language = code;
         try { await api.saveSettings({ language: code }); } catch (_) {}
-        const applied = setLang(code); s.close();
+        const applied = await setLang(code); s.close();
         toast(applied ? name : t("me.lang_bot_only", { l: name }), "ok");
         rerender();
       } }, name, code === cur && icon("check", 17)))));

@@ -35,6 +35,18 @@ if not ENCRYPTION_KEY:
     logger.critical("ENCRYPTION_KEY is not set! Using an insecure fallback. Set a long random value in your environment.")
     ENCRYPTION_KEY = "insecure-fallback-change-me"
 PORT = int(os.getenv("PORT", "8000"))
+# ---- Telegram Mini App ----
+# Public URL of the deployed webapp (Vercel), e.g. https://boost-gram-bot-webapp-113m.vercel.app/
+WEBAPP_URL = os.getenv("WEBAPP_URL", "").strip()
+# Origins allowed to call /api directly (only needed if the webapp calls Render without the Vercel rewrite).
+# Comma separated. WEBAPP_URL's origin is added automatically.
+_origins = [o.strip().rstrip("/") for o in os.getenv("WEBAPP_ORIGINS", "").split(",") if o.strip()]
+if WEBAPP_URL:
+    from urllib.parse import urlparse as _up
+    _u = _up(WEBAPP_URL)
+    if _u.scheme and _u.netloc and f"{_u.scheme}://{_u.netloc}" not in _origins:
+        _origins.append(f"{_u.scheme}://{_u.netloc}")
+WEBAPP_ORIGINS = _origins
 
 if not BOT_TOKEN or not DATABASE_URL or not REDIS_URL:
     logger.critical("Missing required env: BOT_TOKEN, DATABASE_URL, REDIS_URL")

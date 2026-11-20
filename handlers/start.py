@@ -3,15 +3,15 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from aiogram import Router, Bot
 from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 
-from config import BOT_USERNAME, WELCOME_MEDIA_URL, logger
+from config import BOT_USERNAME, WELCOME_MEDIA_URL, WEBAPP_URL, logger
 from database import User
 from localization import L10N, t
 from keyboards import main_menu
-from helpers import esc
+from helpers import esc, L
 
 router = Router()
 
@@ -82,6 +82,23 @@ async def cmd_start(message: Message, session, bot: Bot, state: FSMContext):
                 logger.debug(f"welcome media via {method.__name__} failed: {e}")
     if not sent:
         await message.answer(welcome, reply_markup=kb, parse_mode=ParseMode.HTML)
+
+    if WEBAPP_URL.startswith("https://"):
+        try:
+            await message.answer("📲", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🚀 Boost Gram App", web_app=WebAppInfo(url=WEBAPP_URL))]]))
+        except Exception as e:
+            logger.debug(f"webapp button failed: {e}")
+
+    if WEBAPP_URL.startswith("https://"):
+        try:
+            await message.answer(
+                L(user.language, "📱 পুরো অ্যাপ খুলুন — টাস্ক, ওয়ালেট ও প্রমোশন এক জায়গায়।",
+                  "📱 Open the full app — tasks, wallet and promotion in one place."),
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+                    text=L(user.language, "🚀 অ্যাপ খুলুন", "🚀 Open App"), web_app=WebAppInfo(url=WEBAPP_URL))]]))
+        except Exception as e:
+            logger.debug(f"open-app button failed: {e}")
 
     if check_code:
         from handlers.checks import _redeem_check_deeplink
