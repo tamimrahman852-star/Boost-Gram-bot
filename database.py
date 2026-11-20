@@ -500,10 +500,11 @@ class AdChannel(Base):
     title: Mapped[str] = mapped_column(String(255))
     members: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String(12), default="active")           # active / paused / removed
-    price_per_post: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    price_per_post: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))   # legacy (fixed-price model), unused
     tz_offset_min: Mapped[int] = mapped_column(Integer, default=0)              # owner's UTC offset in minutes
     window_start: Mapped[int] = mapped_column(Integer, default=8)               # local hour the ads may start
     window_end: Mapped[int] = mapped_column(Integer, default=23)                # local hour they must stop (exclusive)
+    slots: Mapped[str] = mapped_column(String(200), default="")                 # owner's local posting times, "09:00,13:30,21:00"
     max_posts_per_day: Mapped[int] = mapped_column(Integer, default=2)
     min_gap_hours: Mapped[int] = mapped_column(Integer, default=6)
     post_lifetime_hours: Mapped[int] = mapped_column(Integer, default=24)
@@ -525,6 +526,9 @@ class AdCampaign(Base):
     title: Mapped[str] = mapped_column(String(120))
     text: Mapped[str] = mapped_column(Text)
     media_file_id: Mapped[Optional[str]] = mapped_column(String(256))
+    media_type: Mapped[Optional[str]] = mapped_column(String(8))                # photo / video
+    pricing: Mapped[str] = mapped_column(String(4), default="cpm")              # cpm = per 1,000 views, cpc = per click
+    bid: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))  # GRAM per 1,000 views or per click (gross, fee included)
     button_text: Mapped[str] = mapped_column(String(40))
     button_url: Mapped[str] = mapped_column(String(512))
     # pending_review / active / paused / stopped / finished / exhausted / rejected
@@ -532,7 +536,7 @@ class AdCampaign(Base):
     budget: Mapped[Decimal] = mapped_column(Numeric(18, 4))                     # escrow taken from the balance
     spent: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))      # reserved/paid for placements (price + fee)
     refunded: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))   # returned to the advertiser
-    max_price_per_post: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    max_price_per_post: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))   # legacy, unused
     posts_per_day: Mapped[int] = mapped_column(Integer, default=3)
     min_members: Mapped[int] = mapped_column(Integer, default=0)
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -552,8 +556,11 @@ class AdPlacement(Base):
     channel_id: Mapped[str] = mapped_column(String(36), ForeignKey("ad_channels.id"))
     owner_id: Mapped[int] = mapped_column(BigInteger)                           # publisher
     advertiser_id: Mapped[int] = mapped_column(BigInteger)
-    price: Mapped[Decimal] = mapped_column(Numeric(18, 4))                      # publisher's share
-    fee: Mapped[Decimal] = mapped_column(Numeric(18, 4))                        # platform commission
+    price: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))    # publisher's share earned so far (paid when the ad ends)
+    fee: Mapped[Decimal] = mapped_column(Numeric(18, 4), default=Decimal("0"))      # platform commission so far
+    slot: Mapped[Optional[str]] = mapped_column(String(24))                     # "2026-11-20 09:00" owner-local posting time it fills
+    billed_views: Mapped[int] = mapped_column(Integer, default=0)
+    billed_clicks: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String(16), default="scheduled")
     scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     posted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -573,7 +580,37 @@ NEW_TABLES = [DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__t
               AdChannel.__table__, AdCampaign.__table__, AdPlacement.__table__]
 
 
+_AD_COLUMNS = [
+    ("ad_channels", "slots", "VARCHAR(200) DEFAULT ''"),
+    ("ad_campaigns", "media_type", "VARCHAR(8)"),
+    ("ad_campaigns", "pricing", "VARCHAR(4) DEFAULT 'cpm'"),
+    ("ad_campaigns", "bid", "NUMERIC(18,4) DEFAULT 0"),
+    ("ad_placements", "slot", "VARCHAR(24)"),
+    ("ad_placements", "billed_views", "INTEGER DEFAULT 0"),
+    ("ad_placements", "billed_clicks", "INTEGER DEFAULT 0"),
+]
+_AD_RELAX = [("ad_channels", "price_per_post"), ("ad_campaigns", "max_price_per_post"), ("ad_placements", "price"), ("ad_placements", "fee")]
+
+
 async def ensure_new_tables():
     """Create the tables added after the first release (idempotent, no migration step needed)."""
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=NEW_TABLES, checkfirst=True))
+    # columns added to the ad tables after they first shipped (create_all never alters existing tables)
+    from sqlalchemy import text as _t
+    for table, col, ddl in _AD_COLUMNS:
+        try:
+            async with engine.begin() as conn:
+                if engine.dialect.name == "postgresql":
+                    await conn.execute(_t(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {ddl}"))
+                else:
+                    await conn.execute(_t(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+        except Exception:
+            pass                                                              # already there
+    if engine.dialect.name == "postgresql":
+        for table, col in _AD_RELAX:
+            try:
+                async with engine.begin() as conn:
+                    await conn.execute(_t(f"ALTER TABLE {table} ALTER COLUMN {col} SET DEFAULT 0"))
+            except Exception:
+                pass

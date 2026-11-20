@@ -69,7 +69,7 @@ async def ad_click(pid: str, request: Request):
         status, url = row
         ua = request.headers.get("user-agent", "")
         ip = (request.headers.get("x-forwarded-for", "") or (request.client.host if request.client else "")).split(",")[0].strip()
-        if status in ("posted", "completed") and not any(x in ua.lower() for x in _BOT_UA):
+        if status == "posted" and not any(x in ua.lower() for x in _BOT_UA):
             who = hashlib.sha1(f"{ip}|{ua}".encode()).hexdigest()[:16]
             if await redis_client.set(f"clk:{pid}:{who}", "1", nx=True, ex=86400):
                 await s.execute(update(AdPlacement).where(AdPlacement.id == pid).values(clicks=AdPlacement.clicks + 1))

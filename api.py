@@ -319,7 +319,12 @@ async def bootstrap(ctx: Ctx = Depends(auth)):
         "referral": {"base": num(BusinessRules.REFERRAL_BASE_REWARD), "tiers": {str(k): float(v) for k, v in BusinessRules.REFERRAL_TIER_BONUSES.items()}},
         "stars": {"rate": num(BusinessRules.STAR_TO_COIN_RATE), "packages": [50, 100, 250, 750, 1499, 2499], "min": 1, "max": 10000},
         "ads": {"commission": float(AdRules.COMMISSION), "min_members": AdRules.MIN_MEMBERS, "min_budget": num(AdRules.MIN_BUDGET),
-                "lifetimes": list(AdRules.LIFETIMES), "external_links": AdRules.ALLOW_EXTERNAL_LINKS},
+                "lifetimes": list(AdRules.LIFETIMES), "default_lifetime": AdRules.DEFAULT_LIFETIME, "external_links": AdRules.ALLOW_EXTERNAL_LINKS,
+                "view_sync": AdRules.VIEW_SYNC, "models": ["cpm", "cpc"] if AdRules.VIEW_SYNC else ["cpc"],
+                "cpm": {"min": int(AdRules.CPM_MIN), "default": int(AdRules.CPM_DEFAULT), "max": int(AdRules.CPM_MAX)},
+                "cpc": {"min": int(AdRules.CPC_MIN), "default": int(AdRules.CPC_DEFAULT), "max": int(AdRules.CPC_MAX)},
+                "max_slots": AdRules.MAX_SLOTS, "slot_gap": AdRules.MIN_SLOT_GAP_MIN, "video_mb": AdRules.VIDEO_MAX_BYTES // 1048576,
+                "image_mb": AdRules.IMAGE_MAX_BYTES // 1048576},
         "legal": {"terms": "terms.html", "privacy": "privacy.html"},
     }
     return {

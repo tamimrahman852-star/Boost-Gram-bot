@@ -15,7 +15,7 @@ from aiogram.types import (
 )
 from sqlalchemy import select
 
-from ads import close_campaign, fee_of, remaining
+from ads import close_campaign, remaining
 from config import ADMIN_IDS, BOT_USERNAME, PUBLIC_URL, WEBAPP_URL, logger
 from database import AdCampaign, User, redis_client
 from helpers import L, esc
@@ -54,14 +54,15 @@ async def bot_channel_status(ev: ChatMemberUpdated):
 # ------------------------------------------------------------------ admin review
 async def notify_admins_new_campaign(bot: Bot, c: AdCampaign, file_id=None):
     cap = (f"📣 <b>New ad campaign — review</b>\n\n👤 <code>{c.advertiser_id}</code>\n🏷 {esc(c.title)}\n\n{esc(c.text)}\n\n"
-           f"🔗 {esc(c.button_url)}  [{esc(c.button_text)}]\n💰 Budget {c.budget:,.0f} · max/post {c.max_price_per_post:,.0f} · {c.posts_per_day}/day")
+           f"🔗 {esc(c.button_url)}  [{esc(c.button_text)}]\n💰 Budget {c.budget:,.0f} · {c.pricing.upper()} bid {c.bid:,.0f} · {c.posts_per_day}/day")
     kb = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="✅ Approve", callback_data=f"adm:ad:ok:{c.id}"),
         InlineKeyboardButton(text="❌ Reject + refund", callback_data=f"adm:ad:no:{c.id}")]])
     for aid in ADMIN_IDS:
         try:
             if file_id and len(cap) <= 1024:
-                await bot.send_photo(aid, file_id, caption=cap, reply_markup=kb, parse_mode=ParseMode.HTML)
+                send = {"video": bot.send_video, "animation": bot.send_animation}.get(c.media_type, bot.send_photo)
+                await send(aid, file_id, caption=cap, reply_markup=kb, parse_mode=ParseMode.HTML)
             else:
                 await bot.send_message(aid, cap, reply_markup=kb, parse_mode=ParseMode.HTML)
         except Exception as e:

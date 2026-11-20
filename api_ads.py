@@ -9,11 +9,12 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, File, Form, UploadFile
 from sqlalchemy import func, select
 
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError, TelegramRetryAfter
+from aiogram.types import BufferedInputFile
 
-from api import ApiError, Ctx, auth, get_bot, iso, num, _upload_photo, MAX_IMAGE_BYTES
+from api import ApiError, Ctx, auth, get_bot, iso, num, _upload_photo
 from ads import (
-    OPEN_STATUSES, close_campaign, fee_of, post_html, price_bounds, remaining, _aware,
+    OPEN_STATUSES, allowed_pricing, bid_bounds, clean_slots, close_campaign, parse_slots, post_html, remaining, split_spend, _aware,
 )
 from config import BOT_USERNAME, AdRules, logger
 from database import (
@@ -35,20 +36,22 @@ def _stats(rows) -> dict:
     views = sum(p.views for p in done)
     clicks = sum(p.clicks for p in done)
     starts = sum(p.bot_starts for p in done)
-    paid = sum((p.price + p.fee for p in done), Decimal("0"))
+    spent = sum((p.price + p.fee for p in done), Decimal("0"))               # what advertisers paid (100%)
+    fee = sum((p.fee for p in done), Decimal("0"))                           # platform's 20%
     earned = sum((p.price for p in rows if p.status == "completed"), Decimal("0"))
+    pending = sum((p.price for p in rows if p.status == "posted"), Decimal("0"))
     return {
         "posts": len(done), "completed": sum(1 for p in done if p.status == "completed"),
         "live": sum(1 for p in done if p.status == "posted"),
-        "views": views, "clicks": clicks, "bot_starts": starts,
+        "views": views, "impressions": views, "clicks": clicks, "bot_starts": starts,
         "ctr": round(clicks / views * 100, 2) if views else 0,
-        "spent": num(paid), "earned": num(earned),
-        # cost the advertiser paid per click / per 1,000 views (price + platform fee)
-        "cpc": num(round(paid / clicks, 2)) if clicks else None,
-        "cpm": num(round(paid / views * 1000, 2)) if views else None,
-        # what the publisher earned per 1,000 views / per click
-        "rpm": num(round(earned / views * 1000, 2)) if views and earned else None,
-        "epc": num(round(earned / clicks, 2)) if clicks and earned else None,
+        "spent": num(spent), "fee": num(fee), "earned": num(earned), "pending": num(pending),
+        # advertiser side: effective cost per click / per 1,000 views (fee included)
+        "cpc": num(round(spent / clicks, 2)) if clicks else None,
+        "cpm": num(round(spent / views * 1000, 2)) if views else None,
+        # publisher side: earned (paid + pending) per 1,000 views / per click
+        "rpm": num(round((earned + pending) / views * 1000, 2)) if views and (earned + pending) else None,
+        "epc": num(round((earned + pending) / clicks, 2)) if clicks and (earned + pending) else None,
     }
 
 
@@ -64,8 +67,7 @@ def _series(rows, days: int) -> list:
             acc[d]["views"] += p.views
             acc[d]["clicks"] += p.clicks
             acc[d]["spent"] += p.price + p.fee
-            if p.status == "completed":
-                acc[d]["earned"] += p.price
+            acc[d]["earned"] += p.price
     return [{"date": k.isoformat(), "views": v["views"], "clicks": v["clicks"], "earned": num(v["earned"]), "spent": num(v["spent"])}
             for k, v in acc.items()]
 
@@ -75,6 +77,7 @@ def _placement_dto(p: AdPlacement, ch: Optional[AdChannel] = None, c: Optional[A
          "views": p.views, "clicks": p.clicks, "bot_starts": p.bot_starts, "members": p.members_at_post,
          "ctr": round(p.clicks / p.views * 100, 2) if p.views else 0, "failure": p.failure,
          "created_at": iso(p.created_at)}
+    d["slot"] = p.slot
     if side == "pub":
         d["earn"] = num(p.price)
         if c:
@@ -92,10 +95,8 @@ def _placement_dto(p: AdPlacement, ch: Optional[AdChannel] = None, c: Optional[A
 def _channel_dto(ch: AdChannel, rows) -> dict:
     return {
         "id": ch.id, "title": ch.title, "username": ch.username, "members": ch.members, "status": ch.status,
-        "pause_reason": ch.pause_reason, "price": num(ch.price_per_post), "bounds": price_bounds(ch.members),
-        "tz_offset": ch.tz_offset_min, "window_start": ch.window_start, "window_end": ch.window_end,
-        "max_posts": ch.max_posts_per_day, "min_gap": ch.min_gap_hours, "lifetime": ch.post_lifetime_hours,
-        "auto_delete": ch.auto_delete, "strikes": ch.strikes, "total_posts": ch.total_posts,
+        "pause_reason": ch.pause_reason, "tz_offset": ch.tz_offset_min, "slots": parse_slots(ch.slots),
+        "lifetime": ch.post_lifetime_hours, "auto_delete": ch.auto_delete, "strikes": ch.strikes, "total_posts": ch.total_posts,
         "earned": num(ch.total_earned), "stats": _stats(rows), "created_at": iso(ch.created_at),
     }
 
@@ -103,10 +104,11 @@ def _channel_dto(ch: AdChannel, rows) -> dict:
 def _campaign_dto(c: AdCampaign, rows) -> dict:
     st = _stats(rows)
     return {
-        "id": c.id, "title": c.title, "text": c.text, "has_image": bool(c.media_file_id), "button_text": c.button_text,
-        "button_url": c.button_url, "status": c.status, "reject_reason": c.reject_reason,
+        "id": c.id, "title": c.title, "text": c.text, "has_image": bool(c.media_file_id), "media_type": c.media_type if c.media_file_id else None,
+        "button_text": c.button_text, "button_url": c.button_url, "status": c.status, "reject_reason": c.reject_reason,
+        "pricing": c.pricing, "bid": num(c.bid),
         "budget": num(c.budget), "spent": num(c.spent), "refunded": num(c.refunded), "remaining": num(remaining(c)),
-        "max_price": num(c.max_price_per_post), "posts_per_day": c.posts_per_day, "min_members": c.min_members,
+        "posts_per_day": c.posts_per_day, "min_members": c.min_members,
         "start_at": iso(c.start_at), "end_at": iso(c.end_at), "posts": c.total_posts, "stats": st,
         "created_at": iso(c.created_at),
     }
@@ -127,8 +129,11 @@ async def _rows_by(session, col, ids):
 def _rules() -> dict:
     return {
         "commission": float(AdRules.COMMISSION), "min_members": AdRules.MIN_MEMBERS, "lifetimes": list(AdRules.LIFETIMES),
-        "max_channels": AdRules.MAX_CHANNELS_PER_USER, "min_budget": num(AdRules.MIN_BUDGET),
+        "default_lifetime": AdRules.DEFAULT_LIFETIME, "max_channels": AdRules.MAX_CHANNELS_PER_USER, "min_budget": num(AdRules.MIN_BUDGET),
         "max_strikes": AdRules.MAX_STRIKES, "external_links": AdRules.ALLOW_EXTERNAL_LINKS, "view_sync": AdRules.VIEW_SYNC,
+        "models": allowed_pricing(), "cpm": bid_bounds("cpm"), "cpc": bid_bounds("cpc"),
+        "max_slots": AdRules.MAX_SLOTS, "slot_gap": AdRules.MIN_SLOT_GAP_MIN, "slot_grace": AdRules.SLOT_GRACE_MIN,
+        "video_mb": AdRules.VIDEO_MAX_BYTES // (1024 * 1024), "image_mb": AdRules.IMAGE_MAX_BYTES // (1024 * 1024),
         "add_link": f"https://t.me/{BOT_USERNAME}?startchannel=true&admin=post_messages+edit_messages+delete_messages",
     }
 
@@ -184,28 +189,23 @@ async def _verify_channel(ctx: Ctx, chat_ref) -> dict:
     return {"chat_id": chat.id, "title": (chat.title or chat.username)[:200], "username": chat.username, "members": members}
 
 
-def _settings(ctx: Ctx, body: dict, members: int, cur: Optional[AdChannel] = None) -> dict:
-    """Validate the publisher's settings (price inside the allowed range, schedule sane)."""
-    def pick(key, default):
-        return body.get(key, default)
+def _settings(ctx: Ctx, body: dict, cur: Optional[AdChannel] = None) -> dict:
+    """Validate the publisher's settings: exact posting times (owner-local), time zone, how long each ad stays."""
     try:
-        b = price_bounds(members)
-        price = Decimal(str(pick("price", cur.price_per_post if cur else b["suggested"])))
-        ws = int(pick("window_start", cur.window_start if cur else 8))
-        we = int(pick("window_end", cur.window_end if cur else 23))
-        tz = int(pick("tz_offset", cur.tz_offset_min if cur else 0))
-        mp = int(pick("max_posts", cur.max_posts_per_day if cur else 2))
-        gap = int(pick("min_gap", cur.min_gap_hours if cur else 6))
-        life = int(pick("lifetime", cur.post_lifetime_hours if cur else 24))
-        auto = bool(pick("auto_delete", cur.auto_delete if cur else True))
-    except (InvalidOperation, ValueError, TypeError):
+        tz = int(body.get("tz_offset", cur.tz_offset_min if cur else 0))
+        life = int(body.get("lifetime", cur.post_lifetime_hours if cur else AdRules.DEFAULT_LIFETIME))
+        auto = bool(body.get("auto_delete", cur.auto_delete if cur else True))
+    except (ValueError, TypeError):
         raise ctx.err("range", "❌ ভুল মান।", "❌ Invalid value.")
-    if not price.is_finite() or price != price.to_integral_value() or not (b["min"] <= price <= b["max"]):
-        raise ctx.err("range", f"❌ মূল্য {b['min']:,}–{b['max']:,} এর মধ্যে হতে হবে।", f"❌ Price must be between {b['min']:,} and {b['max']:,} GRAM.")
-    if not (0 <= ws <= 23 and 1 <= we <= 24 and -720 <= tz <= 840 and 1 <= mp <= 6 and 1 <= gap <= 24 and life in AdRules.LIFETIMES):
+    raw = body.get("slots", parse_slots(cur.slots) if cur else ["10:00", "16:00", "21:00"])
+    slots = clean_slots(raw)
+    if slots is None:
+        raise ctx.err("bad_slots", f"❌ ১ থেকে {AdRules.MAX_SLOTS} টি সময় দিন, প্রতিটির মাঝে কমপক্ষে {AdRules.MIN_SLOT_GAP_MIN} মিনিট ব্যবধান রেখে।",
+                      f"❌ Pick 1–{AdRules.MAX_SLOTS} posting times (HH:MM), at least {AdRules.MIN_SLOT_GAP_MIN} minutes apart.")
+    if not (-720 <= tz <= 840) or life not in AdRules.LIFETIMES:
         raise ctx.err("range", "❌ সময়সূচির মান ঠিক নয়।", "❌ The schedule values are out of range.")
-    return dict(price_per_post=price, window_start=ws, window_end=we, tz_offset_min=tz, max_posts_per_day=mp,
-                min_gap_hours=gap, post_lifetime_hours=life, auto_delete=auto)
+    return dict(slots=",".join(slots), tz_offset_min=tz, max_posts_per_day=len(slots), post_lifetime_hours=life, auto_delete=auto,
+                price_per_post=Decimal("0"))
 
 
 @router.post("/channels")
@@ -231,7 +231,7 @@ async def channel_add(body: dict = Body(...), ctx: Ctx = Depends(auth)):
     if mine >= AdRules.MAX_CHANNELS_PER_USER:
         await ctx.session.rollback()
         raise ctx.err("too_many", "❌ চ্যানেলের সীমা শেষ।", "❌ Channel limit reached.")
-    st = _settings(ctx, body, info["members"], None)
+    st = _settings(ctx, body, None)
     if existing:                         # re-activating a channel that was removed earlier
         existing.owner_id, existing.title, existing.username, existing.members = ctx.uid, info["title"], info["username"], info["members"]
         for k, v in st.items():
@@ -261,7 +261,7 @@ async def _own_channel(ctx: Ctx, cid: str, lock: bool = False) -> AdChannel:
 @router.post("/channels/{cid}/update")
 async def channel_update(cid: str, body: dict = Body(...), ctx: Ctx = Depends(auth)):
     ch = await _own_channel(ctx, cid, lock=True)
-    for k, v in _settings(ctx, body, ch.members, ch).items():
+    for k, v in _settings(ctx, body, ch).items():
         setattr(ch, k, v)
     await ctx.session.commit()
     rows = (await ctx.session.execute(select(AdPlacement).where(AdPlacement.channel_id == cid))).scalars().all()
@@ -318,26 +318,60 @@ def _clean_link(ctx: Ctx, url: str) -> str:
     return url
 
 
-async def _eligible(session, uid: int, max_price: Decimal, min_members: int):
-    return [c for c in (await session.execute(select(AdChannel).where(AdChannel.status == "active"))).scalars().all()
-            if c.owner_id != uid and c.price_per_post <= max_price and c.members >= min_members]
+async def _upload_media(ctx: Ctx, data: bytes) -> tuple:
+    """Photo (JPG/PNG/WebP, 8 MB) or video (MP4/MOV, 10 MB) for an ad. Telegram only hands out a file_id for files it has seen, so
+    the file goes to the advertiser's own private chat once and is deleted again. Returns (file_id, media_type)."""
+    head = data[:12]
+    is_video = head[4:8] == b"ftyp"
+    if not data or len(data) > (AdRules.VIDEO_MAX_BYTES if is_video else AdRules.IMAGE_MAX_BYTES):
+        mb = AdRules.VIDEO_MAX_BYTES // (1024 * 1024) if is_video else AdRules.IMAGE_MAX_BYTES // (1024 * 1024)
+        raise ctx.err("bad_file", f"ফাইলটি পড়া যায়নি বা বড় ({mb}MB এর বেশি)।", f"That file is empty or larger than {mb} MB.")
+    if not is_video:
+        file_id, _u = await _upload_photo(ctx, data)
+        return file_id, "photo"
+    bot = get_bot()
+    try:
+        msg = await bot.send_video(ctx.uid, BufferedInputFile(data, filename="ad.mp4"), supports_streaming=True, disable_notification=True)
+    except TelegramForbiddenError:
+        raise ctx.err("not_bot", "আগে বটে /start দিন।", "Open the bot chat and press /start first.")
+    except (TelegramBadRequest, TelegramNetworkError, TelegramRetryAfter):
+        raise ctx.err("bad_file", "ভিডিওটি আপলোড হয়নি। MP4 (H.264) ব্যবহার করুন।", "The video could not be uploaded. Use an MP4 (H.264) file.")
+    media, kind = (msg.video, "video") if msg.video else ((msg.animation, "animation") if msg.animation else (None, None))
+    try:
+        await bot.delete_message(ctx.uid, msg.message_id)
+    except Exception:
+        pass
+    if not media:
+        raise ctx.err("bad_file", "ভিডিওটি গ্রহণযোগ্য নয়।", "That video is not supported. Use an MP4 (H.264) file.")
+    return media.file_id, kind
+
+
+def _bid_ok(ctx: Ctx, pricing: str, bid: Decimal) -> None:
+    if pricing not in allowed_pricing():
+        raise ctx.err("invalid", "❌ এই মডেল এখন চালু নেই।", "❌ That pricing model is not available right now.")
+    b = bid_bounds(pricing)
+    if not bid.is_finite() or bid != bid.to_integral_value() or not (b["min"] <= bid <= b["max"]):
+        unit = "প্রতি ১০০০ ভিউ" if pricing == "cpm" else "প্রতি ক্লিক"
+        unit_en = "per 1,000 views" if pricing == "cpm" else "per click"
+        raise ctx.err("range", f"❌ বিড {unit} {b['min']:,}–{b['max']:,} GRAM এর মধ্যে হতে হবে।", f"❌ A bid {unit_en} must be between {b['min']:,} and {b['max']:,} GRAM.")
 
 
 @router.get("/ads/estimate")
-async def ads_estimate(budget: float = 0, max_price: float = 0, min_members: int = 0, days: int = 7, posts_per_day: int = 3,
+async def ads_estimate(pricing: str = "cpm", bid: float = 0, budget: float = 0, min_members: int = 0, days: int = 7,
                        ctx: Ctx = Depends(auth)):
-    chans = await _eligible(ctx.session, ctx.uid, Decimal(str(max(max_price, 0))), max(min_members, 0))
-    out = {"channels": len(chans), "price_min": None, "price_max": None, "posts": 0, "reach": 0, "avg_price": 0, "fee": 0, "avg_cost": 0}
-    if chans:
-        prices = [c.price_per_post for c in chans]
-        avg = sum(prices) / len(prices)
-        fee = fee_of(avg)
-        possible = int(Decimal(str(max(budget, 0))) // (avg + fee))
-        cap = max(1, min(posts_per_day, 20)) * max(1, min(days, 90))
-        posts = min(possible, cap, len(chans) * max(1, min(days, 90)))
-        out.update({"price_min": num(min(prices)), "price_max": num(max(prices)), "avg_price": num(avg), "fee": num(fee),
-                    "avg_cost": num(avg + fee), "posts": posts, "reach": int(posts * sum(c.members for c in chans) / len(chans))})
-    out["commission"] = float(AdRules.COMMISSION)
+    """What this campaign can reach. Everything here is arithmetic on the numbers you enter plus the real channels that fit."""
+    chans = [c for c in (await ctx.session.execute(select(AdChannel).where(AdChannel.status == "active", AdChannel.slots != ""))).scalars().all()
+             if c.owner_id != ctx.uid and c.members >= max(min_members, 0)]
+    bud, bidd = Decimal(str(max(budget, 0))), Decimal(str(max(bid, 0)))
+    pub, fee = split_spend(bud) if bud else (Decimal(0), Decimal(0))
+    out = {"channels": len(chans), "slots_per_day": sum(len(parse_slots(c.slots)) for c in chans), "audience": sum(c.members for c in chans),
+           "commission": float(AdRules.COMMISSION), "publisher_share": num(pub), "platform_fee": num(fee),
+           "views": None, "clicks": None, "bid_min": None}
+    if bidd > 0 and bud > 0:
+        if pricing == "cpc":
+            out["clicks"] = int(bud // bidd)
+        else:
+            out["views"] = int(bud / bidd * 1000)
     return out
 
 
@@ -352,27 +386,28 @@ async def ads_list(ctx: Ctx = Depends(auth)):
 
 @router.post("/ads/campaigns")
 async def ads_create(title: str = Form(...), text: str = Form(...), button_text: str = Form(...), button_url: str = Form(...),
-                     budget: str = Form(...), max_price: str = Form(...), posts_per_day: int = Form(3), days: int = Form(7),
-                     min_members: int = Form(0), start_in_hours: int = Form(0), image: Optional[UploadFile] = File(None),
-                     ctx: Ctx = Depends(auth)):
-    title, text, button_text = title.strip()[:120], text.strip(), button_text.strip()
+                     pricing: str = Form("cpm"), bid: str = Form(...), budget: str = Form(...), posts_per_day: int = Form(6),
+                     days: int = Form(7), min_members: int = Form(0), start_in_hours: int = Form(0),
+                     media: Optional[UploadFile] = File(None), ctx: Ctx = Depends(auth)):
+    title, text, button_text, pricing = title.strip()[:120], text.strip(), button_text.strip(), pricing.strip().lower()
     if not 10 <= len(text) <= 900 or not 2 <= len(title) <= 120 or not 2 <= len(button_text) <= 32:
         raise ctx.err("invalid", "❌ লেখা ছোট বা বড়।", "❌ Check the length of your title, text (10–900 characters) and button.")
     url = _clean_link(ctx, button_url)
     try:
-        bud, mp = Decimal(budget), Decimal(max_price)
-        if not (bud.is_finite() and mp.is_finite()) or bud != bud.to_integral_value() or mp != mp.to_integral_value():
+        bud, bidd = Decimal(budget), Decimal(bid)
+        if not bud.is_finite() or bud != bud.to_integral_value():
             raise InvalidOperation
     except InvalidOperation:
         raise ctx.err("range", "❌ ভুল সংখ্যা।", "❌ Invalid number.")
-    if not (AdRules.MIN_BUDGET <= bud <= AdRules.MAX_BUDGET) or not (AdRules.PRICE_FLOOR <= mp <= AdRules.PRICE_CEIL) \
-            or not (1 <= posts_per_day <= 20 and 1 <= days <= 90 and 0 <= min_members <= 10_000_000 and 0 <= start_in_hours <= 24 * 30):
-        raise ctx.err("range", f"❌ বাজেট কমপক্ষে {AdRules.MIN_BUDGET:,.0f} GRAM।", f"❌ Budget, price or schedule is out of range (minimum budget {AdRules.MIN_BUDGET:,.0f} GRAM).")
-    if bud < mp + fee_of(mp):
-        raise ctx.err("range", "❌ বাজেট অন্তত একটি পোস্টের খরচের সমান হতে হবে।", "❌ The budget must cover at least one post at your maximum price.")
-    file_id = None
-    if image is not None and image.filename:
-        file_id, _u = await _upload_photo(ctx, await image.read(MAX_IMAGE_BYTES + 1))
+    _bid_ok(ctx, pricing, bidd)
+    if not (AdRules.MIN_BUDGET <= bud <= AdRules.MAX_BUDGET) \
+            or not (1 <= posts_per_day <= 100 and 1 <= days <= 90 and 0 <= min_members <= 10_000_000 and 0 <= start_in_hours <= 24 * 30):
+        raise ctx.err("range", f"❌ বাজেট কমপক্ষে {AdRules.MIN_BUDGET:,.0f} GRAM।", f"❌ Budget or schedule is out of range (minimum budget {AdRules.MIN_BUDGET:,.0f} GRAM).")
+    if bud < bidd * (1 if pricing == "cpm" else 3):
+        raise ctx.err("range", "❌ বাজেট আপনার বিডের চেয়ে অন্তত কয়েক গুণ বেশি হতে হবে।", "❌ The budget must be larger than your bid so it can buy at least a few results.")
+    file_id = media_type = None
+    if media is not None and media.filename:
+        file_id, media_type = await _upload_media(ctx, await media.read(AdRules.VIDEO_MAX_BYTES + 1))
     lock = f"lock:adcamp:{ctx.uid}"
     if not await redis_client.set(lock, "1", nx=True, ex=20):
         raise ctx.err("cooldown", "⏳ একটু অপেক্ষা করুন।", "⏳ One moment please.", 429)
@@ -391,8 +426,8 @@ async def ads_create(title: str = Form(...), text: str = Form(...), button_text:
             raise ctx.err("insufficient_balance", f"❌ ব্যালেন্স কম। দরকার {bud:,.0f}।", f"❌ Not enough balance. Need {bud:,.0f} GRAM.")
         start = datetime.now(timezone.utc) + timedelta(hours=start_in_hours)
         is_admin = ctx.uid in __import__("config").ADMIN_IDS
-        c = AdCampaign(advertiser_id=ctx.uid, title=title, text=text, media_file_id=file_id, button_text=button_text,
-                       button_url=url, status="active" if is_admin else "pending_review", budget=bud, max_price_per_post=mp,
+        c = AdCampaign(advertiser_id=ctx.uid, title=title, text=text, media_file_id=file_id, media_type=media_type, button_text=button_text,
+                       button_url=url, status="active" if is_admin else "pending_review", budget=bud, pricing=pricing, bid=bidd,
                        posts_per_day=posts_per_day, min_members=min_members, start_at=start, end_at=start + timedelta(days=days))
         ctx.session.add(c)
         await ctx.session.flush()

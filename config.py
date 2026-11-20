@@ -53,23 +53,40 @@ PUBLIC_URL = (os.getenv("PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or "ht
 
 
 class AdRules:
-    COMMISSION = Decimal(os.getenv("AD_COMMISSION", "0.20"))        # platform fee, charged on top of the publisher's price
+    """Performance-based ad marketplace (CPM / CPC, like Google AdSense or Meta Audience Network).
+
+    The advertiser funds a campaign and bids either per 1,000 views (CPM) or per click (CPC). Every GRAM actually spent is split:
+    COMMISSION (20%) stays with the platform, the rest (80%) belongs to the channel owner who showed the ad.
+    """
+    COMMISSION = Decimal(os.getenv("AD_COMMISSION", "0.20"))        # platform share of every GRAM spent
     MIN_MEMBERS = int(os.getenv("AD_MIN_MEMBERS", "100"))            # smallest channel that can monetize
-    PRICE_PER_1K_MIN = Decimal(os.getenv("AD_PRICE_PER_1K_MIN", "20000"))    # GRAM per post per 1,000 members (lower bound)
-    PRICE_PER_1K_MAX = Decimal(os.getenv("AD_PRICE_PER_1K_MAX", "600000"))   # ... upper bound
-    PRICE_FLOOR = Decimal("10000")
-    PRICE_CEIL = Decimal("50000000")
-    MIN_BUDGET = Decimal(os.getenv("AD_MIN_BUDGET", "100000"))
+    # bids, in GRAM: CPM = per 1,000 views, CPC = per click
+    CPM_MIN = Decimal(os.getenv("AD_CPM_MIN", "100000"))
+    CPM_MAX = Decimal(os.getenv("AD_CPM_MAX", "5000000"))
+    CPM_DEFAULT = Decimal(os.getenv("AD_CPM_DEFAULT", "300000"))
+    CPC_MIN = Decimal(os.getenv("AD_CPC_MIN", "10000"))
+    CPC_MAX = Decimal(os.getenv("AD_CPC_MAX", "1000000"))
+    CPC_DEFAULT = Decimal(os.getenv("AD_CPC_DEFAULT", "40000"))
+    DEFAULT_CTR = Decimal("0.01")                                    # used to rank CPC bids against CPM bids until a channel has data
+    MIN_BUDGET = Decimal(os.getenv("AD_MIN_BUDGET", "250000"))
     MAX_BUDGET = Decimal("100000000")
     MAX_ACTIVE_CAMPAIGNS = 10
     MAX_CHANNELS_PER_USER = 10
     MAX_STRIKES = 3                                                  # early deletions before a channel is paused
+    MAX_SLOTS = 12                                                   # posting times per channel per day
+    MIN_SLOT_GAP_MIN = 30                                            # minutes between two posting times
+    SLOT_GRACE_MIN = 15                                              # a posting time missed by more than this is skipped
     # Only t.me links by default (keeps scams/phishing out of publishers' channels)
     ALLOW_EXTERNAL_LINKS = os.getenv("AD_ALLOW_EXTERNAL_LINKS", "0") == "1"
-    # Read the public view counter of OUR OWN ad posts through Telegram's official post-widget (t.me/<chan>/<id>?embed=1)
+    # Read the public view counter of OUR OWN ad posts through Telegram's official post-widget (t.me/<chan>/<id>?embed=1).
+    # CPM needs views, so CPM campaigns are only offered while this is on.
     VIEW_SYNC = os.getenv("AD_VIEW_SYNC", "1") == "1"
-    LIFETIMES = (6, 12, 24, 48, 72)                                  # hours an ad stays in the channel
-    TICK = 60                                                        # scheduler interval, seconds
+    LIFETIMES = (1, 3, 6, 12, 24, 48, 72)                            # hours an ad stays in the channel
+    DEFAULT_LIFETIME = 6
+    IMAGE_MAX_BYTES = 8 * 1024 * 1024
+    VIDEO_MAX_BYTES = 10 * 1024 * 1024                               # ad videos: mp4 / mov, up to 10 MB
+    TICK = 30                                                        # scheduler interval, seconds
+    SYNC_MINUTES = 10                                                # how often live ads are re-measured and billed
 
 
 if not BOT_TOKEN or not DATABASE_URL or not REDIS_URL:

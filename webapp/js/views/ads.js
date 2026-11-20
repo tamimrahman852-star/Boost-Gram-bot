@@ -9,7 +9,8 @@ const money = (n) => fmt(n) + " GRAM";
 const pct = (n) => (Number(n) || 0).toFixed(2) + "%";
 const dash = (n, f = fmt) => (n == null ? "—" : f(n));
 const TZ = () => -new Date().getTimezoneOffset();
-const hh = (n) => String(n % 24).padStart(2, "0") + ":00";
+const utc = () => "UTC" + (TZ() >= 0 ? "+" : "") + (TZ() / 60);
+const share = () => Math.round((1 - ((S.config.ads || {}).commission ?? 0.2)) * 100);
 const STATUS_TAG = { active: "ok", paused: "warn", pending_review: "warn", rejected: "bad", stopped: "bad", finished: "info", posted: "info", completed: "ok", failed: "bad", removed_early: "bad" };
 const tag = (s) => h("span", { class: "tag " + (STATUS_TAG[s] || "info") }, t("ads.st_" + s));
 const stat = (v, k, ic, g) => h("div", { class: "stat" }, ic && h("div", { class: "ico " + (g || "g5") }, icon(ic, 16)), h("div", { class: "v num" }, v), h("div", { class: "k" }, k));
@@ -53,10 +54,10 @@ async function publishTab(root, push) {
     h("div", { class: "small muted", style: { fontWeight: 700 } }, t("ads.pub_earned")), h("div", { class: "h1 gold-text num", style: { fontSize: "30px" } }, money(tot.earned)),
     h("div", { class: "grid3", style: { marginTop: "12px" } }, stat(short(tot.views), t("ads.views")), stat(fmt(tot.clicks), t("ads.clicks")), stat(fmt(tot.live), t("ads.live")))));
   kids.push(h("button", { class: "btn shine", style: { margin: "14px 0" }, onclick: () => { haptic.tap(); push("adaddchannel"); } }, icon("plus", 19), t("ads.add_channel")));
-  if (!r.items.length) kids.push(h("div", { class: "card center", style: { padding: "26px 18px" } }, h("div", { style: { fontSize: "46px" } }, "📣"), h("div", { class: "h2" }, t("ads.pub_empty")), h("div", { class: "muted small", style: { marginTop: "6px" } }, t("ads.pub_empty_sub", { c: Math.round(r.rules.commission * 100) }))));
+  if (!r.items.length) kids.push(h("div", { class: "card center", style: { padding: "26px 18px" } }, h("div", { style: { fontSize: "46px" } }, "📣"), h("div", { class: "h2" }, t("ads.pub_empty")), h("div", { class: "muted small", style: { marginTop: "6px" } }, t("ads.pub_empty_sub", { p: Math.round((1 - r.rules.commission) * 100) }))));
   r.items.forEach((c) => kids.push(h("div", { class: "card tap flat", style: { marginBottom: "10px" }, onclick: () => push("adchannel", { id: c.id }) },
     h("div", { class: "row" }, h("div", { class: "grow" }, h("div", { class: "h3" }, c.title), h("div", { class: "small muted" }, "@" + c.username + " · " + t("ads.members", { n: fmt(c.members) }))), tag(c.status)),
-    h("div", { class: "grid3", style: { marginTop: "10px" } }, stat(short(c.price), t("ads.per_post")), stat(short(c.stats.views), t("ads.views")), stat(short(c.earned), t("ads.earned"))),
+    h("div", { class: "grid3", style: { marginTop: "10px" } }, stat(fmt(c.slots.length), t("ads.posts_day")), stat(short(c.stats.views), t("ads.views")), stat(short(c.earned), t("ads.earned"))),
     c.pause_reason && h("div", { class: "callout warn", style: { marginTop: "8px" } }, icon("info", 16), h("div", null, c.pause_reason)))));
   root.replaceChildren(...kids);
 }
@@ -88,7 +89,7 @@ export async function addChannel({ root, replace, go }) {
   let r; root.append(...skeleton(2, 90));
   try { r = await api.adChannels(); } catch (e) { root.replaceChildren(h("div", { class: "empty" }, t("err.generic"))); return; }
   const st = { busy: false };
-  const done = (ch) => { confetti(40); haptic.ok(); toast(t("ads.channel_added"), "ok"); replace("adchannel", { id: ch.id }); };
+  const done = (ch) => { confetti(40); haptic.ok(); toast(t("ads.channel_added"), "ok"); replace("adchannel", { id: ch.id, setup: true }); };
   async function add(payload, btn) {
     if (st.busy) return; st.busy = true; btn && (btn.disabled = true);
     try { const x = await api.adAddChannel(payload); done(x.channel); } catch (e) { fail(e); st.busy = false; btn && (btn.disabled = false); }
@@ -120,16 +121,18 @@ export async function channel({ root, params, back, replace }) {
   const c = d.channel, s = c.stats, kids = [];
   kids.push(h("div", { class: "pagehead" }, h("div", { class: "grow" }, h("div", { class: "h1", style: { fontSize: "21px" } }, c.title), h("div", { class: "small muted" }, "@" + c.username + " · " + t("ads.members", { n: fmt(c.members) }))), tag(c.status)));
   kids.push(h("div", { class: "card", style: { background: "linear-gradient(140deg, rgba(34,211,238,.25), rgba(124,92,255,.3))" } },
-    h("div", { class: "small muted", style: { fontWeight: 700 } }, t("ads.pub_earned")), h("div", { class: "h1 gold-text num", style: { fontSize: "30px" } }, money(c.earned))));
+    h("div", { class: "small muted", style: { fontWeight: 700 } }, t("ads.pub_earned")), h("div", { class: "h1 gold-text num", style: { fontSize: "30px" } }, money(c.earned)),
+    s.pending > 0 && h("div", { class: "small muted", style: { marginTop: "4px" } }, t("ads.pending") + ": ", h("b", { class: "num" }, money(s.pending)))));
+  kids.push(h("div", { class: "callout", style: { marginTop: "10px" } }, icon("shield", 18), h("div", null, t("ads.earn_note", { p: share() }))));
   kids.push(h("div", { class: "grid2 mt" }, stat(fmt(s.views), t("ads.impressions"), "eye", "g5"), stat(fmt(s.clicks), t("ads.clicks"), "trend", "g2"),
     stat(pct(s.ctr), t("ads.ctr"), "bolt", "g4"), stat(fmt(s.bot_starts), t("ads.bot_starts"), "bot", "g1"),
     stat(dash(s.rpm, short), t("ads.rpm"), "star", "g3"), stat(dash(s.epc, short), t("ads.epc"), "link", "g5")));
   kids.push(h("div", { class: "section" }, seriesBlock(d.series)));
   if (!S.config.ads || S.config.ads.view_sync === false) { /* views may be unavailable */ }
-  kids.push(h("div", { class: "section" }, h("div", { class: "head" }, h("div", { class: "h2" }, t("ads.settings"))),
-    h("div", { class: "card flat" }, h("div", { class: "list" },
-      row(t("ads.price"), money(c.price)), row(t("ads.window"), hh(c.window_start) + " – " + hh(c.window_end) + " (UTC" + (c.tz_offset >= 0 ? "+" : "") + c.tz_offset / 60 + ")"),
-      row(t("ads.max_posts"), c.max_posts + " / " + t("ads.day")), row(t("ads.min_gap"), c.min_gap + t("ads.h")), row(t("ads.lifetime"), c.lifetime + t("ads.h")), row(t("ads.strikes"), c.strikes))),
+  kids.push(h("div", { class: "section" }, h("div", { class: "head" }, h("div", { class: "h2" }, t("ads.slots_title"))),
+    h("div", { class: "card flat" }, h("div", { class: "chips" }, c.slots.map((x) => h("span", { class: "chip on", style: { pointerEvents: "none" } }, x))),
+      h("div", { class: "tiny muted", style: { marginTop: "8px" } }, t("ads.slots_sub") + " (" + utc() + ")"),
+      h("div", { class: "list", style: { marginTop: "8px" } }, row(t("ads.slots_count", { n: c.slots.length }), ""), row(t("ads.lifetime"), c.lifetime + t("ads.h")), row(t("ads.strikes"), c.strikes + " / " + ((S.config.ads || {}).max_strikes || 3)))),
     h("div", { class: "grid2", style: { marginTop: "10px" } },
       h("button", { class: "btn sec", onclick: () => settingsSheet(c, (n) => replace("adchannel", { id: c.id })) }, icon("sliders", 18), t("ads.edit")),
       h("button", { class: "btn sec", onclick: async () => { try { await api.adChannelAction(c.id, c.status === "active" ? "pause" : "resume"); haptic.ok(); replace("adchannel", { id: c.id }); } catch (e) { fail(e); } } }, icon(c.status === "active" ? "clock" : "bolt", 18), c.status === "active" ? t("ads.pause") : t("ads.resume"))),
@@ -139,29 +142,35 @@ export async function channel({ root, params, back, replace }) {
       h("div", { class: "grow" }, h("div", { class: "h3", style: { fontSize: "14px" } }, p.campaign_title || "—"), h("div", { class: "tiny muted" }, (p.posted_at ? ago(p.posted_at, t) : "—") + " · " + fmt(p.views) + " " + t("ads.views") + " · " + fmt(p.clicks) + " " + t("ads.clicks"))),
       h("div", { class: "col", style: { alignItems: "flex-end", gap: "4px" } }, h("div", { class: "amt num" }, "+" + short(p.earn)), tag(p.status)))))) : h("div", { class: "empty small" }, t("ads.no_posts"))));
   root.replaceChildren(...kids);
+  if (params.setup) setTimeout(() => settingsSheet(c, () => replace("adchannel", { id: c.id })), 250);
 }
 const row = (k, v) => h("div", { class: "item" }, h("div", { class: "grow muted" }, k), h("b", { class: "num" }, v));
 
 function settingsSheet(c, onSaved) {
   sheet((s) => {
-    const rules = S.config.ads, st = { price: c.price, ws: c.window_start, we: c.window_end, mp: c.max_posts, gap: c.min_gap, life: c.lifetime, auto: c.auto_delete, busy: false };
-    const priceLbl = h("b", { class: "num gold-text" }, money(st.price));
-    const slider = h("input", { type: "range", min: c.bounds.min, max: c.bounds.max, step: Math.max(1000, Math.round((c.bounds.max - c.bounds.min) / 200 / 1000) * 1000), value: st.price, style: { width: "100%" }, oninput: (e) => { st.price = Number(e.target.value); priceLbl.textContent = money(st.price); net.textContent = money(st.price); } });
-    const net = h("b", { class: "num" }, money(st.price));
-    const hours = (key) => h("select", { class: "input", onchange: (e) => { st[key] = Number(e.target.value); } }, Array.from({ length: key === "we" ? 24 : 24 }, (_, i) => (key === "we" ? i + 1 : i)).map((v) => h("option", { value: v, selected: v === st[key] }, hh(v))));
-    const num = (key, lo, hi) => h("input", { class: "input num", type: "number", min: lo, max: hi, value: st[key], oninput: (e) => { st[key] = Number(e.target.value); } });
-    const life = h("div", { class: "chips" }, (rules.lifetimes || [6, 12, 24, 48]).map((v) => { const b = h("button", { class: "chip" + (st.life === v ? " on" : ""), onclick: () => { st.life = v; haptic.select(); life.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === b)); } }, v + t("ads.h")); return b; }));
+    const rules = S.config.ads || {}, max = rules.max_slots || 12, gap = rules.slot_gap || 30;
+    const st = { slots: [...c.slots], life: c.lifetime, auto: c.auto_delete, busy: false };
+    const toMin = (x) => +x.slice(0, 2) * 60 + +x.slice(3);
+    const okGap = (arr) => { const m = arr.map(toMin).sort((a, b) => a - b); return m.length < 2 || m.every((v, i) => (i ? v - m[i - 1] : m[0] + 1440 - m[m.length - 1]) >= gap); };
+    const list = h("div", { class: "chips" }), count = h("div", { class: "tiny muted" });
+    const draw = () => { list.replaceChildren(...st.slots.map((x) => h("button", { class: "chip on", onclick: () => { if (st.slots.length <= 1) return; st.slots = st.slots.filter((y) => y !== x); haptic.select(); draw(); } }, x + "  ×"))); count.textContent = t("ads.slots_count", { n: st.slots.length }) + " · " + utc(); };
+    const tin = h("input", { type: "time", class: "input", value: "12:00", style: { flex: 1 } });
+    const add = h("button", { class: "btn sec sm", onclick: () => {
+      const v = tin.value; if (!/^\d\d:\d\d$/.test(v) || st.slots.includes(v)) return;
+      const n = [...st.slots, v].sort(); if (n.length > max || !okGap(n)) return toast(t("ads.slots_hint", { n: max, m: gap }), "err");
+      st.slots = n; haptic.select(); draw();
+    } }, icon("plus", 18), t("ads.slot_add"));
+    const life = h("div", { class: "chips" }, (rules.lifetimes || [1, 3, 6, 12, 24]).map((v) => { const b = h("button", { class: "chip" + (st.life === v ? " on" : ""), onclick: () => { st.life = v; haptic.select(); life.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === b)); } }, v + t("ads.h")); return b; }));
     const save = h("button", { class: "btn shine", onclick: async () => {
-      if (st.busy) return; if (st.we <= st.ws) return toast(t("err.invalid"), "err");
-      st.busy = true; save.disabled = true;
-      try { await api.adChannelUpdate(c.id, { price: st.price, window_start: st.ws, window_end: st.we, tz_offset: TZ(), max_posts: st.mp, min_gap: st.gap, lifetime: st.life, auto_delete: st.auto }); haptic.ok(); toast(t("ads.saved"), "ok"); s.close(); onSaved(); }
+      if (st.busy) return; st.busy = true; save.disabled = true;
+      try { await api.adChannelUpdate(c.id, { slots: st.slots, tz_offset: TZ(), lifetime: st.life, auto_delete: st.auto }); haptic.ok(); toast(t("ads.saved"), "ok"); s.close(); onSaved(); }
       catch (e) { fail(e); st.busy = false; save.disabled = false; }
     } }, icon("check", 19), t("ads.save"));
-    s.render(h("div", { class: "h2", style: { marginBottom: "12px" } }, t("ads.settings")), h("div", { class: "col" },
-      h("div", { class: "field" }, h("label", null, h("span", null, t("ads.price_per_post")), priceLbl), slider, h("div", { class: "row between tiny muted" }, h("span", { class: "num" }, short(c.bounds.min)), h("span", { class: "num" }, short(c.bounds.max))),
-        h("div", { class: "small muted" }, t("ads.you_earn"), " ", net)),
-      h("div", { class: "field" }, h("label", null, t("ads.window") + " (" + t("ads.local_time") + ")"), h("div", { class: "grid2" }, hours("ws"), hours("we"))),
-      h("div", { class: "grid2" }, h("div", { class: "field" }, h("label", null, t("ads.max_posts")), num("mp", 1, 6)), h("div", { class: "field" }, h("label", null, t("ads.min_gap") + " (" + t("ads.h") + ")"), num("gap", 1, 24))),
+    draw();
+    s.render(h("div", { class: "h2", style: { marginBottom: "4px" } }, t("ads.slots_title")), h("div", { class: "small muted", style: { marginBottom: "12px" } }, t("ads.slots_sub")), h("div", { class: "col" },
+      list, count,
+      h("div", { class: "row", style: { gap: "8px" } }, tin, add),
+      h("div", { class: "tiny muted" }, t("ads.slots_hint", { n: max, m: gap })),
       h("div", { class: "field" }, h("label", null, t("ads.lifetime")), life, h("div", { class: "hint" }, t("ads.lifetime_hint"))),
       h("div", { class: "callout" }, icon("shield", 18), h("div", null, t("ads.pub_note"))), save));
   });
@@ -169,13 +178,16 @@ function settingsSheet(c, onSaved) {
 
 // ============================ create campaign ============================
 export async function create({ root, replace }) {
-  const cfg = S.config.ads || {}, st = { title: "", text: "", button_text: "", button_url: "", budget: 500000, max_price: 300000, posts_per_day: 3, days: 7, min_members: 0, blob: null, preview: null, busy: false, est: null };
+  const cfg = S.config.ads || {}, models = cfg.models || ["cpc"];
+  const bounds = (m) => cfg[m] || { min: 1, default: 1, max: 1e9 };
+  const st = { title: "", text: "", button_text: "", button_url: "", pricing: models.includes("cpm") ? "cpm" : "cpc", bid: 0, budget: 500000, posts_per_day: 6, days: 7, min_members: 0, blob: null, kind: null, preview: null, busy: false, est: null };
+  st.bid = bounds(st.pricing).default;
   root.append(h("div", { class: "pagehead" }, h("div", { class: "h1" }, t("ads.new_campaign"))));
   const wrap = h("div", { class: "col gap-lg" }); root.append(wrap);
   const estBox = h("div", { class: "card flat" });
   let timer = null;
   const refreshEst = () => { clearTimeout(timer); timer = setTimeout(async () => {
-    try { st.est = await api.adEstimate({ budget: st.budget, max_price: st.max_price, days: st.days, posts_per_day: st.posts_per_day, min_members: st.min_members }); } catch (_) { st.est = null; }
+    try { st.est = await api.adEstimate({ pricing: st.pricing, bid: st.bid, budget: st.budget, days: st.days, min_members: st.min_members }); } catch (_) { st.est = null; }
     drawEst(); }, 350); };
   const drawEst = () => {
     const e = st.est;
@@ -183,19 +195,34 @@ export async function create({ root, replace }) {
     const com = Math.round((e.commission ?? cfg.commission ?? 0.2) * 100);
     estBox.replaceChildren(h("div", { class: "h3", style: { marginBottom: "8px" } }, t("ads.estimate")),
       e.channels ? h("div", { class: "list" },
-        row(t("ads.est_channels"), fmt(e.channels)), row(t("ads.est_price"), short(e.price_min) + " – " + short(e.price_max)), row(t("ads.est_fee", { n: com }), "+" + short(e.fee)),
-        row(t("ads.est_avg_cost"), money(e.avg_cost)), row(t("ads.est_posts"), "~" + fmt(e.posts)), row(t("ads.est_reach"), "~" + fmt(e.reach))) : h("div", { class: "callout warn" }, icon("info", 16), h("div", null, t("ads.est_none"))),
+        row(t("ads.est_channels"), fmt(e.channels)), row(t("ads.est_slots"), fmt(e.slots_per_day)), row(t("ads.est_audience"), fmt(e.audience)),
+        e.views != null && row(t("ads.est_views"), fmt(e.views)), e.clicks != null && row(t("ads.est_clicks"), fmt(e.clicks)),
+        row(t("ads.est_publishers", { n: 100 - com }), money(e.publisher_share)), row(t("ads.est_fee", { n: com }), money(e.platform_fee))) : h("div", { class: "callout warn" }, icon("info", 16), h("div", null, t("ads.est_none"))),
       h("div", { class: "tiny muted", style: { marginTop: "8px" } }, t("ads.escrow_note")));
   };
-  const valid = () => st.title.trim().length >= 2 && st.text.trim().length >= 10 && st.button_text.trim().length >= 2 && /^https?:\/\//i.test(st.button_url.trim()) && st.budget >= (cfg.min_budget || 0) && st.max_price > 0 && st.budget >= st.max_price && st.budget <= S.user.balance;
+  const valid = () => { const b = bounds(st.pricing); return st.title.trim().length >= 2 && st.text.trim().length >= 10 && st.button_text.trim().length >= 2 && /^https?:\/\//i.test(st.button_url.trim()) && st.bid >= b.min && st.bid <= b.max && st.budget >= Math.max(cfg.min_budget || 0, st.bid * (st.pricing === "cpm" ? 1 : 3)) && st.budget <= S.user.balance; };
   const sync = () => mainButton.set({ text: t("ads.launch") + " · " + short(st.budget), disabled: !valid() || st.busy, loading: st.busy, onClick: submit });
   const field = (label, el, hint) => h("div", { class: "field" }, h("label", null, label), el, hint && h("div", { class: "hint" }, hint));
-  const nin = (key, hint) => h("input", { class: "input num", inputmode: "numeric", value: st[key], oninput: (e) => { st[key] = parseInt(e.target.value.replace(/\D/g, "")) || 0; refreshEst(); sync(); } });
+  const nin = (key) => h("input", { class: "input num", inputmode: "numeric", value: st[key], oninput: (e) => { st[key] = parseInt(e.target.value.replace(/\D/g, "")) || 0; refreshEst(); sync(); } });
+  const media = () => st.preview ? (st.kind === "video" ? h("video", { src: st.preview, muted: true, loop: true, autoplay: true, playsinline: true, style: { width: "100%", borderRadius: "12px", margin: "6px 0", maxHeight: "260px", background: "#000" } }) : h("img", { src: st.preview, alt: "", style: { width: "100%", borderRadius: "12px", margin: "6px 0" } })) : null;
   const preview = h("div", { class: "card flat", style: { whiteSpace: "pre-wrap" } });
-  const upPrev = () => preview.replaceChildren(h("div", { class: "tiny muted" }, t("ads.preview")), st.preview && h("img", { src: st.preview, alt: "", style: { width: "100%", borderRadius: "12px", margin: "6px 0" } }), h("div", null, st.text || "…"), h("div", { class: "btn sm sec", style: { marginTop: "8px", pointerEvents: "none" } }, st.button_text || "…"), h("div", { class: "tiny muted", style: { marginTop: "6px" } }, "📣 " + t("ads.sponsored") + " · @" + S.config.bot_username));
-  const drop = () => h("label", { class: "drop" + (st.preview ? " has" : "") }, st.preview ? h("img", { src: st.preview, alt: "" }) : [icon("image", 26), h("div", { class: "h3", style: { marginTop: "6px" } }, t("ads.image")), h("div", { class: "small" }, t("common.optional"))],
-    h("input", { type: "file", accept: "image/*", class: "hide", onchange: async (e) => { const f = e.target.files[0]; if (!f) return; try { st.blob = await compressImage(f); st.preview = URL.createObjectURL(st.blob); haptic.ok(); draw(); } catch (_) { toast(t("err.bad_image"), "err"); } } }));
+  const upPrev = () => preview.replaceChildren(h("div", { class: "tiny muted" }, t("ads.preview")), media(), h("div", null, st.text || "…"), h("div", { class: "btn sm sec", style: { marginTop: "8px", pointerEvents: "none" } }, st.button_text || "…"), h("div", { class: "tiny muted", style: { marginTop: "6px" } }, "📣 " + t("ads.sponsored") + " · @" + S.config.bot_username));
+  const drop = () => h("label", { class: "drop" + (st.preview ? " has" : "") }, st.preview ? (st.kind === "video" ? icon("check", 26) : h("img", { src: st.preview, alt: "" })) : [icon("image", 26), h("div", { class: "h3", style: { marginTop: "6px" } }, t("ads.media")), h("div", { class: "small" }, t("ads.media_hint", { n: cfg.video_mb || 10 }))],
+    st.preview && st.kind === "video" && h("div", { class: "small" }, t("ads.media")),
+    h("input", { type: "file", accept: "image/*,video/mp4,video/quicktime", class: "hide", onchange: async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      try {
+        if (f.type.startsWith("video/")) {
+          if (f.size > (cfg.video_mb || 10) * 1048576) return toast(t("ads.video_big", { n: cfg.video_mb || 10 }), "err");
+          st.blob = f; st.kind = "video";
+        } else { st.blob = await compressImage(f); st.kind = "photo"; }
+        st.preview = URL.createObjectURL(st.blob); haptic.ok(); draw();
+      } catch (_) { toast(t("err.bad_image"), "err"); }
+    } }));
+  const model = () => h("div", { class: "col" }, models.map((m) => h("button", { class: "lang" + (st.pricing === m ? " on" : ""), onclick: () => { if (st.pricing === m) return; st.pricing = m; st.bid = bounds(m).default; haptic.select(); draw(); refreshEst(); } },
+    h("span", { style: { textAlign: "start" } }, h("b", null, t("ads." + m + "_name")), h("div", { class: "small muted" }, t("ads." + m + "_sub"))))));
   function draw() {
+    const b = bounds(st.pricing);
     wrap.replaceChildren(
       field(t("ads.c_title"), h("input", { class: "input", value: st.title, maxlength: 120, oninput: (e) => { st.title = e.target.value; sync(); } }), t("ads.c_title_hint")),
       field(t("ads.c_text"), h("textarea", { class: "input", rows: 5, maxlength: 900, value: st.text, oninput: (e) => { st.text = e.target.value; upPrev(); sync(); } }), t("ads.c_text_hint")),
@@ -204,9 +231,10 @@ export async function create({ root, replace }) {
         field(t("ads.c_link"), h("input", { class: "input", value: st.button_url, placeholder: "https://t.me/…", autocapitalize: "none", oninput: (e) => { st.button_url = e.target.value; sync(); } }))),
       !cfg.external_links && h("div", { class: "tiny muted" }, t("ads.tme_only")),
       preview,
+      h("div", { class: "h3" }, t("ads.model")), models.length > 1 ? model() : h("div", { class: "callout" }, icon("info", 16), h("div", null, t("ads.cpc_sub"))),
+      field(t(st.pricing === "cpm" ? "ads.bid_cpm" : "ads.bid_cpc"), h("div", { class: "input-wrap" }, nin("bid"), h("span", { class: "suffix" }, "GRAM")), t("ads.bid_hint", { a: fmt(b.min), b: fmt(b.max) })),
       h("div", { class: "h3" }, t("ads.c_budget_title")),
       field(t("ads.c_budget"), h("div", { class: "input-wrap" }, nin("budget"), h("span", { class: "suffix" }, "GRAM")), t("ads.c_budget_hint", { b: fmt(S.user.balance) })),
-      field(t("ads.c_maxprice"), h("div", { class: "input-wrap" }, nin("max_price"), h("span", { class: "suffix" }, "GRAM")), t("ads.c_maxprice_hint")),
       h("div", { class: "grid2" }, field(t("ads.c_days"), nin("days")), field(t("ads.c_ppd"), nin("posts_per_day"))),
       field(t("ads.c_minmembers"), nin("min_members"), t("ads.c_minmembers_hint")),
       estBox,
@@ -217,7 +245,7 @@ export async function create({ root, replace }) {
   async function submit() {
     if (!valid() || st.busy) return; st.busy = true; sync();
     try {
-      const r = await api.adCreateCampaign({ title: st.title.trim(), text: st.text.trim(), button_text: st.button_text.trim(), button_url: st.button_url.trim(), budget: st.budget, max_price: st.max_price, posts_per_day: st.posts_per_day, days: st.days, min_members: st.min_members, blob: st.blob });
+      const r = await api.adCreateCampaign({ title: st.title.trim(), text: st.text.trim(), button_text: st.button_text.trim(), button_url: st.button_url.trim(), pricing: st.pricing, bid: st.bid, budget: st.budget, posts_per_day: st.posts_per_day, days: st.days, min_members: st.min_members, blob: st.blob });
       patchUser({ balance: r.balance }); confetti(50); haptic.ok(); mainButton.hide();
       wrap.replaceChildren(h("div", { class: "card center", style: { padding: "30px 18px" } }, h("div", { style: { fontSize: "56px" } }, "⏳"), h("div", { class: "h2" }, t("ads.submitted")), h("div", { class: "muted", style: { margin: "6px 0 14px" } }, t("ads.submitted_sub")), h("button", { class: "btn", onclick: () => replace("adcampaign", { id: r.campaign.id }) }, t("common.continue"))));
     } catch (e) { fail(e); st.busy = false; sync(); }
@@ -238,6 +266,7 @@ export async function campaign({ root, params, replace }) {
   if (c.status === "pending_review") kids.push(h("div", { class: "callout" }, icon("clock", 16), h("div", null, t("ads.review_note"))));
   kids.push(h("div", { class: "card" }, h("div", { class: "row between" }, h("div", null, h("div", { class: "small muted" }, t("ads.remaining")), h("div", { class: "h1 gold-text num", style: { fontSize: "28px" } }, money(c.remaining))), h("div", { style: { textAlign: "end" } }, h("div", { class: "small muted" }, t("ads.spent")), h("div", { class: "h3 num" }, money(c.spent)))),
     h("div", { class: "bar", style: { margin: "12px 0 4px" } }, h("i", { style: { width: Math.min(100, c.budget ? (c.spent / c.budget) * 100 : 0) + "%" } })), h("div", { class: "tiny muted" }, t("ads.budget_of", { b: fmt(c.budget) }))));
+  kids.push(h("div", { class: "card flat mt" }, h("div", { class: "list" }, row(t("ads.model"), t("ads." + c.pricing + "_name")), row(t(c.pricing === "cpm" ? "ads.bid_cpm" : "ads.bid_cpc"), money(c.bid)))));
   kids.push(h("div", { class: "grid2 mt" }, stat(fmt(s.views), t("ads.impressions"), "eye", "g5"), stat(fmt(s.clicks), t("ads.clicks"), "trend", "g2"), stat(pct(s.ctr), t("ads.ctr"), "bolt", "g4"), stat(fmt(s.bot_starts), t("ads.bot_starts"), "bot", "g1"),
     stat(dash(s.cpc, fmt), t("ads.cpc"), "link", "g3"), stat(dash(s.cpm, fmt), t("ads.cpm"), "star", "g5")));
   kids.push(h("div", { class: "section" }, seriesBlock(d.series)));
