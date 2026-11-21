@@ -109,6 +109,11 @@ class User(Base):
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     risk_score: Mapped[int] = mapped_column(Integer, default=0)
+    # --- segmentation (v3): self-declared/derived, all optional ---
+    country: Mapped[Optional[str]] = mapped_column(String(2))                  # ISO-3166 alpha-2, chosen by the user
+    interests: Mapped[Optional[str]] = mapped_column(String(255))              # comma separated niche slugs
+    streak_days: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    streak_last: Mapped[Optional[str]] = mapped_column(String(10))             # YYYY-MM-DD (UTC) of the last daily claim
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     last_active_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -156,6 +161,11 @@ class Campaign(Base):
     target_bot_id: Mapped[Optional[int]] = mapped_column(BigInteger)
 
     premium_only: Mapped[bool] = mapped_column(Boolean, default=False)
+    # --- audience targeting (v3): empty = everyone ---
+    target_langs: Mapped[Optional[str]] = mapped_column(String(120))           # "bn,en"
+    target_countries: Mapped[Optional[str]] = mapped_column(String(120))       # "BD,IN"
+    target_niche: Mapped[Optional[str]] = mapped_column(String(48))
+    featured_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))   # pinned at the top of the task list until then
 
     reward_per_user: Mapped[Decimal] = mapped_column(Numeric(18, 4))
     base_reward: Mapped[Decimal] = mapped_column(Numeric(18, 4))
@@ -314,6 +324,8 @@ class WithdrawalRequest(Base):
     processed_by: Mapped[Optional[int]] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    risk_hold: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")   # routed to the review queue by the risk shield
+    risk_reason: Mapped[Optional[str]] = mapped_column(String(255))
 
     user = relationship("User", back_populates="withdrawals")
 
@@ -395,6 +407,30 @@ class DepositRequest(Base):
     processed_by: Mapped[Optional[int]] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class RiskEvent(Base):
+    """One signal from the risk shield. The user's risk_score is the (decayed) sum; this table is the audit trail."""
+    __tablename__ = "risk_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(32), index=True)       # fast_completion | shared_device | burst | high_drop | dispute ...
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    detail: Mapped[Optional[str]] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+
+class UserPass(Base):
+    """VIP / boost pass bought with GRAM (a coin sink). Active while expires_at is in the future."""
+    __tablename__ = "user_passes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))                   # vip | boost
+    price: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class StarsPayment(Base):
@@ -613,7 +649,7 @@ class AdPlacement(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
-NEW_TABLES = [StarsPayment.__table__, PortalLoginToken.__table__, TonDeposit.__table__, DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__,
+NEW_TABLES = [RiskEvent.__table__, UserPass.__table__, StarsPayment.__table__, PortalLoginToken.__table__, TonDeposit.__table__, DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__,
               TaskSubmission.__table__, AutoRenew.__table__, CampaignPost.__table__, Translation.__table__, EarlyLeave.__table__,
               AdChannel.__table__, AdCampaign.__table__, AdPlacement.__table__]
 
@@ -626,6 +662,13 @@ _AD_COLUMNS = [
     ("ad_placements", "slot", "VARCHAR(24)"),
     ("ad_placements", "billed_views", "INTEGER DEFAULT 0"),
     ("ad_placements", "billed_clicks", "INTEGER DEFAULT 0"),
+]
+_AD_COLUMNS += [
+    ("users", "country", "VARCHAR(2)"), ("users", "interests", "VARCHAR(255)"),
+    ("users", "streak_days", "INTEGER DEFAULT 0"), ("users", "streak_last", "VARCHAR(10)"),
+    ("campaigns", "target_langs", "VARCHAR(120)"), ("campaigns", "target_countries", "VARCHAR(120)"),
+    ("campaigns", "target_niche", "VARCHAR(48)"), ("campaigns", "featured_until", "TIMESTAMP WITH TIME ZONE"),
+    ("withdrawal_requests", "risk_hold", "BOOLEAN DEFAULT FALSE"), ("withdrawal_requests", "risk_reason", "VARCHAR(255)"),
 ]
 _AD_RELAX = [("ad_channels", "price_per_post"), ("ad_campaigns", "max_price_per_post"), ("ad_placements", "price"), ("ad_placements", "fee")]
 
