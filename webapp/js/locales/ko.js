@@ -441,5 +441,12 @@ export default {
  "ads.est_audience": "전체 오디언스",
  "ads.est_views": "예산으로 얻는 조회수",
  "ads.est_clicks": "예산으로 얻는 클릭 수",
- "ads.est_publishers": "채널 소유자 몫 ({n}%)"
+ "ads.est_publishers": "채널 소유자 몫 ({n}%)",
+ "ads.preview_btn": "내 Telegram 채팅으로 데모 보내기",
+ "ads.preview_sent": "데모를 보냈어요. 봇과의 Telegram 채팅을 확인해 보세요.",
+ "ads.next_ad": "다음 광고는 {t}에 예약되어 있어요",
+ "ads.diag_no_campaign": "지금 이 채널에서 대기 중인 광고 캠페인이 없어요. 광고주의 광고가 채널에 맞으면 봇이 바로 게시해요.",
+ "ads.diag_own_only": "내 광고만 진행 중이에요. 내 계정의 광고는 내 채널에 표시되지 않으므로 다른 광고주의 광고가 필요해요.",
+ "ads.diag_paused": "이 채널은 일시중지되어 아무것도 게시되지 않아요. 수익을 시작하려면 다시 시작하세요.",
+ "ads.diag_no_slots": "봇이 언제 게시할지 알 수 있도록 게시 시간을 하나 이상 추가하세요."
 };

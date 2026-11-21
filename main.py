@@ -35,7 +35,7 @@ from handlers.proofs import router as proofs_router
 from handlers.retention import router as retention_router
 from handlers.broadcast import router as broadcast_router
 from handlers.ads import router as ads_router
-from ads import ads_worker
+from ads import ads_worker, migrate_ads_v2
 
 
 class DBSessionMiddleware(BaseMiddleware):
@@ -99,6 +99,10 @@ class GuardMiddleware(BaseMiddleware):
 
 async def main():
     await ensure_new_tables()
+    try:
+        await migrate_ads_v2()
+    except Exception as e:
+        logger.warning(f"ads migration skipped: {e}")
     await i18n.load_cache()
     if i18n.auto_enabled():
         i18n_task = asyncio.create_task(i18n.background_loop())  # noqa: F841 (keep a reference)

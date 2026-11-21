@@ -441,5 +441,12 @@ export default {
  "ads.est_audience": "Tổng khán giả",
  "ads.est_views": "Lượt xem ngân sách của bạn mua được",
  "ads.est_clicks": "Lượt nhấp ngân sách của bạn mua được",
- "ads.est_publishers": "Chủ kênh nhận ({n}%)"
+ "ads.est_publishers": "Chủ kênh nhận ({n}%)",
+ "ads.preview_btn": "Gửi bản demo đến chat Telegram của tôi",
+ "ads.preview_sent": "Đã gửi bản demo. Hãy kiểm tra chat Telegram của bạn với bot.",
+ "ads.next_ad": "Quảng cáo tiếp theo được lên lịch vào {t}",
+ "ads.diag_no_campaign": "Hiện không có chiến dịch quảng cáo nào đang chờ cho kênh này. Bot sẽ đăng ngay khi có quảng cáo của nhà quảng cáo phù hợp với kênh của bạn.",
+ "ads.diag_own_only": "Hiện chỉ có quảng cáo của chính bạn đang chạy. Quảng cáo từ tài khoản của bạn không bao giờ hiển thị trong kênh của bạn, nên cần có quảng cáo của nhà quảng cáo khác.",
+ "ads.diag_paused": "Kênh này đang tạm dừng nên không có gì được đăng. Hãy tiếp tục kênh để bắt đầu kiếm tiền.",
+ "ads.diag_no_slots": "Thêm ít nhất một giờ đăng để bot biết khi nào cần đăng."
 };

@@ -441,5 +441,12 @@ export default {
  "ads.est_audience": "Gesamtpublikum",
  "ads.est_views": "Aufrufe, die dein Budget bringt",
  "ads.est_clicks": "Klicks, die dein Budget bringt",
- "ads.est_publishers": "Kanalbetreiber erhalten ({n}%)"
+ "ads.est_publishers": "Kanalbetreiber erhalten ({n}%)",
+ "ads.preview_btn": "Demo an meinen Telegram-Chat senden",
+ "ads.preview_sent": "Demo gesendet. Sieh in deinem Telegram-Chat mit dem Bot nach.",
+ "ads.next_ad": "Die nächste Anzeige ist für {t} geplant",
+ "ads.diag_no_campaign": "Aktuell wartet keine Werbekampagne auf diesen Kanal. Der Bot postet, sobald die Anzeige eines Werbetreibenden zu deinem Kanal passt.",
+ "ads.diag_own_only": "Es laufen nur deine eigenen Anzeigen. Anzeigen deines eigenen Kontos werden nie in deinen eigenen Kanälen gezeigt, daher wird die Anzeige eines anderen Werbetreibenden benötigt.",
+ "ads.diag_paused": "Dieser Kanal ist pausiert, daher wird nichts gepostet. Setze ihn fort, um Geld zu verdienen.",
+ "ads.diag_no_slots": "Füge mindestens eine Postingzeit hinzu, damit der Bot weiß, wann er posten soll."
 };

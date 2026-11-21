@@ -441,5 +441,12 @@ export default {
  "ads.est_audience": "总受众",
  "ads.est_views": "预算可购买的浏览量",
  "ads.est_clicks": "预算可购买的点击量",
- "ads.est_publishers": "频道主获得（{n}%）"
+ "ads.est_publishers": "频道主获得（{n}%）",
+ "ads.preview_btn": "发送演示到我的 Telegram 聊天",
+ "ads.preview_sent": "演示已发送。请查看你与机器人的 Telegram 聊天。",
+ "ads.next_ad": "下一条广告已安排在 {t}",
+ "ads.diag_no_campaign": "目前没有等待投放到此频道的广告活动。一旦有广告主的广告适合你的频道，机器人就会发布。",
+ "ads.diag_own_only": "目前只有你自己的广告在投放。你自己账号的广告不会显示在你自己的频道中，因此需要其他广告主的广告。",
+ "ads.diag_paused": "此频道已暂停，因此不会发布任何内容。恢复后即可开始赚钱。",
+ "ads.diag_no_slots": "请至少添加一个发布时间，让机器人知道何时发布。"
 };

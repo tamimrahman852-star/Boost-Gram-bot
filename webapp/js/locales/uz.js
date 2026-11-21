@@ -441,5 +441,12 @@ export default {
  "ads.est_audience": "Umumiy auditoriya",
  "ads.est_views": "Byudjetingiz sotib oladigan ko'rishlar",
  "ads.est_clicks": "Byudjetingiz sotib oladigan bosishlar",
- "ads.est_publishers": "Kanal egalari oladi ({n}%)"
+ "ads.est_publishers": "Kanal egalari oladi ({n}%)",
+ "ads.preview_btn": "Telegram chatimga demo yuborish",
+ "ads.preview_sent": "Demo yuborildi. Bot bilan Telegram chatingizni tekshiring.",
+ "ads.next_ad": "Keyingi reklama {t} ga rejalashtirilgan",
+ "ads.diag_no_campaign": "Hozir bu kanal uchun kutayotgan reklama kampaniyasi yo‘q. Reklama beruvchining reklamasi kanalingizga mos kelishi bilan bot joylaydi.",
+ "ads.diag_own_only": "Faqat o‘zingizning reklamalaringiz ishlayapti. O‘z akkauntingizdagi reklamalar o‘z kanallaringizda hech qachon ko‘rsatilmaydi, shuning uchun boshqa reklama beruvchining reklamasi kerak.",
+ "ads.diag_paused": "Bu kanal to‘xtatilgan, shuning uchun hech narsa joylanmaydi. Daromad olishni boshlash uchun uni qayta yoqing.",
+ "ads.diag_no_slots": "Bot qachon joylashni bilishi uchun kamida bitta joylash vaqtini qo‘shing."
 };

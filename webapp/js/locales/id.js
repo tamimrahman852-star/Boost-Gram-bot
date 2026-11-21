@@ -441,5 +441,12 @@ export default {
  "ads.est_audience": "Total audiens",
  "ads.est_views": "Tayangan yang dibeli anggaran Anda",
  "ads.est_clicks": "Klik yang dibeli anggaran Anda",
- "ads.est_publishers": "Pemilik channel mendapat ({n}%)"
+ "ads.est_publishers": "Pemilik channel mendapat ({n}%)",
+ "ads.preview_btn": "Kirim demo ke chat Telegram saya",
+ "ads.preview_sent": "Demo terkirim. Cek chat Telegram Anda dengan bot.",
+ "ads.next_ad": "Iklan berikutnya dijadwalkan pada {t}",
+ "ads.diag_no_campaign": "Saat ini tidak ada kampanye iklan yang menunggu untuk channel ini. Bot akan memposting begitu iklan dari pengiklan cocok dengan channel Anda.",
+ "ads.diag_own_only": "Hanya iklan Anda sendiri yang berjalan. Iklan dari akun Anda sendiri tidak pernah ditampilkan di channel Anda sendiri, jadi iklan dari pengiklan lain diperlukan.",
+ "ads.diag_paused": "Channel ini dijeda, jadi tidak ada yang diposting. Lanjutkan untuk mulai menghasilkan uang.",
+ "ads.diag_no_slots": "Tambahkan setidaknya satu waktu posting agar bot tahu kapan harus memposting."
 };

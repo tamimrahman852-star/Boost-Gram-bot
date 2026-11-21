@@ -57,6 +57,8 @@ const real = {
   adEstimate: (o) => req("GET", "/ads/estimate" + qs(o)),
   adCampaigns: () => req("GET", "/ads/campaigns"),
   adCreateCampaign: ({ blob, ...o }) => { const f = new FormData(); Object.entries(o).forEach(([k, v]) => f.append(k, v)); if (blob) f.append("media", blob, (blob.type || "").startsWith("video") ? "ad.mp4" : "ad.jpg"); return req("POST", "/ads/campaigns", f); },
+  adPreview: ({ blob, ...o }) => { const f = new FormData(); Object.entries(o).forEach(([k, v]) => f.append(k, v)); if (blob) f.append("media", blob, (blob.type || "").startsWith("video") ? "ad.mp4" : "ad.jpg"); return req("POST", "/ads/preview", f); },
+  adPreviewCampaign: (id) => req("POST", `/ads/preview/${id}`),
   adCampaign: (id, days) => req("GET", `/ads/campaigns/${id}` + qs({ days })),
   adCampaignAction: (id, action, body) => req("POST", `/ads/campaigns/${id}/${action}`, body),
 };

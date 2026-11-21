@@ -71,6 +71,8 @@ class AdRules:
     MIN_BUDGET = Decimal(os.getenv("AD_MIN_BUDGET", "250000"))
     MAX_BUDGET = Decimal("100000000")
     MAX_ACTIVE_CAMPAIGNS = 10
+    # an advertiser's own ads normally never run in his own channels (self-dealing); admins are exempt so they can test
+    ALLOW_SELF_ADS = os.getenv("AD_ALLOW_SELF_ADS", "0") == "1"
     MAX_CHANNELS_PER_USER = 10
     MAX_STRIKES = 3                                                  # early deletions before a channel is paused
     MAX_SLOTS = 12                                                   # posting times per channel per day

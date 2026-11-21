@@ -441,5 +441,12 @@ export default {
  "ads.est_audience": "総オーディエンス",
  "ads.est_views": "予算で獲得できるビュー数",
  "ads.est_clicks": "予算で獲得できるクリック数",
- "ads.est_publishers": "チャンネル所有者の取り分（{n}%）"
+ "ads.est_publishers": "チャンネル所有者の取り分（{n}%）",
+ "ads.preview_btn": "デモを自分のTelegramチャットに送信",
+ "ads.preview_sent": "デモを送信しました。ボットとのTelegramチャットをご確認ください。",
+ "ads.next_ad": "次の広告は{t}に予定されています",
+ "ads.diag_no_campaign": "現在、このチャンネルで待機中の広告キャンペーンはありません。広告主の広告がチャンネルに合い次第、ボットが投稿します。",
+ "ads.diag_own_only": "自分の広告のみが配信されています。自分のアカウントの広告は自分のチャンネルには表示されないため、他の広告主の広告が必要です。",
+ "ads.diag_paused": "このチャンネルは一時停止中のため、何も投稿されません。収益を得るには再開してください。",
+ "ads.diag_no_slots": "ボットが投稿するタイミングを把握できるよう、投稿時間を1つ以上追加してください。"
 };

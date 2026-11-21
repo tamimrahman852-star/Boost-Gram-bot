@@ -31,7 +31,7 @@ from aiogram.exceptions import (
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy import func, select
 
-from config import BOT_USERNAME, PUBLIC_URL, AdRules, BusinessRules, logger
+from config import ADMIN_IDS, BOT_USERNAME, PUBLIC_URL, AdRules, BusinessRules, logger
 from database import (
     AdCampaign, AdChannel, AdPlacement, AsyncSessionLocal, Transaction, TransactionType, User,
 )
@@ -44,6 +44,47 @@ CLOSED_CAMPAIGN = ("stopped", "finished", "exhausted", "rejected")
 # --------------------------------------------------------------------------------------
 # pricing & scheduling helpers
 # --------------------------------------------------------------------------------------
+def self_ad_ok(c: AdCampaign, ch: AdChannel) -> bool:
+    return c.advertiser_id != ch.owner_id or AdRules.ALLOW_SELF_ADS or ch.owner_id in ADMIN_IDS
+
+
+def eligible(c: AdCampaign, ch: AdChannel, now: datetime) -> bool:
+    """Could this campaign be shown in this channel right now (ignoring the per-day cap and the auction)?"""
+    return (c.status == "active" and Decimal(c.bid) > 0 and c.pricing in allowed_pricing() and _aware(c.start_at) <= now
+            and (not c.end_at or _aware(c.end_at) > now) and ch.members >= c.min_members and self_ad_ok(c, ch)
+            and remaining(c) >= need_to_serve(c))
+
+
+def next_slot(ch: AdChannel, now: datetime) -> Optional[datetime]:
+    """Next posting time of the channel (UTC), or None."""
+    tz = timedelta(minutes=ch.tz_offset_min or 0)
+    today = (now + tz).date()
+    best = None
+    for day in (today, today + timedelta(days=1)):
+        for hhmm in parse_slots(ch.slots):
+            utc = (datetime(day.year, day.month, day.day, int(hhmm[:2]), int(hhmm[3:])) - tz).replace(tzinfo=timezone.utc)
+            if utc > now and (best is None or utc < best):
+                best = utc
+    return best
+
+
+async def send_preview(bot: Bot, chat_id: int, text: str, button_text: str, button_url: str,
+                       file_id: Optional[str], media_type: Optional[str]) -> None:
+    """Show an advertiser exactly how the ad will look in a channel (sent to his own chat; the buttons are not tracked)."""
+    cap = f"{esc(text)}\n\n<i>📣 Sponsored · via @{esc(BOT_USERNAME)}</i>"
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=button_text[:40], url=button_url)],
+                                               [InlineKeyboardButton(text=f"🤖 @{BOT_USERNAME}", url=f"https://t.me/{BOT_USERNAME}")]])
+    head = "👁 <b>Ad preview</b> — this is how your ad will look in a channel:\n\n"
+    if file_id and len(cap) + len(head) <= 1024:
+        send = {"video": bot.send_video, "animation": bot.send_animation}.get(media_type, bot.send_photo)
+        await send(chat_id, file_id, caption=head + cap, reply_markup=kb, parse_mode=ParseMode.HTML)
+    else:
+        if file_id:
+            send = {"video": bot.send_video, "animation": bot.send_animation}.get(media_type, bot.send_photo)
+            await send(chat_id, file_id)
+        await bot.send_message(chat_id, head + cap, reply_markup=kb, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+
+
 def split_spend(amount: Decimal) -> tuple[Decimal, Decimal]:
     """Split money spent by the advertiser into (publisher share, platform fee)."""
     fee = (Decimal(amount) * AdRules.COMMISSION).to_integral_value(rounding="ROUND_HALF_UP")
@@ -263,15 +304,18 @@ async def schedule_once(now: Optional[datetime] = None) -> int:
             AdPlacement.slot.in_({k for _, k, _ in due}), AdPlacement.channel_id.in_({ch.id for _, _, ch in due})))).all()}
         camps = (await s.execute(select(AdCampaign).where(
             AdCampaign.status == "active", AdCampaign.start_at <= now).limit(500))).scalars().all()
-        camps = [c for c in camps if (not c.end_at or _aware(c.end_at) > now) and c.pricing in allowed_pricing()]
+        camps = [c for c in camps if (not c.end_at or _aware(c.end_at) > now) and c.pricing in allowed_pricing() and Decimal(c.bid) > 0]
         if not camps:
             return 0
-        recent = (await s.execute(select(AdPlacement.campaign_id, AdPlacement.channel_id).where(
-            AdPlacement.created_at >= day_ago, AdPlacement.status.in_(("scheduled", "posted", "completed"))))).all()
-        per_camp, per_pair = {}, set()
-        for cid, chid in recent:
-            per_camp[cid] = per_camp.get(cid, 0) + 1
-            per_pair.add((cid, chid))
+        recent = (await s.execute(select(AdPlacement.campaign_id, AdPlacement.channel_id, AdPlacement.status, AdPlacement.created_at).where(
+            AdPlacement.status.in_(("scheduled", "posted", "completed")),
+            (AdPlacement.created_at >= day_ago) | AdPlacement.status.in_(("scheduled", "posted"))))).all()
+        per_camp, per_pair = {}, set()          # per_camp: posts in the last 24h; per_pair: ad still live in that channel (never stack it twice)
+        for cid, chid, st, created in recent:
+            if _aware(created) >= day_ago:
+                per_camp[cid] = per_camp.get(cid, 0) + 1
+            if st in ("scheduled", "posted"):
+                per_pair.add((cid, chid))
         ctr = {}                                           # observed click-through rate per channel (last 30 days)
         for chid, v, k in (await s.execute(select(AdPlacement.channel_id, func.sum(AdPlacement.views), func.sum(AdPlacement.clicks)).where(
                 AdPlacement.created_at >= now - timedelta(days=30), AdPlacement.status.in_(("posted", "completed"))).group_by(AdPlacement.channel_id))).all():
@@ -282,7 +326,7 @@ async def schedule_once(now: Optional[datetime] = None) -> int:
                 continue
             best, best_score = None, Decimal("-1")
             for c in camps:
-                if (c.advertiser_id == ch.owner_id or ch.members < c.min_members or per_camp.get(c.id, 0) >= c.posts_per_day
+                if (not self_ad_ok(c, ch) or ch.members < c.min_members or per_camp.get(c.id, 0) >= c.posts_per_day
                         or (c.id, ch.id) in per_pair or remaining(c) < need_to_serve(c)):
                     continue
                 score = ecpm(c, ctr.get(ch.id, AdRules.DEFAULT_CTR))
@@ -539,3 +583,22 @@ async def ads_worker(bot: Bot):
         except Exception as e:
             logger.exception(f"ads worker error: {e}")
         await asyncio.sleep(AdRules.TICK)
+
+
+async def migrate_ads_v2() -> None:
+    """One-time data fix for ads created before the CPM/CPC model: give old channels posting times (spread over their old
+    window) and close old fixed-price campaigns (no bid) with a full refund of the unused budget. Safe to run on every start."""
+    async with AsyncSessionLocal() as s:
+        for ch in (await s.execute(select(AdChannel).where((AdChannel.slots.is_(None)) | (AdChannel.slots == "")))).scalars().all():
+            n = max(1, min(int(ch.max_posts_per_day or 3), AdRules.MAX_SLOTS))
+            start, end = int(ch.window_start or 9) * 60, int(ch.window_end or 22) * 60
+            if end <= start:
+                start, end = 9 * 60, 22 * 60
+            step = (end - start) / n
+            mins = sorted({int((start + step * (i + 0.5)) // 5 * 5) % 1440 for i in range(n)})
+            ch.slots = ",".join(f"{m // 60:02d}:{m % 60:02d}" for m in mins)
+            ch.max_posts_per_day = len(mins)
+        for c in (await s.execute(select(AdCampaign).where(
+                AdCampaign.status.in_(("active", "paused", "pending_review")), AdCampaign.bid <= 0))).scalars().all():
+            await close_campaign(s, c, "stopped", "Ad budget refund (pricing model changed to CPM/CPC)")
+        await s.commit()

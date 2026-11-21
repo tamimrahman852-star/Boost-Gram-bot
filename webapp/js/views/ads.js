@@ -124,6 +124,9 @@ export async function channel({ root, params, back, replace }) {
     h("div", { class: "small muted", style: { fontWeight: 700 } }, t("ads.pub_earned")), h("div", { class: "h1 gold-text num", style: { fontSize: "30px" } }, money(c.earned)),
     s.pending > 0 && h("div", { class: "small muted", style: { marginTop: "4px" } }, t("ads.pending") + ": ", h("b", { class: "num" }, money(s.pending)))));
   kids.push(h("div", { class: "callout", style: { marginTop: "10px" } }, icon("shield", 18), h("div", null, t("ads.earn_note", { p: share() }))));
+  const diag = d.diag || [];
+  if (d.next_at && c.status === "active") kids.push(h("div", { class: "callout", style: { marginTop: "10px" } }, icon("clock", 18), h("div", null, t("ads.next_ad", { t: new Date(d.next_at).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" }) }))));
+  diag.forEach((k) => kids.push(h("div", { class: "callout warn", style: { marginTop: "10px" } }, icon("info", 18), h("div", null, t("ads.diag_" + k)))));
   kids.push(h("div", { class: "grid2 mt" }, stat(fmt(s.views), t("ads.impressions"), "eye", "g5"), stat(fmt(s.clicks), t("ads.clicks"), "trend", "g2"),
     stat(pct(s.ctr), t("ads.ctr"), "bolt", "g4"), stat(fmt(s.bot_starts), t("ads.bot_starts"), "bot", "g1"),
     stat(dash(s.rpm, short), t("ads.rpm"), "star", "g3"), stat(dash(s.epc, short), t("ads.epc"), "link", "g5")));
@@ -231,6 +234,10 @@ export async function create({ root, replace }) {
         field(t("ads.c_link"), h("input", { class: "input", value: st.button_url, placeholder: "https://t.me/…", autocapitalize: "none", oninput: (e) => { st.button_url = e.target.value; sync(); } }))),
       !cfg.external_links && h("div", { class: "tiny muted" }, t("ads.tme_only")),
       preview,
+      h("button", { class: "btn sec", disabled: !(st.text.trim().length >= 10 && st.button_text.trim().length >= 2 && /^https?:\/\//i.test(st.button_url.trim())), onclick: async (e) => {
+        const b = e.currentTarget; b.disabled = true;
+        try { await api.adPreview({ text: st.text.trim(), button_text: st.button_text.trim(), button_url: st.button_url.trim(), blob: st.blob }); haptic.ok(); toast(t("ads.preview_sent"), "ok"); }
+        catch (er) { fail(er); } b.disabled = false; } }, icon("eye", 18), t("ads.preview_btn")),
       h("div", { class: "h3" }, t("ads.model")), models.length > 1 ? model() : h("div", { class: "callout" }, icon("info", 16), h("div", null, t("ads.cpc_sub"))),
       field(t(st.pricing === "cpm" ? "ads.bid_cpm" : "ads.bid_cpc"), h("div", { class: "input-wrap" }, nin("bid"), h("span", { class: "suffix" }, "GRAM")), t("ads.bid_hint", { a: fmt(b.min), b: fmt(b.max) })),
       h("div", { class: "h3" }, t("ads.c_budget_title")),
@@ -270,6 +277,7 @@ export async function campaign({ root, params, replace }) {
   kids.push(h("div", { class: "grid2 mt" }, stat(fmt(s.views), t("ads.impressions"), "eye", "g5"), stat(fmt(s.clicks), t("ads.clicks"), "trend", "g2"), stat(pct(s.ctr), t("ads.ctr"), "bolt", "g4"), stat(fmt(s.bot_starts), t("ads.bot_starts"), "bot", "g1"),
     stat(dash(s.cpc, fmt), t("ads.cpc"), "link", "g3"), stat(dash(s.cpm, fmt), t("ads.cpm"), "star", "g5")));
   kids.push(h("div", { class: "section" }, seriesBlock(d.series)));
+  kids.push(h("button", { class: "btn sec", style: { marginTop: "10px" }, onclick: async (e) => { const b = e.currentTarget; b.disabled = true; try { await api.adPreviewCampaign(c.id); haptic.ok(); toast(t("ads.preview_sent"), "ok"); } catch (er) { fail(er); } b.disabled = false; } }, icon("eye", 18), t("ads.preview_btn")));
   if (live || c.status === "finished") {
     const btns = [];
     if (c.status === "active") btns.push(h("button", { class: "btn sec", onclick: () => act("pause") }, icon("clock", 18), t("ads.pause")));

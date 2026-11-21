@@ -445,7 +445,14 @@ const en = {
  "ads.est_audience": "Total audience",
  "ads.est_views": "Views your budget buys",
  "ads.est_clicks": "Clicks your budget buys",
- "ads.est_publishers": "Channel owners get ({n}%)"
+ "ads.est_publishers": "Channel owners get ({n}%)",
+ "ads.preview_btn": "Send a demo to my Telegram chat",
+ "ads.preview_sent": "Demo sent. Check your Telegram chat with the bot.",
+ "ads.next_ad": "Next ad is scheduled for {t}",
+ "ads.diag_no_campaign": "No ad campaign is waiting for this channel right now. The bot will post as soon as an advertiser's ad fits your channel.",
+ "ads.diag_own_only": "Only your own ads are running. Ads from your own account are never shown in your own channels, so another advertiser's ad is needed.",
+ "ads.diag_paused": "This channel is paused, so nothing is posted. Resume it to start earning.",
+ "ads.diag_no_slots": "Add at least one posting time so the bot knows when to post."
 };
 
 const bn = {
@@ -891,7 +898,14 @@ const bn = {
  "ads.est_audience": "মোট অডিয়েন্স",
  "ads.est_views": "বাজেটে যত ভিউ পাবেন",
  "ads.est_clicks": "বাজেটে যত ক্লিক পাবেন",
- "ads.est_publishers": "চ্যানেল মালিকরা পায় ({n}%)"
+ "ads.est_publishers": "চ্যানেল মালিকরা পায় ({n}%)",
+ "ads.preview_btn": "আমার টেলিগ্রাম চ্যাটে ডেমো পাঠান",
+ "ads.preview_sent": "ডেমো পাঠানো হয়েছে। বটের সাথে আপনার টেলিগ্রাম চ্যাট দেখুন।",
+ "ads.next_ad": "পরের বিজ্ঞাপন নির্ধারিত: {t}",
+ "ads.diag_no_campaign": "এই মুহূর্তে এই চ্যানেলের জন্য কোনো বিজ্ঞাপন ক্যাম্পেইন অপেক্ষায় নেই। কোনো বিজ্ঞাপনদাতার বিজ্ঞাপন মিললেই বট পোস্ট করবে।",
+ "ads.diag_own_only": "শুধু আপনার নিজের বিজ্ঞাপন চলছে। নিজের অ্যাকাউন্টের বিজ্ঞাপন নিজের চ্যানেলে কখনো দেখানো হয় না, তাই অন্য বিজ্ঞাপনদাতার বিজ্ঞাপন দরকার।",
+ "ads.diag_paused": "চ্যানেলটি বিরতিতে আছে, তাই কিছু পোস্ট হচ্ছে না। আয় শুরু করতে চালু করুন।",
+ "ads.diag_no_slots": "বট কখন পোস্ট করবে জানতে অন্তত একটি পোস্টের সময় যোগ করুন।"
 };
 
 const DICTS = { en, bn };

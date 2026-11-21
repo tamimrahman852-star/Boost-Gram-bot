@@ -441,5 +441,12 @@ export default {
  "ads.est_audience": "Toplam kitle",
  "ads.est_views": "Bütçenizin satın aldığı görüntülenme",
  "ads.est_clicks": "Bütçenizin satın aldığı tıklama",
- "ads.est_publishers": "Kanal sahipleri alır (%{n})"
+ "ads.est_publishers": "Kanal sahipleri alır (%{n})",
+ "ads.preview_btn": "Telegram sohbetime demo gönder",
+ "ads.preview_sent": "Demo gönderildi. Botla olan Telegram sohbetini kontrol et.",
+ "ads.next_ad": "Sıradaki reklam {t} için planlandı",
+ "ads.diag_no_campaign": "Şu anda bu kanal için bekleyen bir reklam kampanyası yok. Bir reklamverenin reklamı kanalına uyar uymaz bot paylaşacak.",
+ "ads.diag_own_only": "Yalnızca kendi reklamların yayında. Kendi hesabından verilen reklamlar kendi kanallarında hiç gösterilmez, bu yüzden başka bir reklamverenin reklamı gerekiyor.",
+ "ads.diag_paused": "Bu kanal duraklatıldı, bu yüzden hiçbir şey paylaşılmıyor. Kazanmaya başlamak için kanalı yeniden etkinleştir.",
+ "ads.diag_no_slots": "Botun ne zaman paylaşım yapacağını bilmesi için en az bir paylaşım saati ekle."
 };

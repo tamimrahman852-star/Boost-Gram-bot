@@ -14,7 +14,8 @@ from aiogram.types import BufferedInputFile
 
 from api import ApiError, Ctx, auth, get_bot, iso, num, _upload_photo
 from ads import (
-    OPEN_STATUSES, allowed_pricing, bid_bounds, clean_slots, close_campaign, parse_slots, post_html, remaining, split_spend, _aware,
+    OPEN_STATUSES, allowed_pricing, bid_bounds, clean_slots, close_campaign, eligible, next_slot, parse_slots, post_html, remaining,
+    self_ad_ok, send_preview, split_spend, _aware,
 )
 from config import BOT_USERNAME, AdRules, logger
 from database import (
@@ -301,7 +302,19 @@ async def channel_stats(cid: str, days: int = 14, ctx: Ctx = Depends(auth)):
                                       .order_by(AdPlacement.created_at.desc()).limit(500))).scalars().all()
     camps = {c.id: c for c in (await ctx.session.execute(select(AdCampaign).where(
         AdCampaign.id.in_({p.campaign_id for p in rows} or {"-"})))).scalars().all()}
-    return {"channel": _channel_dto(ch, rows), "series": _series(rows, days),
+    now = datetime.now(timezone.utc)
+    live = (await ctx.session.execute(select(AdCampaign).where(AdCampaign.status == "active").limit(500))).scalars().all()
+    ok = [c for c in live if eligible(c, ch, now)]
+    diag = []                                              # why nothing may be posted right now
+    if ch.status != "active":
+        diag.append("paused")
+    if not parse_slots(ch.slots):
+        diag.append("no_slots")
+    if not ok:
+        diag.append("own_only" if any(c.advertiser_id == ch.owner_id and not self_ad_ok(c, ch) for c in live) else "no_campaign")
+    nxt = next_slot(ch, now)
+    return {"channel": _channel_dto(ch, rows), "series": _series(rows, days), "next_at": iso(nxt) if nxt else None,
+            "eligible_campaigns": len(ok), "diag": diag,
             "recent": [_placement_dto(p, c=camps.get(p.campaign_id), side="pub") for p in rows[:25]]}
 
 
@@ -508,3 +521,43 @@ async def ads_action(cid: str, action: str, body: Optional[dict] = Body(default=
     if "balance" not in out:
         out["balance"] = num((await ctx.session.execute(select(User.balance).where(User.id == ctx.uid))).scalar())
     return {"status": c.status, "remaining": num(remaining(c)), **out}
+
+
+# --------------------------------------------------------------------------------------
+# preview: the advertiser gets a demo of the ad in his own Telegram chat
+# --------------------------------------------------------------------------------------
+async def _preview_guard(ctx: Ctx):
+    if not await redis_client.set(f"lock:adprev:{ctx.uid}", "1", nx=True, ex=8):
+        raise ctx.err("cooldown", "⏳ একটু অপেক্ষা করুন।", "⏳ One moment please.", 429)
+
+
+async def _send_preview(ctx: Ctx, text: str, button_text: str, button_url: str, file_id, media_type) -> dict:
+    try:
+        await send_preview(get_bot(), ctx.uid, text, button_text, button_url, file_id, media_type)
+    except TelegramForbiddenError:
+        raise ctx.err("not_bot", "আগে বটে /start দিন।", "Open the bot chat and press /start first.")
+    except (TelegramBadRequest, TelegramNetworkError, TelegramRetryAfter) as e:
+        logger.warning(f"ad preview failed: {e}")
+        raise ctx.err("preview_failed", "প্রিভিউ পাঠানো যায়নি।", "The preview could not be sent.")
+    return {"ok": True}
+
+
+@router.post("/ads/preview")
+async def ads_preview(text: str = Form(...), button_text: str = Form(...), button_url: str = Form(...),
+                      media: Optional[UploadFile] = File(None), ctx: Ctx = Depends(auth)):
+    text, button_text = text.strip(), button_text.strip()
+    if not 10 <= len(text) <= 900 or not 2 <= len(button_text) <= 32:
+        raise ctx.err("invalid", "❌ লেখা ছোট বা বড়।", "❌ Check the length of your text (10–900 characters) and button.")
+    url = _clean_link(ctx, button_url)
+    await _preview_guard(ctx)
+    file_id = media_type = None
+    if media is not None and media.filename:
+        file_id, media_type = await _upload_media(ctx, await media.read(AdRules.VIDEO_MAX_BYTES + 1))
+    return await _send_preview(ctx, text, button_text, url, file_id, media_type)
+
+
+@router.post("/ads/preview/{cid}")
+async def ads_campaign_preview(cid: str, ctx: Ctx = Depends(auth)):
+    c = await _own_campaign(ctx, cid)
+    await _preview_guard(ctx)
+    return await _send_preview(ctx, c.text, c.button_text, c.button_url, c.media_file_id, c.media_type)
