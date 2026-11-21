@@ -123,6 +123,8 @@ def _task_filters(uid: int, user, task_type):
             pass
     if not (user and user.is_premium):
         base.append(Campaign.premium_only == False)  # noqa: E712
+    from growth import targeting_filters
+    base.extend(targeting_filters(user))
     return base
 
 
@@ -375,6 +377,10 @@ async def _process_task(session, bot, uid, cid):
         if user.is_blocked:
             await session.rollback()
             return False, "❌ Account issue.", task_type_val
+        from growth import targeting_ok, xp_multiplier
+        if not targeting_ok(c, user):
+            await session.rollback()
+            return False, L(lang, "❌ এই টাস্কটি আপনার জন্য নয়।", "❌ This task is not available for your profile."), task_type_val
         if (await session.execute(select(TaskCompletion.id).where(
                 TaskCompletion.user_id == uid, TaskCompletion.campaign_id == cid))).first():
             await session.rollback()
@@ -385,7 +391,7 @@ async def _process_task(session, bot, uid, cid):
             c.status = CampaignStatus.COMPLETED
             await session.commit()
             return False, t(lang, "task_limit"), task_type_val
-        xp = int((reward / 1000) * BusinessRules.XP_PER_1000_COINS)
+        xp = int((reward / 1000) * BusinessRules.XP_PER_1000_COINS * await xp_multiplier(session, uid))
 
         deadline = None
         if c.requires_retention_check:
@@ -416,6 +422,8 @@ async def _process_task(session, bot, uid, cid):
             await settle_referrals(session, user, tc)
 
         await session.commit()
+        from risk import on_completion
+        await on_completion(session, user)
 
         pipe = redis_client.pipeline()
         pipe.incr(day_key)

@@ -200,3 +200,31 @@ class TaskPricing:
         if reward > rules["max"]:
             return False, f"Maximum: {rules['max']:,} coins"
         return True, "OK"
+
+
+class GrowthRules:
+    """Segmentation, risk shield and economy controls (all GRAM amounts are whole coins)."""
+    NICHES = ("crypto", "gaming", "news", "tech", "finance", "education", "entertainment", "shopping", "lifestyle", "sports", "travel", "other")
+    MAX_INTERESTS = 5
+    # targeting surcharge: % of the campaign budget, paid to the platform on top (non-refundable)
+    FEE_LANG, FEE_COUNTRY, FEE_NICHE = Decimal("0.10"), Decimal("0.15"), Decimal("0.10")
+    # risk shield
+    RISK_HOLD_SCORE = int(os.getenv("RISK_HOLD_SCORE", "25"))      # risk_score + recent shield events >= this => withdrawal goes to the hold queue
+    RISK_EVENT_DAYS = 14
+    FAST_GAP_SEC = 4                # median gap between the last completions below this is not human
+    BURST_10MIN = 25                # completions in 10 minutes
+    DROP_RATE = Decimal("0.30")     # early-leave share of completions (needs MIN_SAMPLE)
+    REJECT_RATE = Decimal("0.40")   # rejected proofs share
+    MIN_SAMPLE = 8
+    REFERRAL_FARM = 10              # referrals created within one hour by one referrer
+    # economy
+    SPIN_COST = Decimal("20000")
+    SPIN_PRIZES = ((0, 450), (10000, 250), (20000, 150), (40000, 100), (100000, 45), (500000, 5))   # (prize, weight): expected return 16,500 < 20,000 => ~17.5% sink
+    SPIN_MAX_PER_DAY = 10
+    FEATURE_PER_DAY = Decimal("100000")
+    FEATURE_DAYS = (1, 3, 7)
+    VIP_PRICE, VIP_DAYS = Decimal("1100000"), 30
+    BOOST_PRICE, BOOST_DAYS = Decimal("400000"), 7
+    VIP_XP_MULT, BOOST_XP_MULT = Decimal("1.5"), Decimal("1.5")
+    VIP_FEATURE_DISCOUNT = Decimal("0.20")
+    STREAK_XP = 10                  # xp per streak day (cap 7 days), x2 for VIP; every 7th day gives a free spin

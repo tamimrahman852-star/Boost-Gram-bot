@@ -142,8 +142,12 @@ def withdraw_method_kb() -> InlineKeyboardMarkup:
     ])
 
 
-def withdrawal_review_kb(wd_id: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[
+def withdrawal_review_kb(wd_id: str, held: bool = False) -> InlineKeyboardMarkup:
+    rows = []
+    if held:    # risk shield: the admin must clear the hold before it can be approved
+        rows.append([InlineKeyboardButton(text="🚩 Clear hold (looks legit)", callback_data=f"adm:wd:clear:{wd_id}")])
+    rows.append([
         InlineKeyboardButton(text="✅ Approve", callback_data=f"adm:wd:ok:{wd_id}"),
         InlineKeyboardButton(text="❌ Reject + refund", callback_data=f"adm:wd:no:{wd_id}"),
-    ]])
+    ])
+    return InlineKeyboardMarkup(inline_keyboard=rows)

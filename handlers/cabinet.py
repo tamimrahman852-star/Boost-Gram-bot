@@ -293,9 +293,12 @@ async def wd_details(message: Message, session, state: FSMContext, bot: Bot):
         # Funds are held (deducted) now. total_withdrawn only grows when an admin
         # approves; a rejection refunds the held amount.
         user.balance -= amount
+        from risk import withdrawal_check
+        hold, hold_reason = await withdrawal_check(session, user, method, details)
         wd = WithdrawalRequest(
             user_id=uid, amount=amount,
             payment_method=method, payment_details=details[:500],
+            risk_hold=hold, risk_reason=hold_reason or None,
         )
         session.add(wd)
         await session.flush()
@@ -314,9 +317,9 @@ async def wd_details(message: Message, session, state: FSMContext, bot: Bot):
     for aid in ADMIN_IDS:
         try:
             await bot.send_message(aid,
-                f"💸 <b>Withdrawal</b>\n\n👤 <code>{uid}</code> ({esc(u_name)})\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n📝 <code>{esc(details[:200])}</code>\n"
+                ("🚩 <b>RISK HOLD</b> — " + esc(hold_reason) + "\n\n" if hold else "") + f"💸 <b>Withdrawal</b>\n\n👤 <code>{uid}</code> ({esc(u_name)})\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n📝 <code>{esc(details[:200])}</code>\n"
                 f"📊 Level {u_level} · tasks {u_tasks} · risk {u_risk}",
-                reply_markup=withdrawal_review_kb(wd_id),
+                reply_markup=withdrawal_review_kb(wd_id, hold),
                 parse_mode=ParseMode.HTML)
         except Exception:
             pass

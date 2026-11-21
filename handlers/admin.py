@@ -108,8 +108,8 @@ async def adm_wds(query: CallbackQuery, session):
         await query.message.edit_text(f"💸 <b>Pending withdrawals</b> ({len(wds)})", reply_markup=admin_kb(), parse_mode=ParseMode.HTML)
         for w in wds:
             await query.message.answer(
-                f"👤 <code>{w.user_id}</code>\n💰 <code>{w.amount:,.0f}</code>\n💳 {w.payment_method}\n📝 <code>{(w.payment_details or '')[:200]}</code>",
-                reply_markup=withdrawal_review_kb(w.id), parse_mode=ParseMode.HTML)
+                ("🚩 <b>HOLD</b> " + (w.risk_reason or "") + "\n" if w.risk_hold else "") + f"👤 <code>{w.user_id}</code>\n💰 <code>{w.amount:,.0f}</code>\n💳 {w.payment_method}\n📝 <code>{(w.payment_details or '')[:200]}</code>",
+                reply_markup=withdrawal_review_kb(w.id, w.risk_hold), parse_mode=ParseMode.HTML)
     await query.answer()
 
 
@@ -125,6 +125,20 @@ async def adm_wd_review(query: CallbackQuery, session, bot: Bot):
     if not wd or wd.status != "pending":
         await session.rollback()
         await query.answer("Already processed.", show_alert=True)
+        return
+    if action == "clear":          # risk shield: the admin reviewed the flag and releases the request
+        wd.risk_hold = False
+        wd.admin_notes = ((wd.admin_notes or "") + f" hold cleared by {query.from_user.id}").strip()
+        await session.commit()
+        await query.answer("Hold cleared. You can approve it now.", show_alert=True)
+        try:
+            await query.message.edit_reply_markup(reply_markup=withdrawal_review_kb(wd_id))
+        except Exception:
+            pass
+        return
+    if action == "ok" and wd.risk_hold:
+        await session.rollback()
+        await query.answer("🚩 Held by the risk shield: " + (wd.risk_reason or "")[:150] + "\nClear the hold first.", show_alert=True)
         return
     ru = await session.execute(select(User).where(User.id == wd.user_id).with_for_update())
     user = ru.scalar_one_or_none()

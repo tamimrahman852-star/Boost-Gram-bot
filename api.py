@@ -30,7 +30,7 @@ from urllib.parse import parse_qsl
 from fastapi import APIRouter, Body, Depends, File, Form, Header, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
 
 from aiogram import Bot
@@ -42,6 +42,7 @@ from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboar
 
 import i18n
 from config import (
+    GrowthRules,
     ADMIN_IDS, BOT_TOKEN, BOT_USERNAME, DEPOSIT_MAX_BDT, DEPOSIT_MIN_BDT, DEPOSIT_RATE_PER_BDT,
     PAY_NUMBERS, AdRules, BusinessRules, TaskPricing, WEBAPP_ORIGINS, logger,
     GRAM_PER_USD, TON_DEPOSIT_ENABLED, TON_DEPOSIT_MIN_USD, TON_WALLET, TON_WD_MAX_USD, TON_WD_MIN_USD,
@@ -263,12 +264,24 @@ async def daily_info(uid: int) -> dict:
     return {"used": await daily_used(uid), "max": BusinessRules.MAX_TASKS_PER_DAY}
 
 
+def _aw(dt):
+    from growth import aw
+    return aw(dt)
+
+
+async def _pass(session, uid, kind):
+    from growth import active_pass
+    return await active_pass(session, uid, kind)
+
+
 async def user_dict(ctx: Ctx) -> dict:
     u = ctx.user
     locked = await locked_amount(ctx.session, u.id)
     earned = await earned_balance(ctx.session, u)
     wd = max(Decimal("0"), min(u.balance - locked, earned))     # only earned GRAM can be withdrawn
     return {
+        "country": u.country, "interests": [x for x in (u.interests or "").split(",") if x], "streak": u.streak_days,
+        "vip": await _pass(ctx.session, u.id, "vip"), "boost": await _pass(ctx.session, u.id, "boost"),
         "is_publisher": await is_publisher(ctx.session, u.id), "earned_balance": num(await earned_balance(ctx.session, u)),
         "deposited_balance": num(max(Decimal("0"), u.balance - await earned_balance(ctx.session, u))),
         "id": u.id, "first_name": u.first_name, "username": u.username, "is_premium": u.is_premium,
@@ -360,6 +373,11 @@ async def bootstrap(ctx: Ctx = Depends(auth)):
         "pay": {m: PAY_NUMBERS[m] for m in (methods if LOCAL_DEPOSIT_ENABLED else [])},
         "deposit": {"rate": num(DEPOSIT_RATE_PER_BDT), "min": num(DEPOSIT_MIN_BDT), "max": num(DEPOSIT_MAX_BDT)},
         "withdraw": {"methods": ["usdt_trc20", "usdt_erc20", "bank", "mobile"] + (["ton"] if TON_WITHDRAW_ENABLED else [])},
+        "growth": {"niches": list(GrowthRules.NICHES), "max_interests": GrowthRules.MAX_INTERESTS,
+                   "fees": {"lang": float(GrowthRules.FEE_LANG), "country": float(GrowthRules.FEE_COUNTRY), "niche": float(GrowthRules.FEE_NICHE)},
+                   "spin_cost": num(GrowthRules.SPIN_COST), "vip": {"price": num(GrowthRules.VIP_PRICE), "days": GrowthRules.VIP_DAYS},
+                   "boost": {"price": num(GrowthRules.BOOST_PRICE), "days": GrowthRules.BOOST_DAYS},
+                   "feature": {"per_day": num(GrowthRules.FEATURE_PER_DAY), "days": list(GrowthRules.FEATURE_DAYS)}},
         "portal": bool(PORTAL_ENABLED and (TON_DEPOSIT_ENABLED or (LOCAL_DEPOSIT_ENABLED and methods))),
         "ton": {"deposit": TON_DEPOSIT_ENABLED, "withdraw": TON_WITHDRAW_ENABLED, "min_deposit_usd": num(TON_DEPOSIT_MIN_USD), "wd_min_usd": num(TON_WD_MIN_USD), "wd_max_usd": num(TON_WD_MAX_USD),
                 "gram_per_usd": num(GRAM_PER_USD), "wd_min_gram": num(TON_WD_MIN_USD * GRAM_PER_USD)},
@@ -389,13 +407,13 @@ async def list_tasks(type: str = "all", cursor: int = 0, ctx: Ctx = Depends(auth
     flt = None if type in ("", "all") or type not in ALL_TASK_TYPES else type
     base = _task_filters(ctx.uid, ctx.user, flt)
     rows = (await ctx.session.execute(
-        select(Campaign).where(*base).order_by(Campaign.reward_per_user.desc(), Campaign.created_at.desc())
+        select(Campaign).where(*base).order_by(case((Campaign.featured_until > datetime.now(timezone.utc), 1), else_=0).desc(), Campaign.reward_per_user.desc(), Campaign.created_at.desc())
         .offset(cursor).limit(PAGE + 1))).scalars().all()
     more = len(rows) > PAGE
     items = [{
         "id": c.id, "type": ttype(c), "title": c.title, "username": c.target_username, "link": _open_link(c),
         "reward": num(c.reward_per_user), "slots_total": c.max_completions, "slots_left": c.slots_remaining,
-        "premium": c.premium_only,
+        "premium": c.premium_only, "featured": bool(c.featured_until and _aw(c.featured_until) > datetime.now(timezone.utc)),
         "retention_days": c.retention_days if c.requires_retention_check else 0, "state": "new",
     } for c in rows[:PAGE]]
     return {"items": items, "daily": await daily_info(ctx.uid), "next": cursor + PAGE if more else None}
@@ -408,6 +426,9 @@ async def _task_problem(ctx: Ctx, c: Optional[Campaign], proof: bool) -> Optiona
         return ctx.err("unavailable", "❌ টাস্কটি সক্রিয় নয়।", "❌ This task is not active.", 404)
     if u.is_blocked or u.risk_score >= BusinessRules.RISK_BLOCK_SCORE:
         return ctx.err("blocked", "❌ আপনার অ্যাকাউন্টে কাজ করা বন্ধ আছে।", "❌ Tasks are disabled for your account.", 403)
+    from growth import targeting_ok
+    if not targeting_ok(c, u):
+        return ctx.err("not_for_you", "❌ এই টাস্কটি আপনার জন্য নয়।", "❌ This task is not available for your profile.")
     if c.advertiser_id == ctx.uid:
         return ctx.err("own_task", "❌ নিজের ক্যাম্পেইনে কাজ করা যায় না।", "❌ You cannot complete your own campaign.")
     if c.premium_only and not u.is_premium:
@@ -702,7 +723,14 @@ async def campaign_create(body: dict = Body(...), ctx: Ctx = Depends(auth)):
         if active >= BusinessRules.MAX_ACTIVE_CAMPAIGNS:
             await ctx.session.rollback()
             raise ctx.err("too_many", f"সর্বোচ্চ {BusinessRules.MAX_ACTIVE_CAMPAIGNS}টি সক্রিয় ক্যাম্পেইন।", f"Maximum {BusinessRules.MAX_ACTIVE_CAMPAIGNS} active campaigns allowed.")
+        from growth import clean_list, targeting_surcharge
+        t_langs = clean_list(body.get("target_langs"), allowed=set(L10N.LANGS), maxn=8)
+        t_countries = clean_list(body.get("target_countries"), upper=True, maxn=10)
+        t_niche = str(body.get("target_niche") or "").lower()
+        t_niche = t_niche if t_niche in GrowthRules.NICHES else ""
         budget, fee, total = campaign_cost(reward, slots)
+        surcharge = targeting_surcharge(budget, t_langs, t_countries, t_niche)
+        total += surcharge
         if user.balance < total:
             await ctx.session.rollback()
             raise ctx.err("insufficient_balance", f"❌ ব্যালেন্স কম। দরকার {total:,.0f} GRAM।", f"❌ Insufficient balance. Need {total:,.0f} GRAM.")
@@ -719,6 +747,7 @@ async def campaign_create(body: dict = Body(...), ctx: Ctx = Depends(auth)):
             premium_only=premium, reward_per_user=reward, base_reward=reward, max_completions=slots,
             total_budget=budget, retention_days=BusinessRules.RETENTION_DAYS,
             requires_retention_check=task_type in BusinessRules.API_VERIFIED_TASK_TYPES,
+            target_langs=",".join(t_langs) or None, target_countries=",".join(t_countries) or None, target_niche=t_niche or None,
         )
         ctx.session.add(c)
         await ctx.session.flush()
@@ -730,7 +759,7 @@ async def campaign_create(body: dict = Body(...), ctx: Ctx = Depends(auth)):
         user.balance -= total
         ctx.session.add(Transaction(
             user_id=ctx.uid, amount=-total, type=TransactionType.CAMPAIGN_PAYMENT,
-            description=f"Campaign: {tgt['title']} (fee {fee:,.0f})"[:255],
+            description=f"Campaign: {tgt['title']} (fee {fee:,.0f}" + (f" + targeting {surcharge:,.0f}" if surcharge else "") + ")",
             reference_id=c.id, reference_type="campaign", balance_after=user.balance))
         await ctx.session.commit()
         return {"campaign": await _campaign_item(ctx.session, c, bool(body.get("auto_renew")), 0),
@@ -1045,7 +1074,10 @@ async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
             raise ctx.err("earnings_only", "❌ শুধু আয় করা GRAM তোলা যায় (ডিপোজিট নয়)।",
                           "❌ Only earned GRAM can be withdrawn (deposited GRAM cannot).")
         user.balance -= amount          # held now; refunded by the admin flow if rejected
-        wd = WithdrawalRequest(user_id=ctx.uid, amount=amount, payment_method=method, payment_details=details[:500])
+        from risk import withdrawal_check
+        hold, hold_reason = await withdrawal_check(ctx.session, user, method, details)
+        wd = WithdrawalRequest(user_id=ctx.uid, amount=amount, payment_method=method, payment_details=details[:500],
+                               risk_hold=hold, risk_reason=hold_reason or None)
         ctx.session.add(wd)
         await ctx.session.flush()
         ctx.session.add(Transaction(user_id=ctx.uid, amount=-amount, type=TransactionType.WITHDRAWAL,
@@ -1058,12 +1090,12 @@ async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
     for aid in ADMIN_IDS:
         try:
             await get_bot().send_message(
-                aid, f"💸 <b>Withdrawal</b>\n\n👤 <code>{ctx.uid}</code> ({esc(name)})" + (f" @{esc(uname)}" if uname else "") + f"\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n"
+                aid, ("🚩 <b>RISK HOLD</b> — " + esc(hold_reason) + "\n\n" if hold else "") + f"💸 <b>Withdrawal</b>\n\n👤 <code>{ctx.uid}</code> ({esc(name)})" + (f" @{esc(uname)}" if uname else "") + f"\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n"
                      f"📝 <code>{esc(details[:200])}</code>\n💵 ≈ ${usd:,.2f}" + await _ton_hint(method, usd) + f"\n📊 Level {lvl} · tasks {tasks} · risk {risk}",
-                reply_markup=withdrawal_review_kb(wd_id), parse_mode=ParseMode.HTML)
+                reply_markup=withdrawal_review_kb(wd_id, hold), parse_mode=ParseMode.HTML)
         except Exception:
             pass
-    return {"status": "pending", "balance": num(bal)}
+    return {"status": "pending", "review": bool(hold), "balance": num(bal)}
 
 
 @router.post("/vouchers/redeem")
@@ -1240,6 +1272,12 @@ async def settings(body: dict = Body(...), ctx: Ctx = Depends(auth)):
         user.language = lang
     if "notifications" in body:
         user.notifications_enabled = bool(body["notifications"])
+    from growth import clean_list
+    if "country" in body:
+        cc = clean_list([body.get("country")], upper=True, maxn=1)
+        user.country = cc[0] if cc else None
+    if "interests" in body:
+        user.interests = ",".join(clean_list(body.get("interests"), allowed=set(GrowthRules.NICHES), maxn=GrowthRules.MAX_INTERESTS)) or None
     await ctx.session.commit()
     if lang and lang not in ("en", "bn"):
         try:
@@ -1261,6 +1299,8 @@ def install(app) -> None:
     import api_ads
     app.include_router(router)
     app.include_router(api_ads.router)
+    from api_growth import router as growth_router
+    app.include_router(growth_router)
     from api_portal import router as portal_router
     app.include_router(portal_router)
     from api_ton import router as ton_router
