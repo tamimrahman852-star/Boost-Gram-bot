@@ -1,13 +1,14 @@
 from decimal import Decimal
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from aiogram import Router, F, Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, PreCheckoutQuery, LabeledPrice
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 
-from config import BOT_USERNAME, BusinessRules, ADMIN_IDS
-from database import User, TaskCompletion, Campaign, WithdrawalRequest, Transaction, TransactionType
+from config import BOT_USERNAME, BusinessRules, ADMIN_IDS, STARS_DEPOSIT_ENABLED
+from database import User, TaskCompletion, Campaign, WithdrawalRequest, Transaction, TransactionType, StarsPayment
 from i18n_filters import MenuText
 from localization import L10N, t
 from keyboards import cabinet_kb, back_to_cabinet_kb, language_kb, main_menu, withdraw_method_kb
@@ -414,7 +415,7 @@ def _parse_topup_payload(payload: str):
 async def pre_checkout(q: PreCheckoutQuery, session):
     stars = _parse_topup_payload(q.invoice_payload)
     u = await get_user(session, q.from_user.id)
-    if stars is None or q.currency != "XTR" or q.total_amount != stars or not u or u.is_blocked:
+    if not STARS_DEPOSIT_ENABLED or stars is None or q.currency != "XTR" or q.total_amount != stars or not u or u.is_blocked:
         await q.answer(ok=False, error_message="Payment cannot be processed.")
         return
     await q.answer(ok=True)
@@ -435,6 +436,13 @@ async def paid(message: Message, session):
     u = r.scalar_one_or_none()
     if not u:
         await redis_client.delete(f"paid:{p.telegram_payment_charge_id}")
+        return
+    # durable idempotency: unique charge id; a replay hits IntegrityError and credits nothing
+    session.add(StarsPayment(user_id=uid, charge_id=p.telegram_payment_charge_id, stars=stars, coins=coins))
+    try:
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
         return
     u.balance += coins
     session.add(Transaction(

@@ -2,7 +2,7 @@ import { h, icon, fmt, short, skeleton, sheet, toast, confetti, compressImage, a
 import { t } from "../i18n.js";
 import { api } from "../api.js";
 import { S, fail, patchUser, emit, TX } from "../state.js";
-import { haptic, copyText, mainButton, shareLink, openInvoice } from "../tg.js";
+import { haptic, copyText, mainButton, shareLink, openInvoice, openLink } from "../tg.js";
 import { txRow } from "./home.js";
 
 const METHOD = { bkash: { name: "bKash", color: "#e2136e" }, nagad: { name: "Nagad", color: "#f6921e" }, rocket: { name: "Rocket", color: "#8c3494" } };
@@ -46,18 +46,20 @@ export async function render({ root, params, push }) {
 
 // ---------------- Deposit ----------------
 function deposit(root) {
-  const cfg = S.config, local = Object.keys(METHOD).some((k) => cfg.pay[k]);
-  const modes = [cfg.stars && ["stars", "⭐ " + t("wallet.stars"), starsDeposit], cfg.ton && cfg.ton.deposit && ["ton", "💠 " + t("wallet.ton"), tonDeposit], local && ["local", t("wallet.local"), localDeposit]].filter(Boolean);
-  if (!modes.length) return localDeposit(root);
-  let mode = modes[0][0], clean = null;
-  const seg = h("div", { class: "seg", style: { marginBottom: "14px" } }), body = h("div");
-  root.append(...(modes.length > 1 ? [seg] : []), body);
-  const draw = () => {
-    clean && clean(); clean = null; mainButton.hide(); body.replaceChildren();
-    seg.replaceChildren(...modes.map(([k, l]) => h("button", { class: k === mode ? "on" : "", onclick: () => { if (mode === k) return; mode = k; haptic.select(); draw(); } }, l)));
-    clean = modes.find((m) => m[0] === mode)[2](body);
-  };
-  draw();
+  // Mini App: Stars only. TON and local (bKash/Nagad/Rocket) top-ups live in the web portal, opened with a one-time link.
+  const cfg = S.config, starsOn = !!(cfg.stars && cfg.stars.enabled !== false), portalOn = !!cfg.portal;
+  let clean = null;
+  if (starsOn) clean = starsDeposit(root);
+  if (portalOn) {
+    const btn = h("button", { class: "btn sec", onclick: async () => {
+      btn.disabled = true;
+      try { const r = await api.portalLink(); haptic.tap(); openLink(r.url); } catch (e) { fail(e); }
+      btn.disabled = false;
+    } }, icon("link", 18), t("wallet.open_portal"));
+    root.append(h("div", { class: "card flat", style: { marginTop: "14px" } },
+      h("div", { class: "h3" }, t("wallet.more_title")), h("div", { class: "small muted", style: { margin: "4px 0 10px" } }, t("wallet.more_sub")), btn));
+  }
+  if (!starsOn && !portalOn) root.append(h("div", { class: "empty" }, h("div", { class: "big" }, "🛠"), t("wallet.deposit_off")));
   return () => { clean && clean(); };
 }
 

@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "Os depósitos em TON não estão disponíveis no momento.",
  "wallet.wd_ton_note": "Saques em TON: mínimo de ${a}, máximo de ${b}. Só é possível sacar GRAM que você ganhou, não GRAM depositados. Os saques são enviados manualmente após uma rápida revisão.",
  "wallet.wd_ton_pub": "Você possui um canal monetizado, então pode sacar em TON em qualquer nível.",
- "wallet.wd_ton_addr_ph": "Endereço da sua carteira TON (UQ… ou EQ…)"
+ "wallet.wd_ton_addr_ph": "Endereço da sua carteira TON (UQ… ou EQ…)",
+ "wallet.more_title": "Mais formas de recarregar",
+ "wallet.more_sub": "Pague com TON ou bKash / Nagad / Rocket no nosso portal de pagamento seguro. Abre no navegador.",
+ "wallet.open_portal": "Abrir portal de pagamento",
+ "wallet.deposit_off": "Recargas indisponíveis no momento.",
 };

@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "현재 TON 입금을 이용할 수 없습니다.",
  "wallet.wd_ton_note": "TON 출금: 최소 ${a}, 최대 ${b}. 직접 획득한 GRAM만 출금할 수 있으며, 입금한 GRAM은 출금할 수 없습니다. 출금은 간단한 검토 후 수동으로 전송됩니다.",
  "wallet.wd_ton_pub": "수익화된 채널을 보유하고 있어 모든 레벨에서 TON으로 출금할 수 있습니다.",
- "wallet.wd_ton_addr_ph": "내 TON 지갑 주소 (UQ… 또는 EQ…)"
+ "wallet.wd_ton_addr_ph": "내 TON 지갑 주소 (UQ… 또는 EQ…)",
+ "wallet.more_title": "다른 충전 방법",
+ "wallet.more_sub": "TON 또는 bKash / Nagad / Rocket으로 안전한 결제 포털에서 결제하세요. 브라우저에서 열립니다.",
+ "wallet.open_portal": "결제 포털 열기",
+ "wallet.deposit_off": "현재 충전을 사용할 수 없습니다.",
 };

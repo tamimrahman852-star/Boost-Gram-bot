@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "إيداعات TON غير متاحة حاليًا.",
  "wallet.wd_ton_note": "سحوبات TON: الحد الأدنى ${a} والحد الأقصى ${b}. يمكن سحب GRAM التي ربحتها فقط، وليس GRAM المودعة. يتم إرسال المدفوعات يدويًا بعد مراجعة سريعة.",
  "wallet.wd_ton_pub": "أنت تملك قناة مربحة، لذا يمكنك السحب عبر TON عند أي مستوى.",
- "wallet.wd_ton_addr_ph": "عنوان محفظة TON الخاصة بك (UQ… أو EQ…)"
+ "wallet.wd_ton_addr_ph": "عنوان محفظة TON الخاصة بك (UQ… أو EQ…)",
+ "wallet.more_title": "طرق أخرى للشحن",
+ "wallet.more_sub": "ادفع بـ TON أو bKash / Nagad / Rocket عبر بوابة الدفع الآمنة. تفتح في المتصفح.",
+ "wallet.open_portal": "فتح بوابة الدفع",
+ "wallet.deposit_off": "الشحن غير متاح حاليًا.",
 };

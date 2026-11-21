@@ -47,6 +47,7 @@ const real = {
   redeemCheck: (code, password) => req("POST", "/checks/redeem", { code, password }),
   referrals: () => req("GET", "/referrals"),
   saveSettings: (data) => req("POST", "/settings", data),
+  portalLink: () => req("POST", "/portal/link"),
   tonInfo: () => req("GET", "/ton"),
   tonCheck: () => req("POST", "/ton/check"),
   depositStars: (stars) => req("POST", "/deposits/stars", { stars }),

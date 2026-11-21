@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "TON 充值暂不可用。",
  "wallet.wd_ton_note": "TON 提现：最低 ${a}，最高 ${b}。仅可提现你赚取的 GRAM，充值的 GRAM 不可提现。提现将在快速审核后手动发放。",
  "wallet.wd_ton_pub": "你拥有已开通变现的频道，因此在任何等级都可以使用 TON 提现。",
- "wallet.wd_ton_addr_ph": "你的 TON 钱包地址（UQ… 或 EQ…）"
+ "wallet.wd_ton_addr_ph": "你的 TON 钱包地址（UQ… 或 EQ…）",
+ "wallet.more_title": "更多充值方式",
+ "wallet.more_sub": "通过我们的安全支付门户使用 TON 或 bKash / Nagad / Rocket 付款，将在浏览器中打开。",
+ "wallet.open_portal": "打开支付门户",
+ "wallet.deposit_off": "暂时无法充值。",
 };

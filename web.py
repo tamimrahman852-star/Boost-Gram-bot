@@ -94,3 +94,11 @@ async def terms_page():
 @fastapi_app.get("/privacy", response_class=HTMLResponse)
 async def privacy_page():
     return _page("privacy")
+
+
+@fastapi_app.get("/portal", response_class=HTMLResponse)
+async def portal_page():
+    r = _page("portal")
+    r.headers["Cache-Control"] = "no-store"
+    r.headers["Referrer-Policy"] = "no-referrer"
+    return r

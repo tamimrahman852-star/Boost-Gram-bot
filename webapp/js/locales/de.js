@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "TON-Einzahlungen sind derzeit nicht verfügbar.",
  "wallet.wd_ton_note": "TON-Auszahlungen: Minimum ${a}, Maximum ${b}. Nur selbst verdientes GRAM kann abgehoben werden, nicht eingezahltes GRAM. Auszahlungen werden nach einer kurzen Prüfung manuell versendet.",
  "wallet.wd_ton_pub": "Du besitzt einen monetarisierten Kanal und kannst daher auf jedem Level in TON auszahlen.",
- "wallet.wd_ton_addr_ph": "Deine TON-Wallet-Adresse (UQ… oder EQ…)"
+ "wallet.wd_ton_addr_ph": "Deine TON-Wallet-Adresse (UQ… oder EQ…)",
+ "wallet.more_title": "Weitere Aufladeoptionen",
+ "wallet.more_sub": "Zahle mit TON oder bKash / Nagad / Rocket im sicheren Zahlungsportal. Es öffnet sich im Browser.",
+ "wallet.open_portal": "Zahlungsportal öffnen",
+ "wallet.deposit_off": "Aufladen ist derzeit nicht verfügbar.",
 };

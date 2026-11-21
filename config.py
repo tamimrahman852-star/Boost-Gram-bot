@@ -33,6 +33,16 @@ TON_USD_FALLBACK = os.getenv("TON_USD_FALLBACK", "").strip()                # us
 TON_DEPOSIT_MIN_USD = Decimal(os.getenv("TON_DEPOSIT_MIN_USD", "1"))
 TON_WD_MIN_USD = Decimal(os.getenv("TON_WD_MIN_USD", "20"))
 TON_WD_MAX_USD = Decimal(os.getenv("TON_WD_MAX_USD", "1000"))
+
+# ---- kill-switches: set to 0 in the environment and restart to turn a feature off instantly ----
+def _flag(name: str, default: str = "1") -> bool:
+    return os.getenv(name, default).strip().lower() not in ("0", "false", "no", "off", "")
+
+STARS_DEPOSIT_ENABLED = _flag("STARS_DEPOSIT_ENABLED")                      # Telegram Stars top-ups (inside the Mini App)
+TON_DEPOSIT_ENABLED = _flag("TON_DEPOSIT_ENABLED") and bool(TON_WALLET)     # empty TON_WALLET also switches TON deposits off
+TON_WITHDRAW_ENABLED = _flag("TON_WITHDRAW_ENABLED")
+LOCAL_DEPOSIT_ENABLED = _flag("LOCAL_DEPOSIT_ENABLED")                      # bKash / Nagad / Rocket (these also need PAY_* numbers)
+PORTAL_ENABLED = _flag("PORTAL_ENABLED")                                    # the external browser portal for non-Stars top-ups
 DEPOSIT_MAX_BDT = Decimal(os.getenv("DEPOSIT_MAX_BDT", "20000"))
 
 # Optional banner (GIF/MP4/PNG URL or Telegram file_id) shown with the welcome message

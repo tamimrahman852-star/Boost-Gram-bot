@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "現在TONでの入金はご利用いただけません。",
  "wallet.wd_ton_note": "TON出金:最低${a}、最大${b}。出金できるのは獲得したGRAMのみで、入金したGRAMは対象外です。出金は簡単な審査の後、手動で送金されます。",
  "wallet.wd_ton_pub": "収益化されたチャンネルをお持ちのため、どのレベルでもTONで出金できます。",
- "wallet.wd_ton_addr_ph": "あなたのTONウォレットアドレス(UQ… または EQ…)"
+ "wallet.wd_ton_addr_ph": "あなたのTONウォレットアドレス(UQ… または EQ…)",
+ "wallet.more_title": "その他のチャージ方法",
+ "wallet.more_sub": "TON または bKash / Nagad / Rocket で、安全な決済ポータルからお支払いください。ブラウザで開きます。",
+ "wallet.open_portal": "決済ポータルを開く",
+ "wallet.deposit_off": "現在チャージは利用できません。",
 };

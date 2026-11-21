@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from config import (
-    GRAM_PER_USD, TON_DEPOSIT_MIN_USD, TON_USD_FALLBACK, TON_WALLET, TONCENTER_API_KEY, logger,
+    GRAM_PER_USD, TON_DEPOSIT_ENABLED, TON_DEPOSIT_MIN_USD, TON_USD_FALLBACK, TON_WALLET, TONCENTER_API_KEY, logger,
 )
 from database import AsyncSessionLocal, TonDeposit, Transaction, TransactionType, User, redis_client
 
@@ -144,7 +144,7 @@ async def credit_transfer(bot: Optional[Bot], t: dict, rate: Decimal) -> Optiona
 
 async def poll_once(bot: Optional[Bot] = None) -> int:
     """Read the wallet's recent incoming transfers and credit the new ones. Returns how many were credited."""
-    if not TON_WALLET:
+    if not TON_WALLET or not TON_DEPOSIT_ENABLED:
         return 0
     transfers = await fetch_incoming()
     if not transfers:
@@ -171,7 +171,7 @@ async def poll_once(bot: Optional[Bot] = None) -> int:
 
 
 async def ton_worker(bot: Bot):
-    if not TON_WALLET:
+    if not TON_WALLET or not TON_DEPOSIT_ENABLED:
         return
     while True:
         try:

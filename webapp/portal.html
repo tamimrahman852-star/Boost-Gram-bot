@@ -1,0 +1,92 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>Boost Gram · Payment Portal</title><style>
+:root{color-scheme:dark light}*{box-sizing:border-box}body{margin:0;font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;background:#070912;color:#e8eaf6}
+@media(prefers-color-scheme:light){body{background:#f2f4fb;color:#161a2e}.card,.box{background:#fff!important}input,select{background:#eef0fa!important;color:#161a2e!important}}
+.wrap{max-width:520px;margin:0 auto;padding:18px 16px 60px}h1{font-size:22px;margin:.2em 0}.card{background:#10142a;border-radius:16px;padding:16px;margin:12px 0}
+.muted{opacity:.7;font-size:14px}.row{display:flex;gap:8px;align-items:center}.grow{flex:1;min-width:0}.tabs{display:flex;gap:8px;margin:12px 0}
+button,.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;background:#7c5cff;color:#fff;font-size:15px}button.sec{background:#2a3158}button:disabled{opacity:.5}
+.tabs button{flex:1;background:#2a3158}.tabs button.on{background:#7c5cff}.box{background:#161b38;border-radius:12px;padding:10px 12px;word-break:break-all;font-size:14px}
+label{display:block;margin:12px 0 4px;font-size:14px;opacity:.8}input,select{width:100%;border:0;border-radius:12px;padding:12px;font-size:16px;background:#1d2347;color:#fff}
+.ok{color:#3ddc97}.err{color:#ff6b81}.warn{background:#3a2d12;color:#ffd479;border-radius:12px;padding:10px 12px;font-size:14px}.hide{display:none}
+.bal{font-size:28px;font-weight:800}.hist div{padding:8px 0;border-top:1px solid #ffffff14;display:flex;justify-content:space-between;font-size:14px}
+.lang{float:right}.lang button{padding:6px 12px;font-size:13px}
+</style></head><body><div class="wrap">
+<div class="lang"><button class="sec" id="lg">বাংলা</button></div>
+<h1 id="t_title"></h1><div class="muted" id="t_sub"></div>
+<div id="err" class="warn hide"></div>
+<div id="app" class="hide">
+ <div class="card"><div class="muted" id="t_bal"></div><div class="bal" id="bal">—</div><div class="muted" id="split"></div></div>
+ <div class="tabs" id="tabs"></div>
+ <div id="p_ton" class="card hide">
+  <div class="muted" id="t_ton_how"></div>
+  <label id="t_addr"></label><div class="row"><div class="box grow" id="addr"></div><button class="sec" data-copy="addr">⧉</button></div>
+  <label id="t_memo"></label><div class="row"><div class="box grow" id="memo"></div><button class="sec" data-copy="memo">⧉</button></div>
+  <div class="warn" id="t_memo_warn" style="margin-top:10px"></div>
+  <div class="muted" id="rate" style="margin-top:10px"></div><div class="muted" id="min"></div>
+  <div class="row" style="margin-top:12px"><a class="btn grow" id="open" style="text-align:center;text-decoration:none"></a><button class="grow" id="check"></button></div>
+  <div class="hist" id="hist" style="margin-top:12px"></div>
+ </div>
+ <div id="p_loc" class="card hide">
+  <label id="t_method"></label><select id="method"></select>
+  <div class="box" style="margin-top:10px"><span class="muted" id="t_send"></span><div id="num" style="font-size:20px;font-weight:800"></div></div>
+  <label id="t_amt"></label><input id="amt" inputmode="numeric" value="500"><div class="muted" id="amt_g"></div>
+  <label id="t_trx"></label><input id="trx" autocomplete="off" autocapitalize="characters">
+  <label id="t_shot"></label><input id="shot" type="file" accept="image/*">
+  <button id="send" style="width:100%;margin-top:14px"></button>
+ </div>
+ <div class="card hide" id="off"></div>
+</div></div>
+<script>
+const S={en:{title:"Payment portal",sub:"Top up your Boost Gram balance. Return to Telegram when done.",bal:"Your balance",tabTon:"💠 TON",tabLoc:"Bkash / Nagad / Rocket",
+tonHow:"Send TON to the address below. You MUST include your personal memo, otherwise we cannot credit you.",addr:"Wallet address",memo:"Memo / comment (required)",memoWarn:"Without the exact memo the payment cannot be matched to your account.",
+rate:(p,g)=>`Rate: 1 TON ≈ $${p} ≈ ${g} GRAM`,min:n=>`Minimum deposit: $${n}`,open:"Open wallet",check:"I've paid, check now",hist:"Recent deposits",none:"No TON payment found yet. It can take a minute — try again shortly.",ok:"Credited!",
+method:"Method",send:"Send money to",amt:"Amount (BDT)",trx:"Transaction ID (TrxID)",shot:"Payment screenshot",submit:"Submit deposit",sent:"Submitted! An admin will review it shortly.",
+off:"Top-ups are unavailable right now.",expired:"This link is invalid or expired. Please reopen the portal from the Mini App.",copied:"Copied",split:(e,d)=>`Earned ${e} · Deposited ${d} (deposits cannot be withdrawn)`,miss:"Fill all fields and attach the screenshot."},
+bn:{title:"পেমেন্ট পোর্টাল",sub:"Boost Gram ব্যালেন্স টপ-আপ করুন। শেষে টেলিগ্রামে ফিরে যান।",bal:"আপনার ব্যালেন্স",tabTon:"💠 TON",tabLoc:"বিকাশ / নগদ / রকেট",
+tonHow:"নিচের ঠিকানায় TON পাঠান। অবশ্যই আপনার ব্যক্তিগত মেমো দিতে হবে, নইলে ক্রেডিট করা যাবে না।",addr:"ওয়ালেট ঠিকানা",memo:"মেমো / কমেন্ট (বাধ্যতামূলক)",memoWarn:"হুবহু মেমো ছাড়া পেমেন্ট আপনার অ্যাকাউন্টে মেলানো যাবে না।",
+rate:(p,g)=>`রেট: ১ TON ≈ $${p} ≈ ${g} GRAM`,min:n=>`ন্যূনতম ডিপোজিট: $${n}`,open:"ওয়ালেট খুলুন",check:"পেমেন্ট করেছি, চেক করুন",hist:"সাম্প্রতিক ডিপোজিট",none:"এখনো TON পেমেন্ট পাওয়া যায়নি। এক মিনিট লাগতে পারে — একটু পরে আবার চেষ্টা করুন।",ok:"ক্রেডিট হয়েছে!",
+method:"মাধ্যম",send:"টাকা পাঠান",amt:"পরিমাণ (BDT)",trx:"ট্রানজেকশন আইডি (TrxID)",shot:"পেমেন্টের স্ক্রিনশট",submit:"ডিপোজিট জমা দিন",sent:"জমা হয়েছে! অ্যাডমিন শীঘ্রই রিভিউ করবে।",
+off:"এখন টপ-আপ বন্ধ আছে।",expired:"লিংকটি অবৈধ বা মেয়াদোত্তীর্ণ। মিনি অ্যাপ থেকে আবার পোর্টাল খুলুন।",copied:"কপি হয়েছে",split:(e,d)=>`আয় ${e} · ডিপোজিট ${d} (ডিপোজিট তোলা যায় না)`,miss:"সব ঘর পূরণ করে স্ক্রিনশট দিন।"}};
+let lang=(navigator.language||"").startsWith("bn")?"bn":"en";const T=k=>S[lang][k];
+const $=id=>document.getElementById(id),fmt=n=>Math.round(Number(n)||0).toLocaleString("en-US");
+let SES=null,CFG=null,USER=null,TON=null,TAB=null;
+const SKEY="bg_portal_session";
+async function api(method,path,body,form){
+  const h={Authorization:"portal "+SES};let b;
+  if(form){b=form}else if(body){h["Content-Type"]="application/json";b=JSON.stringify(body)}
+  const r=await fetch("/api"+path,{method,headers:h,body:b});let j={};try{j=await r.json()}catch{}
+  if(!r.ok){const e=new Error(j.message||j.error||"error");e.status=r.status;throw e}return j}
+function showErr(m){const e=$("err");e.textContent=m;e.classList.remove("hide")}
+function texts(){$("t_title").textContent=T("title");$("t_sub").textContent=T("sub");$("t_bal").textContent=T("bal");$("lg").textContent=lang==="en"?"বাংলা":"English";
+ $("t_ton_how").textContent=T("tonHow");$("t_addr").textContent=T("addr");$("t_memo").textContent=T("memo");$("t_memo_warn").textContent=T("memoWarn");$("open").textContent=T("open");$("check").textContent=T("check");
+ $("t_method").textContent=T("method");$("t_send").textContent=T("send");$("t_amt").textContent=T("amt");$("t_trx").textContent=T("trx");$("t_shot").textContent=T("shot");$("send").textContent=T("submit");$("off").textContent=T("off");if(CFG)draw()}
+function draw(){
+ const tabs=[];if(CFG.ton.deposit)tabs.push(["ton",T("tabTon")]);if(CFG.config_pay.length)tabs.push(["loc",T("tabLoc")]);
+ $("bal").textContent=fmt(USER.balance)+" GRAM";$("split").textContent=T("split")(fmt(USER.earned_balance),fmt(USER.deposited_balance));
+ $("off").classList.toggle("hide",tabs.length>0);$("tabs").replaceChildren(...tabs.map(([k,l])=>{const b=document.createElement("button");b.textContent=l;b.className=k===TAB?"on":"";b.onclick=()=>{TAB=k;draw()};return b}));
+ if(tabs.length&&!tabs.some(x=>x[0]===TAB))TAB=tabs[0][0];
+ $("p_ton").classList.toggle("hide",TAB!=="ton");$("p_loc").classList.toggle("hide",TAB!=="loc");
+ if(TAB==="ton"&&TON){$("addr").textContent=TON.wallet;$("memo").textContent=TON.memo;
+  $("rate").textContent=TON.ton_usd?T("rate")(TON.ton_usd.toFixed(2),fmt(TON.gram_per_ton)):"";$("min").textContent=T("min")(TON.min_usd);
+  $("open").href=`https://app.tonkeeper.com/transfer/${encodeURIComponent(TON.wallet)}?text=${encodeURIComponent(TON.memo)}`;$("open").target="_blank";$("open").rel="noopener";
+  $("hist").replaceChildren(...(TON.history.length?[Object.assign(document.createElement("div"),{className:"muted",textContent:T("hist"),style:"border:0"})]:[]),...TON.history.map(d=>{const r=document.createElement("div");r.innerHTML="<span></span><b></b>";r.children[0].textContent=d.ton.toFixed(3)+" TON ≈ $"+d.usd.toFixed(2);r.children[1].textContent=d.coins?"+"+fmt(d.coins):"—";return r}))}
+ if(TAB==="loc"){const m=$("method"),cur=m.value;m.replaceChildren(...CFG.config_pay.map(k=>{const o=document.createElement("option");o.value=k;o.textContent=({bkash:"bKash",nagad:"Nagad",rocket:"Rocket"})[k]||k;return o}));if(cur)m.value=cur;pay()}}
+function pay(){$("num").textContent=CFG.pay[$("method").value]||"";const a=parseInt($("amt").value.replace(/\D/g,""))||0;$("amt_g").textContent=a?"= "+fmt(a*CFG.deposit.rate)+" GRAM":""}
+async function refresh(){const b=await api("GET","/bootstrap");USER=b.user;const c=b.config;CFG={ton:c.ton,deposit:c.deposit,pay:c.pay,config_pay:Object.keys(c.pay||{})};
+ if(CFG.ton.deposit)TON=await api("GET","/ton");draw()}
+async function init(){
+ texts();$("lg").onclick=()=>{lang=lang==="en"?"bn":"en";texts()};
+ const m=location.hash.match(/t=([A-Za-z0-9_-]+)/);
+ if(m){history.replaceState(null,"",location.pathname);
+  try{const r=await fetch("/api/portal/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:m[1]})});if(!r.ok)throw 0;SES=(await r.json()).session;sessionStorage.setItem(SKEY,SES)}catch{return showErr(T("expired"))}}
+ else SES=sessionStorage.getItem(SKEY);
+ if(!SES)return showErr(T("expired"));
+ try{await refresh()}catch(e){sessionStorage.removeItem(SKEY);return showErr(T("expired"))}
+ $("app").classList.remove("hide");
+ document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText($(b.dataset.copy).textContent);b.textContent="✓";setTimeout(()=>b.textContent="⧉",1200)}catch{}});
+ $("method").onchange=pay;$("amt").oninput=pay;
+ $("check").onclick=async e=>{const b=e.target;b.disabled=true;try{const before=USER.balance,r=await api("POST","/ton/check");await refresh();alert(r.credited||USER.balance>before?T("ok"):T("none"))}catch(x){alert(x.message)}b.disabled=false};
+ $("send").onclick=async e=>{const b=e.target,f=$("shot").files[0],trx=$("trx").value.trim(),a=$("amt").value.replace(/\D/g,"");if(!f||!trx||!a)return alert(T("miss"));
+  b.disabled=true;try{const fd=new FormData();fd.append("method",$("method").value);fd.append("amount_bdt",a);fd.append("trx_id",trx);fd.append("screenshot",f);await api("POST","/deposits",null,fd);alert(T("sent"));$("trx").value="";$("shot").value=""}catch(x){alert(x.message)}b.disabled=false};
+}
+init();
+</script></body></html>

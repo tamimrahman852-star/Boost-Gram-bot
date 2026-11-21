@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "واریز با TON در حال حاضر در دسترس نیست.",
  "wallet.wd_ton_note": "برداشت TON: حداقل ${a}، حداکثر ${b}. فقط GRAM کسب‌شده قابل برداشت است، نه GRAM واریزشده. پرداخت‌ها پس از یک بررسی سریع به‌صورت دستی ارسال می‌شوند.",
  "wallet.wd_ton_pub": "شما صاحب یک کانال درآمدزا هستید، بنابراین می‌توانید در هر سطحی با TON برداشت کنید.",
- "wallet.wd_ton_addr_ph": "آدرس کیف پول TON شما (UQ… یا EQ…)"
+ "wallet.wd_ton_addr_ph": "آدرس کیف پول TON شما (UQ… یا EQ…)",
+ "wallet.more_title": "راه‌های بیشتر برای شارژ",
+ "wallet.more_sub": "با TON یا bKash / Nagad / Rocket در درگاه پرداخت امن ما پرداخت کنید. در مرورگر باز می‌شود.",
+ "wallet.open_portal": "باز کردن درگاه پرداخت",
+ "wallet.deposit_off": "شارژ در حال حاضر در دسترس نیست.",
 };

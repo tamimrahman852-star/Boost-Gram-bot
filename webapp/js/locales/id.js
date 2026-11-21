@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "Deposit TON sedang tidak tersedia.",
  "wallet.wd_ton_note": "Penarikan TON: minimum ${a}, maksimum ${b}. Hanya GRAM hasil kamu peroleh yang bisa ditarik, bukan GRAM yang didepositkan. Penarikan dikirim manual setelah peninjauan singkat.",
  "wallet.wd_ton_pub": "Kamu memiliki channel yang dimonetisasi, jadi kamu bisa menarik dalam TON di level mana pun.",
- "wallet.wd_ton_addr_ph": "Alamat dompet TON kamu (UQ… atau EQ…)"
+ "wallet.wd_ton_addr_ph": "Alamat dompet TON kamu (UQ… atau EQ…)",
+ "wallet.more_title": "Cara top-up lainnya",
+ "wallet.more_sub": "Bayar dengan TON atau bKash / Nagad / Rocket di portal pembayaran aman kami. Dibuka di browser.",
+ "wallet.open_portal": "Buka portal pembayaran",
+ "wallet.deposit_off": "Top-up sedang tidak tersedia.",
 };

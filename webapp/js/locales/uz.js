@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "TON depozitlari hozircha mavjud emas.",
  "wallet.wd_ton_note": "TON to'lovlari: minimal ${a}, maksimal ${b}. Faqat siz ishlab topgan GRAM'ni yechib olish mumkin, depozit qilingan GRAM'ni emas. To'lovlar qisqa tekshiruvdan so'ng qo'lda yuboriladi.",
  "wallet.wd_ton_pub": "Sizda daromad keltiradigan kanal bor, shuning uchun istalgan darajada TON orqali yechib olishingiz mumkin.",
- "wallet.wd_ton_addr_ph": "TON hamyon manzilingiz (UQ… yoki EQ…)"
+ "wallet.wd_ton_addr_ph": "TON hamyon manzilingiz (UQ… yoki EQ…)",
+ "wallet.more_title": "Hisobni to'ldirishning boshqa usullari",
+ "wallet.more_sub": "TON yoki bKash / Nagad / Rocket orqali xavfsiz to'lov portalida to'lang. Brauzerda ochiladi.",
+ "wallet.open_portal": "To'lov portalini ochish",
+ "wallet.deposit_off": "Hozircha to'ldirish mavjud emas.",
 };

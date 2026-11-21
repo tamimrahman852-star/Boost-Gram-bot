@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "Hiện chưa thể nạp TON.",
  "wallet.wd_ton_note": "Rút TON: tối thiểu ${a}, tối đa ${b}. Chỉ có thể rút GRAM bạn kiếm được, không rút được GRAM đã nạp. Các khoản rút được gửi thủ công sau khi xem xét nhanh.",
  "wallet.wd_ton_pub": "Bạn sở hữu kênh đã bật kiếm tiền, nên có thể rút bằng TON ở mọi cấp độ.",
- "wallet.wd_ton_addr_ph": "Địa chỉ ví TON của bạn (UQ… hoặc EQ…)"
+ "wallet.wd_ton_addr_ph": "Địa chỉ ví TON của bạn (UQ… hoặc EQ…)",
+ "wallet.more_title": "Cách nạp tiền khác",
+ "wallet.more_sub": "Thanh toán bằng TON hoặc bKash / Nagad / Rocket trên cổng thanh toán an toàn. Mở trong trình duyệt.",
+ "wallet.open_portal": "Mở cổng thanh toán",
+ "wallet.deposit_off": "Hiện không thể nạp tiền.",
 };

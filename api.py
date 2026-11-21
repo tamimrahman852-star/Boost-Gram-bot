@@ -44,7 +44,8 @@ import i18n
 from config import (
     ADMIN_IDS, BOT_TOKEN, BOT_USERNAME, DEPOSIT_MAX_BDT, DEPOSIT_MIN_BDT, DEPOSIT_RATE_PER_BDT,
     PAY_NUMBERS, AdRules, BusinessRules, TaskPricing, WEBAPP_ORIGINS, logger,
-    GRAM_PER_USD, TON_DEPOSIT_MIN_USD, TON_WALLET, TON_WD_MAX_USD, TON_WD_MIN_USD,
+    GRAM_PER_USD, TON_DEPOSIT_ENABLED, TON_DEPOSIT_MIN_USD, TON_WALLET, TON_WD_MAX_USD, TON_WD_MIN_USD,
+    STARS_DEPOSIT_ENABLED, TON_WITHDRAW_ENABLED, LOCAL_DEPOSIT_ENABLED, PORTAL_ENABLED, PUBLIC_URL,
 )
 from database import (
     AsyncSessionLocal, AutoRenew, Campaign, CampaignPost, CampaignStatus, Check, CheckActivation,
@@ -178,14 +179,50 @@ async def _referrer_from(session, start: Optional[str], uid: int) -> Optional[in
     return None
 
 
-async def auth(request: Request, authorization: str = Header(default="")):
-    if not authorization.lower().startswith("tma "):
-        raise ApiError("unauthorized", "Open this app from Telegram.", 401)
+PORTAL_TTL = 2 * 3600
+PORTAL_PATHS = ("/api/bootstrap", "/api/ton", "/api/deposits", "/api/wallet/")   # the only endpoints a portal session may call
+_PORTAL_KEY = hashlib.sha256(b"portal-session:" + BOT_TOKEN.encode()).digest()
+
+
+def portal_session_make(uid: int, ttl: int = PORTAL_TTL) -> str:
+    body = f"p1.{uid}.{int(time.time()) + ttl}"
+    return body + "." + hmac.new(_PORTAL_KEY, body.encode(), hashlib.sha256).hexdigest()
+
+
+def portal_session_uid(tok: str) -> int:
     try:
-        tg = verify_init_data(authorization[4:].strip(), BOT_TOKEN)
+        ver, uid, exp, sig = tok.split(".")
+        good = hmac.new(_PORTAL_KEY, f"{ver}.{uid}.{exp}".encode(), hashlib.sha256).hexdigest()
+        if ver != "p1" or not hmac.compare_digest(sig, good) or int(exp) < time.time():
+            raise ValueError
+        return int(uid)
     except Exception:
-        raise ApiError("unauthorized", "Session expired. Reopen the app from Telegram.", 401)
-    uid = int(tg["id"])
+        raise ApiError("unauthorized", "Portal session expired. Reopen the portal from the app.", 401)
+
+
+def _portal_allowed(path: str) -> bool:
+    if path == "/api/deposits/stars":
+        return False
+    return any(path == p or path.startswith(p if p.endswith("/") else p + "/") for p in PORTAL_PATHS)
+
+
+async def auth(request: Request, authorization: str = Header(default="")):
+    portal = authorization.lower().startswith("portal ")
+    if portal:
+        if not PORTAL_ENABLED:
+            raise ApiError("disabled", "Portal is unavailable.", 403)
+        if not _portal_allowed(request.url.path):
+            raise ApiError("forbidden", "Not available from the portal.", 403)
+        uid = portal_session_uid(authorization[7:].strip())
+        tg = {"id": uid, "_portal": True}
+    elif not authorization.lower().startswith("tma "):
+        raise ApiError("unauthorized", "Open this app from Telegram.", 401)
+    else:
+        try:
+            tg = verify_init_data(authorization[4:].strip(), BOT_TOKEN)
+        except Exception:
+            raise ApiError("unauthorized", "Session expired. Reopen the app from Telegram.", 401)
+        uid = int(tg["id"])
 
     key = f"rl:api:{uid}:{int(time.time())}"
     hits = await redis_client.incr(key)
@@ -197,6 +234,8 @@ async def auth(request: Request, authorization: str = Header(default="")):
     async with AsyncSessionLocal() as session:
         user = (await session.execute(select(User).where(User.id == uid))).scalar_one_or_none()
         referrer = None
+        if user is None and portal:
+            raise ApiError("unauthorized", "Account not found.", 401)
         if user is None:
             start = request.query_params.get("start") or tg.get("_start_param")
             referrer = await _referrer_from(session, start, uid)
@@ -205,8 +244,9 @@ async def auth(request: Request, authorization: str = Header(default="")):
             last_name=tg.get("last_name"), is_premium=bool(tg.get("is_premium")),
             language_code=tg.get("language_code"),
         )
-        user, _new = await get_or_create_user(session, tg_user, referrer)
-        await session.commit()
+        if not portal:
+            user, _new = await get_or_create_user(session, tg_user, referrer)
+            await session.commit()
         if user.is_blocked and uid not in ADMIN_IDS:
             raise ApiError("blocked", "Your account is blocked.", 403)
         yield Ctx(session, user, tg)
@@ -229,6 +269,7 @@ async def user_dict(ctx: Ctx) -> dict:
     wd = max(Decimal("0"), u.balance - locked)
     return {
         "is_publisher": await is_publisher(ctx.session, u.id), "earned_balance": num(await earned_balance(ctx.session, u)),
+        "deposited_balance": num(max(Decimal("0"), u.balance - await earned_balance(ctx.session, u))),
         "id": u.id, "first_name": u.first_name, "username": u.username, "is_premium": u.is_premium,
         "photo_url": ctx.tg.get("photo_url"), "balance": num(u.balance), "xp": u.xp, "level": u.level,
         "current_level_xp": u.current_level_xp, "next_level_xp": u.next_level_xp,
@@ -315,13 +356,14 @@ async def bootstrap(ctx: Ctx = Depends(auth)):
         },
         "pricing": {k: dict(v) for k, v in TaskPricing.PRICING.items()},
         "langs": dict(L10N.LANGS),
-        "pay": {m: PAY_NUMBERS[m] for m in methods},
+        "pay": {m: PAY_NUMBERS[m] for m in (methods if LOCAL_DEPOSIT_ENABLED else [])},
         "deposit": {"rate": num(DEPOSIT_RATE_PER_BDT), "min": num(DEPOSIT_MIN_BDT), "max": num(DEPOSIT_MAX_BDT)},
-        "withdraw": {"methods": ["usdt_trc20", "usdt_erc20", "bank", "mobile", "ton"]},
-        "ton": {"deposit": bool(TON_WALLET), "min_deposit_usd": num(TON_DEPOSIT_MIN_USD), "wd_min_usd": num(TON_WD_MIN_USD), "wd_max_usd": num(TON_WD_MAX_USD),
+        "withdraw": {"methods": ["usdt_trc20", "usdt_erc20", "bank", "mobile"] + (["ton"] if TON_WITHDRAW_ENABLED else [])},
+        "portal": bool(PORTAL_ENABLED and (TON_DEPOSIT_ENABLED or (LOCAL_DEPOSIT_ENABLED and methods))),
+        "ton": {"deposit": TON_DEPOSIT_ENABLED, "withdraw": TON_WITHDRAW_ENABLED, "min_deposit_usd": num(TON_DEPOSIT_MIN_USD), "wd_min_usd": num(TON_WD_MIN_USD), "wd_max_usd": num(TON_WD_MAX_USD),
                 "gram_per_usd": num(GRAM_PER_USD), "wd_min_gram": num(TON_WD_MIN_USD * GRAM_PER_USD)},
         "referral": {"base": num(BusinessRules.REFERRAL_BASE_REWARD), "tiers": {str(k): float(v) for k, v in BusinessRules.REFERRAL_TIER_BONUSES.items()}},
-        "stars": {"rate": num(BusinessRules.STAR_TO_COIN_RATE), "packages": [50, 100, 250, 750, 1499, 2499], "min": 1, "max": 10000},
+        "stars": {"enabled": STARS_DEPOSIT_ENABLED, "rate": num(BusinessRules.STAR_TO_COIN_RATE), "packages": [50, 100, 250, 750, 1499, 2499], "min": 1, "max": 10000},
         "ads": {"commission": float(AdRules.COMMISSION), "min_members": AdRules.MIN_MEMBERS, "min_budget": num(AdRules.MIN_BUDGET),
                 "lifetimes": list(AdRules.LIFETIMES), "default_lifetime": AdRules.DEFAULT_LIFETIME, "external_links": AdRules.ALLOW_EXTERNAL_LINKS,
                 "view_sync": AdRules.VIEW_SYNC, "models": ["cpm", "cpc"] if AdRules.VIEW_SYNC else ["cpc"],
@@ -868,7 +910,7 @@ async def wallet_requests(ctx: Ctx = Depends(auth)):
 @router.post("/deposits")
 async def deposit_create(method: str = Form(...), amount_bdt: str = Form(...), trx_id: str = Form(...),
                          screenshot: UploadFile = File(...), ctx: Ctx = Depends(auth)):
-    if method not in available_methods():
+    if not LOCAL_DEPOSIT_ENABLED or method not in available_methods():
         raise ctx.err("invalid", "❌ এই মাধ্যমটি বন্ধ।", "❌ This payment method is not available.")
     try:
         amt = Decimal(amount_bdt.replace(",", ""))
@@ -916,6 +958,8 @@ async def deposit_create(method: str = Form(...), amount_bdt: str = Form(...), t
 async def deposit_stars(body: dict = Body(...), ctx: Ctx = Depends(auth)):
     """Telegram Stars top-up: returns an invoice link for Telegram.WebApp.openInvoice().
     Payment is completed and credited by the bot's existing pre_checkout / successful_payment handlers."""
+    if not STARS_DEPOSIT_ENABLED:
+        raise ctx.err("disabled", "❌ Stars ডিপোজিট বন্ধ আছে।", "❌ Stars deposits are turned off.", 403)
     try:
         n = int(body.get("stars"))
     except (TypeError, ValueError):
@@ -966,6 +1010,8 @@ async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
     if method not in ALLOWED_WD_METHODS or len(details) < 5:
         raise ctx.err("invalid", "❌ পেমেন্ট তথ্য দিন।", "❌ Enter your payout details.")
     usd = amount / GRAM_PER_USD
+    if method == "ton" and not TON_WITHDRAW_ENABLED:
+        raise ctx.err("disabled", "❌ TON উইথড্র বন্ধ আছে।", "❌ TON withdrawals are turned off.", 403)
     if method == "ton":
         from ton import valid_address
         if not valid_address(details):
@@ -1004,14 +1050,14 @@ async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
         ctx.session.add(Transaction(user_id=ctx.uid, amount=-amount, type=TransactionType.WITHDRAWAL,
                                     description=f"Withdrawal: {method}", reference_id=wd.id,
                                     reference_type="withdrawal", balance_after=user.balance))
-        wd_id, name, lvl, tasks, risk, bal = wd.id, user.first_name, user.level, user.completed_tasks_count, user.risk_score, user.balance
+        wd_id, uname, name, lvl, tasks, risk, bal = wd.id, user.username, user.first_name, user.level, user.completed_tasks_count, user.risk_score, user.balance
         await ctx.session.commit()
     finally:
         await redis_client.delete(lock)
     for aid in ADMIN_IDS:
         try:
             await get_bot().send_message(
-                aid, f"💸 <b>Withdrawal</b>\n\n👤 <code>{ctx.uid}</code> ({esc(name)})\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n"
+                aid, f"💸 <b>Withdrawal</b>\n\n👤 <code>{ctx.uid}</code> ({esc(name)})" + (f" @{esc(uname)}" if uname else "") + f"\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n"
                      f"📝 <code>{esc(details[:200])}</code>\n💵 ≈ ${usd:,.2f}" + await _ton_hint(method, usd) + f"\n📊 Level {lvl} · tasks {tasks} · risk {risk}",
                 reply_markup=withdrawal_review_kb(wd_id), parse_mode=ParseMode.HTML)
         except Exception:
@@ -1214,6 +1260,8 @@ def install(app) -> None:
     import api_ads
     app.include_router(router)
     app.include_router(api_ads.router)
+    from api_portal import router as portal_router
+    app.include_router(portal_router)
     from api_ton import router as ton_router
     app.include_router(ton_router)
     try:

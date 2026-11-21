@@ -465,5 +465,9 @@ export default {
  "wallet.ton_off": "TON yatırımları şu anda kullanılamıyor.",
  "wallet.wd_ton_note": "TON ödemeleri: minimum ${a}, maksimum ${b}. Yalnızca kazandığınız GRAM çekilebilir, yatırılan GRAM çekilemez. Ödemeler kısa bir incelemeden sonra manuel olarak gönderilir.",
  "wallet.wd_ton_pub": "Gelir elde eden bir kanalınız var, bu yüzden her seviyede TON ile çekim yapabilirsiniz.",
- "wallet.wd_ton_addr_ph": "TON cüzdan adresiniz (UQ… veya EQ…)"
+ "wallet.wd_ton_addr_ph": "TON cüzdan adresiniz (UQ… veya EQ…)",
+ "wallet.more_title": "Diğer yükleme yolları",
+ "wallet.more_sub": "TON veya bKash / Nagad / Rocket ile güvenli ödeme portalımızdan ödeyin. Tarayıcıda açılır.",
+ "wallet.open_portal": "Ödeme portalını aç",
+ "wallet.deposit_off": "Yükleme şu anda kullanılamıyor.",
 };

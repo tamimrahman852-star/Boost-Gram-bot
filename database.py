@@ -397,6 +397,30 @@ class DepositRequest(Base):
     processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
+class StarsPayment(Base):
+    """One Telegram Stars payment. telegram_payment_charge_id is unique, so a payment is credited exactly once (survives restarts)."""
+    __tablename__ = "stars_payments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), index=True)
+    charge_id: Mapped[str] = mapped_column(String(128), unique=True)
+    stars: Mapped[int] = mapped_column(Integer)
+    coins: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class PortalLoginToken(Base):
+    """One-time, short-lived link from the Mini App to the web portal. Only the SHA-256 of the token is stored."""
+    __tablename__ = "portal_login_tokens"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 class TonDeposit(Base):
     """One incoming TON transfer that carried a user's memo (BG<user id>). tx_hash is unique, so a transfer is credited once."""
     __tablename__ = "ton_deposits"
@@ -589,7 +613,7 @@ class AdPlacement(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
-NEW_TABLES = [TonDeposit.__table__, DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__,
+NEW_TABLES = [StarsPayment.__table__, PortalLoginToken.__table__, TonDeposit.__table__, DepositRequest.__table__, Voucher.__table__, VoucherRedemption.__table__,
               TaskSubmission.__table__, AutoRenew.__table__, CampaignPost.__table__, Translation.__table__, EarlyLeave.__table__,
               AdChannel.__table__, AdCampaign.__table__, AdPlacement.__table__]
 
