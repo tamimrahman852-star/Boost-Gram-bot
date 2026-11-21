@@ -114,6 +114,15 @@ def _legal_url(page: str) -> str:
     return f"{base}/{page}.html" if WEBAPP_URL else f"{PUBLIC_URL}/{page}"
 
 
+@router.message(Command("perks"))
+async def cmd_perks(message: Message, session):
+    """Bot shortcut to the Mini App perks screen (daily streak, Lucky Spin, VIP / Boost)."""
+    lang = (await session.execute(select(User.language).where(User.id == message.from_user.id))).scalar() or "en"
+    await message.answer(L(lang, "🎁 <b>পারক্স ও রিওয়ার্ড</b>\nডেইলি স্ট্রিক, লাকি স্পিন ও পাস।", "🎁 <b>Perks & rewards</b>\nDaily streak, Lucky Spin and passes."),
+                         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+                             text=L(lang, "🎁 খুলুন", "🎁 Open"), web_app=WebAppInfo(url=WEBAPP_URL.rstrip("/") + "/?tab=perks"))]]), parse_mode=ParseMode.HTML)
+
+
 @router.message(Command("terms"))
 async def cmd_terms(message: Message, session):
     lang = (await session.execute(select(User.language).where(User.id == message.from_user.id))).scalar() or "en"

@@ -10,10 +10,11 @@ import * as wallet from "./views/wallet.js";
 import * as invite from "./views/invite.js";
 import * as me from "./views/me.js";
 import * as ads from "./views/ads.js";
+import * as growth from "./views/growth.js";
 
-const VIEWS = { home, earn, promote, wallet, me, invite, ads, history: { render: wallet.history }, adaddchannel: { render: ads.addChannel }, adchannel: { render: ads.channel }, adcreate: { render: ads.create }, adcampaign: { render: ads.campaign } };
+const VIEWS = { perks: growth, analytics: { render: growth.analytics }, home, earn, promote, wallet, me, invite, ads, history: { render: wallet.history }, adaddchannel: { render: ads.addChannel }, adchannel: { render: ads.channel }, adcreate: { render: ads.create }, adcampaign: { render: ads.campaign } };
 const TABS = [["home", "home"], ["earn", "bolt"], ["promote", "megaphone"], ["ads", "trend"], ["wallet", "wallet"], ["me", "user"]];
-const START_MAP = { earn: "earn", promote: "promote", ads: "ads", wallet: "wallet", invite: "invite", deposit: "wallet" };
+const START_MAP = { perks: "perks", analytics: "analytics", earn: "earn", promote: "promote", ads: "ads", wallet: "wallet", invite: "invite", deposit: "wallet" };
 
 const viewEl = () => document.getElementById("view");
 let stack = [];        // navigation stack of {name, params, tab}

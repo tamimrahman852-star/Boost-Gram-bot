@@ -76,13 +76,15 @@ const grant = (amount, title, type = "task_reward") => {
 };
 const needAmount = (v) => { if (!(v > 0)) throw new MockError("invalid", "Invalid amount"); };
 
+const mockStat = (title, done, slots, drop) => ({ id: "m" + title, title, type: "channel_sub", status: "active", completions: done, slots, progress: done / slots, spent: done * 30000, budget: slots * 30000, remaining: (slots - done) * 30000, cpa: 30000,
+  retention: { verified: done - drop - 10, pending: 10, dropped: drop, drop_rate: drop / done }, proofs: { pending: 0, approved: 0, rejected: 0 }, targeting: { langs: ["bn"], countries: ["BD"], niche: "crypto" }, featured_until: null });
 export const api = {
   async bootstrap() {
     await sleep(500);
     return {
       user: publicUser(),
       config: {
-        bot_username: "BoostGramPromotionBot", rules: RULES, pricing: PRICING, langs: LANGS,
+        bot_username: "BoostGramPromotionBot", growth: { niches: ["crypto", "gaming", "news", "tech", "finance", "education", "entertainment", "shopping", "lifestyle", "sports", "travel", "other"], max_interests: 5, fees: { lang: 0.1, country: 0.15, niche: 0.1 }, spin_cost: 20000, vip: { price: 1100000, days: 30 }, boost: { price: 400000, days: 7 }, feature: { per_day: 100000, days: [1, 3, 7] } }, rules: RULES, pricing: PRICING, langs: LANGS,
         pay: { bkash: "01700-000000", nagad: "01800-000000", rocket: "01900-0000000" },
         deposit: { rate: 3000, min: 50, max: 20000 },
         stars: { enabled: true, rate: 5000, packages: [50, 100, 250, 750, 1499, 2499], min: 1, max: 10000 },
@@ -221,6 +223,8 @@ export const api = {
   async saveSettings(data) {
     if (data.language) S.user.language = data.language;
     if (typeof data.notifications === "boolean") S.user.notifications = data.notifications;
+    if ("country" in data) S.user.country = data.country || null;
+    if ("interests" in data) S.user.interests = data.interests || [];
     save(); return { ok: true };
   },
 };
@@ -243,6 +247,13 @@ Object.assign(api, {
   async adChannelAction(id, a) { await sleep(300); const c = ADS.channels.find((x) => x.id === id); c.status = a === "pause" ? "paused" : a === "resume" ? "active" : "removed"; return { status: c.status }; },
   async adEstimate({ pricing, bid, budget }) { await sleep(200); const pub = Math.round(budget * 0.8); return { channels: 42, slots_per_day: 118, audience: 640000, commission: 0.2, publisher_share: pub, platform_fee: budget - pub, views: pricing === "cpm" && bid ? Math.floor(budget / bid * 1000) : null, clicks: pricing === "cpc" && bid ? Math.floor(budget / bid) : null }; },
   async adCampaigns() { await sleep(350); const totals = mkStats(9400, 188, 21, 360000, 300000); return { items: ADS.campaigns, totals, rules: { commission: 0.2 } }; },
+  async perks() { await sleep(250); const g = S.mockPerks || (S.mockPerks = { streak: 0, claimed: false, vip: null, boost: null, free: false }); return { streak: g.streak, claimed_today: g.claimed, vip_until: g.vip, boost_until: g.boost, free_spin: g.free, spins_left: 10, prizes: [0, 10000, 20000, 40000, 100000, 500000], spin_cost: 20000 }; },
+  async streak() { await sleep(300); const g = S.mockPerks || (S.mockPerks = { streak: 0 }); g.streak += 1; g.claimed = true; g.free = g.streak % 7 === 0; S.user.streak = g.streak; save(); return { streak: g.streak, xp: 10 * Math.min(g.streak, 7), free_spin: g.free, user: S.user }; },
+  async spin() { await sleep(500); const P = [0, 0, 10000, 20000, 40000, 100000]; const prize = P[Math.floor(Math.random() * P.length)]; S.user.balance += prize - 20000; save(); return { prize, cost: 20000, free: false, balance: S.user.balance, user: S.user }; },
+  async buyPass(kind) { await sleep(300); const price = kind === "vip" ? 1100000 : 400000; if (S.user.balance < price) { const e = new Error("Insufficient balance"); e.code = "insufficient_balance"; throw e; } S.user.balance -= price; S.user[kind] = true; (S.mockPerks || (S.mockPerks = {}))[kind] = new Date(Date.now() + 7 * 864e5).toISOString(); save(); return { ok: true, balance: S.user.balance, user: S.user }; },
+  async feature(cid, days) { await sleep(300); return { ok: true, until: new Date(Date.now() + days * 864e5).toISOString(), charged: 100000 * days, balance: S.user.balance }; },
+  async analytics() { await sleep(300); return { items: [mockStat("Crypto Daily", 142, 200, 2), mockStat("Gaming Hub", 60, 100, 6)], totals: { campaigns: 2, completions: 202, spent: 6060000, cpa: 30000, drop_rate: 0.1, remaining: 2400000 } }; },
+  async analyticsOne(cid) { await sleep(300); const o = mockStat("Crypto Daily", 142, 200, 2); o.daily = Array.from({ length: 14 }, (_, i) => ({ d: new Date(Date.now() - (13 - i) * 864e5).toISOString().slice(0, 10), n: Math.round(4 + Math.abs(Math.sin(i)) * 14) })); return o; },
   async portalLink() { await sleep(300); return { url: location.origin + "/portal", expires_in: 180 }; },
   async tonInfo() { await sleep(300); return { enabled: true, wallet: "UQDemoWalletAddressForTests0000000000000000000000", memo: "BG" + S.user.id, min_usd: 1, gram_per_usd: 366000, ton_usd: 3.2, gram_per_ton: 1171200, history: [] }; },
   async tonCheck() { await sleep(600); return { credited: 0 }; },

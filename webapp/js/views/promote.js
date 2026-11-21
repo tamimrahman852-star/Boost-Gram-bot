@@ -31,9 +31,14 @@ export async function render({ root, params, go }) {
 // ======================== Create wizard ========================
 function wizard(root, { switchTab, go }) {
   const R = S.config.rules, P = S.config.pricing;
-  const st = { step: 1, type: null, link: "", target: null, resolving: false, linkErr: "", premium: false, reward: 0, slots: 100, autoRenew: false, busy: false };
+  const st = { step: 1, type: null, link: "", target: null, resolving: false, linkErr: "", premium: false, reward: 0, slots: 100, autoRenew: false, busy: false, tLangs: [], tCountries: "", tNiche: "" };
   const price = (type = st.type) => { const p = P[type], k = st.premium && type !== "boost_7day" ? R.premium_multiplier : 1; return { min: p.min * k, suggested: p.suggested * k, max: p.max * k }; };
-  const cost = () => { const budget = st.reward * st.slots, fee = Math.ceil(budget * R.commission); return { budget, fee, total: budget + fee }; };
+  const cost = () => {
+    const budget = st.reward * st.slots, fee = Math.ceil(budget * R.commission), F = (S.config.growth || {}).fees || {};
+    const countries = st.tCountries.split(/[ ,]+/).filter((x) => /^[A-Za-z]{2}$/.test(x));
+    const sur = Math.round(budget * ((st.tLangs.length ? F.lang : 0) + (countries.length ? F.country : 0) + (st.tNiche ? F.niche : 0)));
+    return { budget, fee, sur, total: budget + fee + sur };
+  };
 
   const wrap = h("div", { class: "col gap-lg" });
   root.append(wrap);
@@ -119,6 +124,7 @@ function wizard(root, { switchTab, go }) {
         h("button", { class: st.premium ? "on" : "", onclick: () => { st.premium = true; draw(); haptic.select(); } }, "⭐ " + t("promo.aud_prem"))),
       st.premium && h("div", { class: "hint" }, t("promo.prem_note", { n: R.premium_multiplier })),
       h("div", { class: "card flat center" }, h("div", { class: "small muted" }, t("promo.reward_per")), val, h("div", { class: "small muted", style: { marginBottom: "12px" } }, "GRAM"), rng, h("div", { style: { marginTop: "12px" } }, chips)),
+      targetingCard(st, () => draw()),
       st.type !== "boost_7day" && switchRow("refresh", t("promo.auto_renew"), t("promo.auto_renew_sub"), st.autoRenew, (v) => { st.autoRenew = v; }));
     setMain(t("common.continue"), false, () => { st.step = 4; draw(); });
     return el;
@@ -136,7 +142,7 @@ function wizard(root, { switchTab, go }) {
     const refresh = () => {
       const c = cost(), left = S.user.balance - c.total, enough = left >= 0;
       sum.replaceChildren(
-        line(t("promo.sum_budget"), fmt(c.budget)), line(t("promo.sum_fee", { n: Math.round(R.commission * 100) }), fmt(c.fee)),
+        line(t("promo.sum_budget"), fmt(c.budget)), line(t("promo.sum_fee", { n: Math.round(R.commission * 100) }), fmt(c.fee)), c.sur > 0 && line(t("target.sum"), fmt(c.sur)),
         h("div", { class: "line total" }, h("span", null, t("promo.sum_total")), h("span", { class: "num gold-text" }, fmt(c.total) + " GRAM")),
         h("div", { class: "line small muted" }, h("span", null, t("promo.sum_after")), h("span", { class: "num", style: { color: enough ? "" : "var(--bad)" } }, fmt(left))));
       warn.replaceChildren(enough ? "" : h("div", { class: "callout bad" }, icon("warn", 18), h("div", null, h("b", null, t("promo.no_funds", { n: fmt(-left) })), h("div", { class: "mt", style: { marginTop: "8px" } }, h("button", { class: "btn sm", onclick: () => go("wallet", { seg: "deposit" }) }, icon("plus", 15), t("home.deposit"))))));
@@ -154,7 +160,7 @@ function wizard(root, { switchTab, go }) {
       if (st.busy) return; st.busy = true; refresh();
       try {
         const title = target.title;
-        const r = await api.createCampaign({ type: st.type, link: st.link, title, username: target.username, premium: st.premium, reward: st.reward, slots: st.slots, auto_renew: st.autoRenew });
+        const r = await api.createCampaign({ type: st.type, link: st.link, title, username: target.username, premium: st.premium, reward: st.reward, slots: st.slots, auto_renew: st.autoRenew, target_langs: st.tLangs, target_countries: st.tCountries.split(/[ ,]+/).filter((x) => /^[A-Za-z]{2}$/.test(x)), target_niche: st.tNiche });
         patchUser({ balance: r.balance }); S.user.balance = r.balance; emit();
         confetti(); haptic.ok(); mainButton.hide();
         wrap.replaceChildren(h("div", { class: "center card", style: { padding: "34px 20px" } }, h("div", { style: { fontSize: "62px" } }, "🚀"), h("div", { class: "h1" }, t("promo.live")), h("div", { class: "muted", style: { margin: "8px 0 22px" } }, t("promo.live_sub", { n: fmt(st.slots) })),
@@ -178,9 +184,9 @@ export function switchRow(ic, title, sub, on, onChange) {
 }
 
 // ======================== My campaigns ========================
-async function myCampaigns(root, { switchTab }) {
+async function myCampaigns(root, { switchTab, go }) {
   const list = h("div", null, ...skeleton(3, 110));
-  root.append(list);
+  root.append(h("div", { class: "card tap flat", style: { marginBottom: "12px" }, onclick: () => go("analytics") }, h("div", { class: "row" }, h("div", { class: "ico g4" }, icon("trend", 19)), h("div", { class: "grow" }, h("div", { class: "h3" }, t("roi.title")), h("div", { class: "small muted" }, t("roi.sub"))))), list);
   async function load() {
     try {
       const r = await api.campaigns();
@@ -244,4 +250,18 @@ function proofCard(p, decide) {
     h("div", { class: "grid2", style: { marginTop: "12px" } },
       h("button", { class: "btn bad", onclick: () => decide("reject") }, icon("x", 18), t("promo.reject")),
       h("button", { class: "btn ok", onclick: () => decide("approve") }, icon("check", 18), t("promo.approve"))));
+}
+
+// optional audience targeting: language / country / niche (priced as a % surcharge, shown in the summary)
+function targetingCard(st, redraw) {
+  const G = S.config.growth || {}, F = G.fees || {};
+  const langs = Object.entries(S.config.langs || {});
+  const chip = (on, label, fn) => h("button", { class: "chip" + (on ? " on" : ""), style: { marginRight: "6px", marginBottom: "6px" }, onclick: () => { fn(); haptic.select(); redraw(); } }, label);
+  return h("div", { class: "card flat" }, h("div", { class: "h3" }, "🎯 " + t("target.title")), h("div", { class: "small muted", style: { margin: "4px 0 10px" } }, t("target.sub")),
+    h("div", { class: "tiny muted" }, t("target.langs") + " +" + Math.round((F.lang || 0) * 100) + "%"),
+    h("div", { style: { margin: "6px 0 10px" } }, ...langs.slice(0, 12).map(([code, name]) => chip(st.tLangs.includes(code), name, () => { st.tLangs = st.tLangs.includes(code) ? st.tLangs.filter((x) => x !== code) : [...st.tLangs, code].slice(0, 8); }))),
+    h("div", { class: "tiny muted" }, t("target.countries") + " +" + Math.round((F.country || 0) * 100) + "%"),
+    h("input", { class: "input", placeholder: "BD, IN, PK", value: st.tCountries, style: { margin: "6px 0 10px" }, oninput: (e) => { st.tCountries = e.target.value; } , onchange: () => redraw() }),
+    h("div", { class: "tiny muted" }, t("target.niche") + " +" + Math.round((F.niche || 0) * 100) + "%"),
+    h("div", { style: { marginTop: "6px" } }, ...(G.niches || []).map((n) => chip(st.tNiche === n, t("niche." + n), () => { st.tNiche = st.tNiche === n ? "" : n; }))));
 }

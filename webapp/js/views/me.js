@@ -37,6 +37,8 @@ export async function render({ root, push }) {
   drawTheme();
   root.append(h("div", { class: "section" }, h("div", { class: "head" }, h("div", { class: "h2" }, t("me.settings"))),
     h("div", { class: "col" },
+      h("div", { class: "card tap flat", onclick: () => push("perks") }, h("div", { class: "row" }, h("div", { class: "ico g2" }, icon("sparkles", 19)), h("div", { class: "grow" }, h("div", { class: "h3" }, t("perk.title")), h("div", { class: "small muted" }, t("perk.sub"))))),
+      h("div", { class: "card tap flat", onclick: () => audienceSheet() }, h("div", { class: "row" }, h("div", { class: "ico g5" }, icon("user", 19)), h("div", { class: "grow" }, h("div", { class: "h3" }, t("aud.title")), h("div", { class: "small muted" }, t("aud.sub"))))),
       h("div", { class: "card tap flat", onclick: () => langSheet() }, h("div", { class: "row" }, h("div", { class: "ico g5" }, icon("globe", 19)), h("div", { class: "grow" }, h("div", { class: "h3" }, t("me.language")), h("div", { class: "small muted" }, S.config.langs[u.language] || u.language)), icon("chevR", 18))),
       h("div", { class: "card flat" }, h("div", { class: "h3", style: { marginBottom: "10px" } }, t("me.theme")), themeSeg),
       switchRow("bell", t("me.notifications"), t("me.notifications_sub"), u.notifications, async (v) => { u.notifications = v; try { await api.saveSettings({ notifications: v }); } catch (_) {} }),
@@ -65,5 +67,22 @@ function langSheet() {
         toast(applied ? name : t("me.lang_bot_only", { l: name }), "ok");
         rerender();
       } }, name, code === cur && icon("check", 17)))));
+  });
+}
+
+function audienceSheet() {
+  sheet((s) => {
+    const G = S.config.growth || {}, st = { country: S.user.country || "", interests: [...(S.user.interests || [])] };
+    const grid = h("div", { style: { margin: "10px 0" } });
+    const draw = () => grid.replaceChildren(...(G.niches || []).map((n) => h("button", { class: "chip" + (st.interests.includes(n) ? " on" : ""), style: { marginRight: "6px", marginBottom: "6px" }, onclick: () => {
+      st.interests = st.interests.includes(n) ? st.interests.filter((x) => x !== n) : [...st.interests, n].slice(0, G.max_interests || 5); haptic.select(); draw(); } }, t("niche." + n))));
+    draw();
+    const cc = h("input", { class: "input", maxlength: 2, placeholder: "BD", value: st.country, oninput: (e) => { st.country = e.target.value.toUpperCase(); } });
+    s.render(h("div", { class: "h2" }, t("aud.title")), h("div", { class: "small muted", style: { margin: "4px 0 12px" } }, t("aud.hint")),
+      h("div", { class: "tiny muted" }, t("aud.country")), cc, h("div", { class: "tiny muted", style: { marginTop: "12px" } }, t("aud.interests", { n: G.max_interests || 5 })), grid,
+      h("button", { class: "btn", onclick: async () => {
+        try { await api.saveSettings({ country: st.country, interests: st.interests }); S.user.country = st.country || null; S.user.interests = st.interests; toast(t("aud.saved"), "ok"); s.close(); }
+        catch (e) { toast(t("err.generic"), "err"); }
+      } }, t("common.save")));
   });
 }
