@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "Aktuell wartet keine Werbekampagne auf diesen Kanal. Der Bot postet, sobald die Anzeige eines Werbetreibenden zu deinem Kanal passt.",
  "ads.diag_own_only": "Es laufen nur deine eigenen Anzeigen. Anzeigen deines eigenen Kontos werden nie in deinen eigenen Kanälen gezeigt, daher wird die Anzeige eines anderen Werbetreibenden benötigt.",
  "ads.diag_paused": "Dieser Kanal ist pausiert, daher wird nichts gepostet. Setze ihn fort, um Geld zu verdienen.",
- "ads.diag_no_slots": "Füge mindestens eine Postingzeit hinzu, damit der Bot weiß, wann er posten soll."
+ "ads.diag_no_slots": "Füge mindestens eine Postingzeit hinzu, damit der Bot weiß, wann er posten soll.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "Mit TON einzahlen",
+ "wallet.ton_how": "Sende TON an die unten stehende Adresse und füge dein persönliches Memo hinzu. Dein GRAM wird automatisch gutgeschrieben, sobald die Überweisung bestätigt ist.",
+ "wallet.ton_address": "Wallet-Adresse",
+ "wallet.ton_memo": "Memo (erforderlich)",
+ "wallet.ton_memo_warn": "Gib dieses Memo immer an, sonst kann deine Zahlung nicht deinem Konto zugeordnet werden.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "Mindesteinzahlung ${n}. Kleinere Überweisungen werden nicht gutgeschrieben.",
+ "wallet.ton_open": "In Wallet öffnen",
+ "wallet.ton_check": "Ich habe bezahlt, jetzt prüfen",
+ "wallet.ton_none": "Noch keine Zahlung gefunden. Nach dem Senden kann es etwa eine Minute dauern.",
+ "wallet.ton_ok": "Gutgeschrieben! Dein Guthaben wurde aktualisiert.",
+ "wallet.ton_history": "Letzte TON-Einzahlungen",
+ "wallet.ton_off": "TON-Einzahlungen sind derzeit nicht verfügbar.",
+ "wallet.wd_ton_note": "TON-Auszahlungen: Minimum ${a}, Maximum ${b}. Nur selbst verdientes GRAM kann abgehoben werden, nicht eingezahltes GRAM. Auszahlungen werden nach einer kurzen Prüfung manuell versendet.",
+ "wallet.wd_ton_pub": "Du besitzt einen monetarisierten Kanal und kannst daher auf jedem Level in TON auszahlen.",
+ "wallet.wd_ton_addr_ph": "Deine TON-Wallet-Adresse (UQ… oder EQ…)"
 };

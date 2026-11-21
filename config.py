@@ -25,6 +25,14 @@ PAY_NUMBERS = {
 }
 DEPOSIT_RATE_PER_BDT = Decimal(os.getenv("DEPOSIT_RATE_PER_BDT", "3000"))   # GRAM credited per 1 BDT
 DEPOSIT_MIN_BDT = Decimal(os.getenv("DEPOSIT_MIN_BDT", "50"))
+# ---- TON (crypto) deposits and withdrawals ----
+GRAM_PER_USD = Decimal(os.getenv("GRAM_PER_USD", "366000"))                 # GRAM value of 1 USD (matches 3000 GRAM per BDT)
+TON_WALLET = os.getenv("TON_WALLET", "").strip()                            # your wallet that receives TON deposits (empty = deposits off)
+TONCENTER_API_KEY = os.getenv("TONCENTER_API_KEY", "").strip()              # optional, raises toncenter rate limits
+TON_USD_FALLBACK = os.getenv("TON_USD_FALLBACK", "").strip()                # used only if every price source is down
+TON_DEPOSIT_MIN_USD = Decimal(os.getenv("TON_DEPOSIT_MIN_USD", "1"))
+TON_WD_MIN_USD = Decimal(os.getenv("TON_WD_MIN_USD", "20"))
+TON_WD_MAX_USD = Decimal(os.getenv("TON_WD_MAX_USD", "1000"))
 DEPOSIT_MAX_BDT = Decimal(os.getenv("DEPOSIT_MAX_BDT", "20000"))
 
 # Optional banner (GIF/MP4/PNG URL or Telegram file_id) shown with the welcome message

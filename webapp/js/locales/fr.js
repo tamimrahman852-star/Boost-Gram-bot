@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "Aucune campagne publicitaire n'attend ce canal pour le moment. Le bot publiera dès que l'annonce d'un annonceur conviendra à votre canal.",
  "ads.diag_own_only": "Seules vos propres annonces sont diffusées. Les annonces de votre propre compte ne s'affichent jamais dans vos canaux, il faut donc l'annonce d'un autre annonceur.",
  "ads.diag_paused": "Ce canal est en pause, donc rien n'est publié. Reprenez-le pour commencer à gagner.",
- "ads.diag_no_slots": "Ajoutez au moins un horaire de publication pour que le bot sache quand publier."
+ "ads.diag_no_slots": "Ajoutez au moins un horaire de publication pour que le bot sache quand publier.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "Déposer avec TON",
+ "wallet.ton_how": "Envoyez des TON à l'adresse ci-dessous et ajoutez votre mémo personnel. Vos GRAM sont crédités automatiquement une fois le transfert confirmé.",
+ "wallet.ton_address": "Adresse du portefeuille",
+ "wallet.ton_memo": "Mémo (obligatoire)",
+ "wallet.ton_memo_warn": "Indiquez toujours ce mémo, sinon votre paiement ne pourra pas être associé à votre compte.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "Dépôt minimum ${n}. Les transferts inférieurs ne sont pas crédités.",
+ "wallet.ton_open": "Ouvrir dans le portefeuille",
+ "wallet.ton_check": "J'ai payé, vérifier maintenant",
+ "wallet.ton_none": "Aucun paiement trouvé pour l'instant. Cela peut prendre environ une minute après l'envoi.",
+ "wallet.ton_ok": "Crédité ! Votre solde a été mis à jour.",
+ "wallet.ton_history": "Derniers dépôts TON",
+ "wallet.ton_off": "Les dépôts TON ne sont pas disponibles pour le moment.",
+ "wallet.wd_ton_note": "Retraits TON : minimum ${a}, maximum ${b}. Seuls les GRAM gagnés peuvent être retirés, pas les GRAM déposés. Les paiements sont envoyés manuellement après une rapide vérification.",
+ "wallet.wd_ton_pub": "Vous possédez une chaîne monétisée, vous pouvez donc retirer en TON à n'importe quel niveau.",
+ "wallet.wd_ton_addr_ph": "Adresse de votre portefeuille TON (UQ… ou EQ…)"
 };

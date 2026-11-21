@@ -6,7 +6,7 @@ import { haptic, copyText, mainButton, shareLink, openInvoice } from "../tg.js";
 import { txRow } from "./home.js";
 
 const METHOD = { bkash: { name: "bKash", color: "#e2136e" }, nagad: { name: "Nagad", color: "#f6921e" }, rocket: { name: "Rocket", color: "#8c3494" } };
-const WD = { usdt_trc20: "💎 USDT (TRC20)", usdt_erc20: "💎 USDT (ERC20)", bank: "🏦 Bank", mobile: "📱 Mobile wallet" };
+const WD = { usdt_trc20: "💎 USDT (TRC20)", usdt_erc20: "💎 USDT (ERC20)", bank: "🏦 Bank", mobile: "📱 Mobile wallet", ton: "💠 TON" };
 
 export async function render({ root, params, push }) {
   let seg = params.seg || "deposit";
@@ -47,17 +47,52 @@ export async function render({ root, params, push }) {
 // ---------------- Deposit ----------------
 function deposit(root) {
   const cfg = S.config, local = Object.keys(METHOD).some((k) => cfg.pay[k]);
-  if (!cfg.stars) return local ? localDeposit(root) : localDeposit(root);
-  let mode = "stars", clean = null;
+  const modes = [cfg.stars && ["stars", "⭐ " + t("wallet.stars"), starsDeposit], cfg.ton && cfg.ton.deposit && ["ton", "💠 " + t("wallet.ton"), tonDeposit], local && ["local", t("wallet.local"), localDeposit]].filter(Boolean);
+  if (!modes.length) return localDeposit(root);
+  let mode = modes[0][0], clean = null;
   const seg = h("div", { class: "seg", style: { marginBottom: "14px" } }), body = h("div");
-  root.append(...(local ? [seg] : []), body);
+  root.append(...(modes.length > 1 ? [seg] : []), body);
   const draw = () => {
     clean && clean(); clean = null; mainButton.hide(); body.replaceChildren();
-    seg.replaceChildren(...[["stars", "⭐ " + t("wallet.stars")], ["local", t("wallet.local")]].map(([k, l]) => h("button", { class: k === mode ? "on" : "", onclick: () => { if (mode === k) return; mode = k; haptic.select(); draw(); } }, l)));
-    clean = (mode === "stars" ? starsDeposit : localDeposit)(body);
+    seg.replaceChildren(...modes.map(([k, l]) => h("button", { class: k === mode ? "on" : "", onclick: () => { if (mode === k) return; mode = k; haptic.select(); draw(); } }, l)));
+    clean = modes.find((m) => m[0] === mode)[2](body);
   };
   draw();
   return () => { clean && clean(); };
+}
+
+function tonDeposit(root) {
+  const wrap = h("div", { class: "col gap-lg" }); root.append(wrap);
+  let info = null, busy = false;
+  const field = (label, val, warn) => h("div", { class: "field" }, h("label", null, label),
+    h("div", { class: "row", style: { gap: "8px" } }, h("div", { class: "input num grow", style: { wordBreak: "break-all", fontSize: "13px" } }, val), h("button", { class: "btn sm sec", onclick: async () => { await copyText(val); haptic.ok(); toast(t("common.copied")); } }, icon("copy", 18))), warn && h("div", { class: "hint err" }, warn));
+  const draw = () => {
+    if (!info) return;
+    if (!info.enabled) return wrap.replaceChildren(h("div", { class: "callout warn" }, icon("info", 18), h("div", null, t("wallet.ton_off"))));
+    const link = `https://app.tonkeeper.com/transfer/${info.wallet}?text=${encodeURIComponent(info.memo)}`;
+    wrap.replaceChildren(
+      h("div", { class: "card flat center" }, h("div", { style: { fontSize: "40px" } }, "💠"), h("div", { class: "h3" }, t("wallet.ton_title")), h("div", { class: "small muted", style: { marginTop: "4px" } }, t("wallet.ton_how"))),
+      field(t("wallet.ton_address"), info.wallet), field(t("wallet.ton_memo"), info.memo, t("wallet.ton_memo_warn")),
+      info.ton_usd ? h("div", { class: "small muted center" }, t("wallet.ton_rate", { p: info.ton_usd.toFixed(2), g: fmt(info.gram_per_ton) })) : null,
+      h("div", { class: "tiny muted center" }, t("wallet.ton_min", { n: info.min_usd })),
+      h("div", { class: "grid2" }, h("button", { class: "btn sec", onclick: () => import("../tg.js").then((m) => m.openLink(link)) }, icon("link", 18), t("wallet.ton_open")),
+        h("button", { class: "btn", disabled: busy, onclick: check }, icon("check", 18), t("wallet.ton_check"))),
+      info.history.length ? h("div", { class: "section" }, h("div", { class: "head" }, h("div", { class: "h2" }, t("wallet.ton_history"))),
+        h("div", { class: "card flat", style: { padding: "2px 14px" } }, h("div", { class: "list" }, info.history.map((d) => h("div", { class: "item" }, h("div", { class: "ico g2" }, icon("down", 19)),
+          h("div", { class: "grow" }, h("div", { class: "h3" }, d.ton.toFixed(3) + " TON ≈ $" + d.usd.toFixed(2)), h("div", { class: "tiny muted" }, ago(d.created_at))), h("div", { class: "num" }, d.coins ? "+" + fmt(d.coins) : "—")))))) : null);
+  };
+  async function check() {
+    if (busy) return; busy = true; draw();
+    try {
+      const before = S.user.balance, r = await api.tonCheck();
+      const b = await api.bootstrap(); patchUser({ balance: b.user.balance });
+      if (r.credited || b.user.balance > before) { haptic.ok(); confetti(50); toast(t("wallet.ton_ok"), "ok"); info = await api.tonInfo(); } else toast(t("wallet.ton_none"));
+    } catch (e) { fail(e); }
+    busy = false; draw();
+  }
+  api.tonInfo().then((r) => { info = r; draw(); }).catch((e) => { fail(e); });
+  wrap.append(...skeleton(2));
+  return () => {};
 }
 
 function starsDeposit(root) {
@@ -144,9 +179,12 @@ function localDeposit(root) {
 
 // ---------------- Withdraw ----------------
 function withdraw(root) {
-  const R = S.config.rules, u = S.user, cfg = S.config;
+  const R = S.config.rules, u = S.user, cfg = S.config, T = cfg.ton || {};
   const avail = Math.max(0, u.balance - (u.locked || 0));
-  if (u.level < R.withdraw_min_level) {
+  const lvlOk = u.level >= R.withdraw_min_level;
+  // channel owners can cash out in TON at any level
+  const methods = lvlOk ? cfg.withdraw.methods : (u.is_publisher && cfg.withdraw.methods.includes("ton") ? ["ton"] : []);
+  if (!methods.length) {
     const need = R.withdraw_min_level - u.level, xpNeed = R.withdraw_min_level * R.xp_per_level - R.xp_per_level - u.xp;
     root.append(h("div", { class: "card center", style: { padding: "26px 18px" } },
       h("div", { style: { fontSize: "46px" } }, "🔒"), h("div", { class: "h2", style: { margin: "4px 0" } }, t("wallet.wd_locked", { n: R.withdraw_min_level })),
@@ -156,19 +194,25 @@ function withdraw(root) {
       h("div", { class: "callout", style: { marginTop: "12px" } }, icon("info", 18), h("div", null, t("wallet.wd_tip"))));
     return;
   }
-  const st = { amount: Math.min(avail, R.withdraw_max), method: cfg.withdraw.methods[0], details: "", busy: false };
+  const st = { amount: 0, method: methods[0], details: "", busy: false };
+  const lim = () => st.method === "ton"
+    ? { min: T.wd_min_gram || R.withdraw_min, max: Math.min((T.wd_max_usd || 1000) * (T.gram_per_usd || 1), avail, u.earned_balance ?? avail) }
+    : { min: R.withdraw_min, max: Math.min(R.withdraw_max, avail) };
+  st.amount = lim().max >= lim().min ? Math.floor(lim().max) : 0;
   const wrap = h("div", { class: "col gap-lg" }); root.append(wrap);
-  const ok = () => st.amount >= R.withdraw_min && st.amount <= Math.min(R.withdraw_max, avail) && st.details.trim().length >= 5;
+  const ok = () => { const l = lim(); return st.amount >= l.min && st.amount <= l.max && st.details.trim().length >= 5; };
   const sync = () => mainButton.set({ text: t("wallet.request_wd") + (st.amount ? " · " + short(st.amount) : ""), disabled: !ok() || st.busy, loading: st.busy, onClick: submit });
   function draw() {
     const amount = h("input", { class: "input num", inputmode: "numeric", value: st.amount || "", oninput: (e) => { st.amount = parseInt(e.target.value.replace(/\D/g, "")) || 0; hint(); sync(); } });
     const hintEl = h("div", { class: "hint" });
-    const hint = () => { const bad = st.amount && (st.amount < R.withdraw_min || st.amount > Math.min(R.withdraw_max, avail)); hintEl.className = "hint " + (bad ? "err" : ""); hintEl.textContent = t("wallet.wd_range", { a: fmt(R.withdraw_min), b: fmt(Math.min(R.withdraw_max, avail)) }); amount.classList.toggle("err", !!bad); };
+    const hint = () => { const l = lim(), bad = st.amount && (st.amount < l.min || st.amount > l.max); hintEl.className = "hint " + (bad ? "err" : "");
+      hintEl.textContent = t("wallet.wd_range", { a: fmt(l.min), b: fmt(Math.max(0, Math.floor(l.max))) }) + (st.method === "ton" && st.amount ? "  ·  ≈ $" + (st.amount / (T.gram_per_usd || 1)).toFixed(2) : ""); amount.classList.toggle("err", !!bad); };
     wrap.replaceChildren(
-      h("div", { class: "field" }, h("label", null, h("span", null, t("wallet.amount")), h("a", { class: "link", onclick: () => { st.amount = Math.min(avail, R.withdraw_max); draw(); } }, "MAX")), h("div", { class: "input-wrap" }, amount, h("span", { class: "suffix" }, "GRAM")), hintEl),
-      h("div", { class: "field" }, h("label", null, t("wallet.wd_method")), h("div", { class: "col", style: { gap: "8px" } }, cfg.withdraw.methods.map((k) => h("button", { class: "lang" + (st.method === k ? " on" : ""), onclick: () => { st.method = k; haptic.select(); draw(); } }, WD[k], st.method === k && icon("check", 18))))),
-      h("div", { class: "field" }, h("label", null, t("wallet.wd_details")), h("input", { class: "input", placeholder: t("wallet.wd_details_ph"), value: st.details, autocomplete: "off", oninput: (e) => { st.details = e.target.value; sync(); } })),
-      h("div", { class: "callout warn" }, icon("clock", 18), h("div", null, t("wallet.wd_note", { n: R.retention_days }))));
+      st.method === "ton" && !lvlOk && h("div", { class: "callout" }, icon("star", 18), h("div", null, t("wallet.wd_ton_pub"))),
+      h("div", { class: "field" }, h("label", null, h("span", null, t("wallet.amount")), h("a", { class: "link", onclick: () => { st.amount = Math.max(0, Math.floor(lim().max)); draw(); } }, "MAX")), h("div", { class: "input-wrap" }, amount, h("span", { class: "suffix" }, "GRAM")), hintEl),
+      h("div", { class: "field" }, h("label", null, t("wallet.wd_method")), h("div", { class: "col", style: { gap: "8px" } }, methods.map((k) => h("button", { class: "lang" + (st.method === k ? " on" : ""), onclick: () => { st.method = k; st.amount = Math.max(0, Math.floor(lim().max)); haptic.select(); draw(); } }, WD[k], st.method === k && icon("check", 18))))),
+      h("div", { class: "field" }, h("label", null, t("wallet.wd_details")), h("input", { class: "input", placeholder: st.method === "ton" ? t("wallet.wd_ton_addr_ph") : t("wallet.wd_details_ph"), value: st.details, autocomplete: "off", autocapitalize: "none", oninput: (e) => { st.details = e.target.value; sync(); } })),
+      h("div", { class: "callout warn" }, icon("clock", 18), h("div", null, st.method === "ton" ? t("wallet.wd_ton_note", { a: fmt(T.wd_min_usd), b: fmt(T.wd_max_usd) }) : t("wallet.wd_note", { n: R.retention_days }))));
     hint(); sync();
   }
   async function submit() {

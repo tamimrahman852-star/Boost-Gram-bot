@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "지금 이 채널에서 대기 중인 광고 캠페인이 없어요. 광고주의 광고가 채널에 맞으면 봇이 바로 게시해요.",
  "ads.diag_own_only": "내 광고만 진행 중이에요. 내 계정의 광고는 내 채널에 표시되지 않으므로 다른 광고주의 광고가 필요해요.",
  "ads.diag_paused": "이 채널은 일시중지되어 아무것도 게시되지 않아요. 수익을 시작하려면 다시 시작하세요.",
- "ads.diag_no_slots": "봇이 언제 게시할지 알 수 있도록 게시 시간을 하나 이상 추가하세요."
+ "ads.diag_no_slots": "봇이 언제 게시할지 알 수 있도록 게시 시간을 하나 이상 추가하세요.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "TON으로 입금",
+ "wallet.ton_how": "아래 주소로 TON을 보내고 개인 메모를 함께 입력하세요. 전송이 확인되면 GRAM이 자동으로 적립됩니다.",
+ "wallet.ton_address": "지갑 주소",
+ "wallet.ton_memo": "메모 (필수)",
+ "wallet.ton_memo_warn": "이 메모를 반드시 입력하세요. 그렇지 않으면 결제를 내 계정과 연결할 수 없습니다.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "최소 입금액은 ${n}입니다. 그보다 적은 금액은 적립되지 않습니다.",
+ "wallet.ton_open": "지갑에서 열기",
+ "wallet.ton_check": "결제했어요, 지금 확인",
+ "wallet.ton_none": "아직 결제 내역이 없습니다. 전송 후 1분 정도 걸릴 수 있어요.",
+ "wallet.ton_ok": "적립 완료! 잔액이 업데이트되었습니다.",
+ "wallet.ton_history": "최근 TON 입금",
+ "wallet.ton_off": "현재 TON 입금을 이용할 수 없습니다.",
+ "wallet.wd_ton_note": "TON 출금: 최소 ${a}, 최대 ${b}. 직접 획득한 GRAM만 출금할 수 있으며, 입금한 GRAM은 출금할 수 없습니다. 출금은 간단한 검토 후 수동으로 전송됩니다.",
+ "wallet.wd_ton_pub": "수익화된 채널을 보유하고 있어 모든 레벨에서 TON으로 출금할 수 있습니다.",
+ "wallet.wd_ton_addr_ph": "내 TON 지갑 주소 (UQ… 또는 EQ…)"
 };

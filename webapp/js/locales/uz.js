@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "Hozir bu kanal uchun kutayotgan reklama kampaniyasi yo‘q. Reklama beruvchining reklamasi kanalingizga mos kelishi bilan bot joylaydi.",
  "ads.diag_own_only": "Faqat o‘zingizning reklamalaringiz ishlayapti. O‘z akkauntingizdagi reklamalar o‘z kanallaringizda hech qachon ko‘rsatilmaydi, shuning uchun boshqa reklama beruvchining reklamasi kerak.",
  "ads.diag_paused": "Bu kanal to‘xtatilgan, shuning uchun hech narsa joylanmaydi. Daromad olishni boshlash uchun uni qayta yoqing.",
- "ads.diag_no_slots": "Bot qachon joylashni bilishi uchun kamida bitta joylash vaqtini qo‘shing."
+ "ads.diag_no_slots": "Bot qachon joylashni bilishi uchun kamida bitta joylash vaqtini qo‘shing.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "TON orqali depozit qilish",
+ "wallet.ton_how": "TON'ni quyidagi manzilga yuboring va shaxsiy memo'ngizni kiriting. O'tkazma tasdiqlangach, GRAM avtomatik hisobingizga tushadi.",
+ "wallet.ton_address": "Hamyon manzili",
+ "wallet.ton_memo": "Memo (majburiy)",
+ "wallet.ton_memo_warn": "Bu memo'ni doim kiriting, aks holda to'lovingizni hisobingizga bog'lab bo'lmaydi.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "Minimal depozit ${n}. Bundan kichik o'tkazmalar hisobga o'tkazilmaydi.",
+ "wallet.ton_open": "Hamyonda ochish",
+ "wallet.ton_check": "To'ladim, hozir tekshirish",
+ "wallet.ton_none": "To'lov hali topilmadi. Yuborilgandan keyin taxminan bir daqiqa ketishi mumkin.",
+ "wallet.ton_ok": "Hisobga o'tkazildi! Balansingiz yangilandi.",
+ "wallet.ton_history": "So'nggi TON depozitlari",
+ "wallet.ton_off": "TON depozitlari hozircha mavjud emas.",
+ "wallet.wd_ton_note": "TON to'lovlari: minimal ${a}, maksimal ${b}. Faqat siz ishlab topgan GRAM'ni yechib olish mumkin, depozit qilingan GRAM'ni emas. To'lovlar qisqa tekshiruvdan so'ng qo'lda yuboriladi.",
+ "wallet.wd_ton_pub": "Sizda daromad keltiradigan kanal bor, shuning uchun istalgan darajada TON orqali yechib olishingiz mumkin.",
+ "wallet.wd_ton_addr_ph": "TON hamyon manzilingiz (UQ… yoki EQ…)"
 };

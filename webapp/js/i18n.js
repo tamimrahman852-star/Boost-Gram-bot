@@ -452,7 +452,24 @@ const en = {
  "ads.diag_no_campaign": "No ad campaign is waiting for this channel right now. The bot will post as soon as an advertiser's ad fits your channel.",
  "ads.diag_own_only": "Only your own ads are running. Ads from your own account are never shown in your own channels, so another advertiser's ad is needed.",
  "ads.diag_paused": "This channel is paused, so nothing is posted. Resume it to start earning.",
- "ads.diag_no_slots": "Add at least one posting time so the bot knows when to post."
+ "ads.diag_no_slots": "Add at least one posting time so the bot knows when to post.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "Deposit with TON",
+ "wallet.ton_how": "Send TON to the address below and add your personal memo. Your GRAM is credited automatically after the transfer is confirmed.",
+ "wallet.ton_address": "Wallet address",
+ "wallet.ton_memo": "Memo (required)",
+ "wallet.ton_memo_warn": "Always include this memo, otherwise your payment cannot be matched to your account.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "Minimum deposit ${n}. Smaller transfers are not credited.",
+ "wallet.ton_open": "Open in wallet",
+ "wallet.ton_check": "I've paid, check now",
+ "wallet.ton_none": "No payment found yet. It can take about a minute after sending.",
+ "wallet.ton_ok": "Credited! Your balance was updated.",
+ "wallet.ton_history": "Recent TON deposits",
+ "wallet.ton_off": "TON deposits are not available right now.",
+ "wallet.wd_ton_note": "TON payouts: minimum ${a}, maximum ${b}. Only GRAM you earned can be withdrawn, not deposited GRAM. Payouts are sent manually after a quick review.",
+ "wallet.wd_ton_pub": "You own a monetized channel, so you can withdraw in TON at any level.",
+ "wallet.wd_ton_addr_ph": "Your TON wallet address (UQ… or EQ…)"
 };
 
 const bn = {
@@ -905,7 +922,24 @@ const bn = {
  "ads.diag_no_campaign": "এই মুহূর্তে এই চ্যানেলের জন্য কোনো বিজ্ঞাপন ক্যাম্পেইন অপেক্ষায় নেই। কোনো বিজ্ঞাপনদাতার বিজ্ঞাপন মিললেই বট পোস্ট করবে।",
  "ads.diag_own_only": "শুধু আপনার নিজের বিজ্ঞাপন চলছে। নিজের অ্যাকাউন্টের বিজ্ঞাপন নিজের চ্যানেলে কখনো দেখানো হয় না, তাই অন্য বিজ্ঞাপনদাতার বিজ্ঞাপন দরকার।",
  "ads.diag_paused": "চ্যানেলটি বিরতিতে আছে, তাই কিছু পোস্ট হচ্ছে না। আয় শুরু করতে চালু করুন।",
- "ads.diag_no_slots": "বট কখন পোস্ট করবে জানতে অন্তত একটি পোস্টের সময় যোগ করুন।"
+ "ads.diag_no_slots": "বট কখন পোস্ট করবে জানতে অন্তত একটি পোস্টের সময় যোগ করুন।",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "TON দিয়ে ডিপোজিট",
+ "wallet.ton_how": "নিচের ঠিকানায় TON পাঠান এবং আপনার নিজস্ব মেমো যোগ করুন। ট্রান্সফার কনফার্ম হলে আপনার GRAM নিজে থেকেই জমা হবে।",
+ "wallet.ton_address": "ওয়ালেট ঠিকানা",
+ "wallet.ton_memo": "মেমো (আবশ্যক)",
+ "wallet.ton_memo_warn": "এই মেমো অবশ্যই দিন, নইলে আপনার পেমেন্ট অ্যাকাউন্টের সাথে মেলানো যাবে না।",
+ "wallet.ton_rate": "১ TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "ন্যূনতম ডিপোজিট ${n}। এর কম পাঠালে জমা হবে না।",
+ "wallet.ton_open": "ওয়ালেটে খুলুন",
+ "wallet.ton_check": "পেমেন্ট করেছি, এখন চেক করুন",
+ "wallet.ton_none": "এখনো কোনো পেমেন্ট পাওয়া যায়নি। পাঠানোর পর প্রায় এক মিনিট লাগতে পারে।",
+ "wallet.ton_ok": "জমা হয়েছে! আপনার ব্যালেন্স আপডেট হয়েছে।",
+ "wallet.ton_history": "সাম্প্রতিক TON ডিপোজিট",
+ "wallet.ton_off": "TON ডিপোজিট এখন চালু নেই।",
+ "wallet.wd_ton_note": "TON পেআউট: সর্বনিম্ন ${a}, সর্বোচ্চ ${b}। শুধু আয় করা GRAM তোলা যায়, ডিপোজিট করা GRAM নয়। দ্রুত রিভিউয়ের পর হাতে পেআউট পাঠানো হয়।",
+ "wallet.wd_ton_pub": "আপনার একটি মনিটাইজড চ্যানেল আছে, তাই যেকোনো লেভেলে TON-এ উইথড্র করতে পারবেন।",
+ "wallet.wd_ton_addr_ph": "আপনার TON ওয়ালেট ঠিকানা (UQ… বা EQ…)"
 };
 
 const DICTS = { en, bn };

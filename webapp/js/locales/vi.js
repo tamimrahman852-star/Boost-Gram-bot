@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "Hiện không có chiến dịch quảng cáo nào đang chờ cho kênh này. Bot sẽ đăng ngay khi có quảng cáo của nhà quảng cáo phù hợp với kênh của bạn.",
  "ads.diag_own_only": "Hiện chỉ có quảng cáo của chính bạn đang chạy. Quảng cáo từ tài khoản của bạn không bao giờ hiển thị trong kênh của bạn, nên cần có quảng cáo của nhà quảng cáo khác.",
  "ads.diag_paused": "Kênh này đang tạm dừng nên không có gì được đăng. Hãy tiếp tục kênh để bắt đầu kiếm tiền.",
- "ads.diag_no_slots": "Thêm ít nhất một giờ đăng để bot biết khi nào cần đăng."
+ "ads.diag_no_slots": "Thêm ít nhất một giờ đăng để bot biết khi nào cần đăng.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "Nạp bằng TON",
+ "wallet.ton_how": "Gửi TON đến địa chỉ bên dưới và thêm memo cá nhân của bạn. GRAM sẽ được cộng tự động sau khi giao dịch được xác nhận.",
+ "wallet.ton_address": "Địa chỉ ví",
+ "wallet.ton_memo": "Memo (bắt buộc)",
+ "wallet.ton_memo_warn": "Luôn nhập memo này, nếu không khoản thanh toán của bạn sẽ không thể khớp với tài khoản.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "Số tiền nạp tối thiểu ${n}. Giao dịch nhỏ hơn sẽ không được cộng.",
+ "wallet.ton_open": "Mở trong ví",
+ "wallet.ton_check": "Tôi đã thanh toán, kiểm tra ngay",
+ "wallet.ton_none": "Chưa tìm thấy thanh toán. Có thể mất khoảng một phút sau khi gửi.",
+ "wallet.ton_ok": "Đã cộng! Số dư của bạn đã được cập nhật.",
+ "wallet.ton_history": "Các lần nạp TON gần đây",
+ "wallet.ton_off": "Hiện chưa thể nạp TON.",
+ "wallet.wd_ton_note": "Rút TON: tối thiểu ${a}, tối đa ${b}. Chỉ có thể rút GRAM bạn kiếm được, không rút được GRAM đã nạp. Các khoản rút được gửi thủ công sau khi xem xét nhanh.",
+ "wallet.wd_ton_pub": "Bạn sở hữu kênh đã bật kiếm tiền, nên có thể rút bằng TON ở mọi cấp độ.",
+ "wallet.wd_ton_addr_ph": "Địa chỉ ví TON của bạn (UQ… hoặc EQ…)"
 };

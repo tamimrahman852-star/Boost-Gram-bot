@@ -36,6 +36,7 @@ from handlers.retention import router as retention_router
 from handlers.broadcast import router as broadcast_router
 from handlers.ads import router as ads_router
 from ads import ads_worker, migrate_ads_v2
+from ton import ton_worker
 
 
 class DBSessionMiddleware(BaseMiddleware):
@@ -154,6 +155,7 @@ async def main():
 
     # Start background retention worker
     worker_task = asyncio.create_task(retention_worker(bot))  # noqa: F841 (keep reference)
+    ton_task = asyncio.create_task(ton_worker(bot))  # noqa: F841 (TON deposits)
     ads_task = asyncio.create_task(ads_worker(bot))  # noqa: F841 (channel-monetization scheduler)
 
     # Start FastAPI server in background or via uvicorn runner

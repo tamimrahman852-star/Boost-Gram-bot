@@ -173,7 +173,7 @@ async def cab_tasks(query: CallbackQuery, session):
     await query.answer()
 
 
-ALLOWED_WD_METHODS = {"usdt_trc20", "usdt_erc20", "bank", "mobile"}
+ALLOWED_WD_METHODS = {"usdt_trc20", "usdt_erc20", "bank", "mobile", "ton"}
 
 
 @router.callback_query(F.data == "cab:withdraw")

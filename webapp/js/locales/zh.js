@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "目前没有等待投放到此频道的广告活动。一旦有广告主的广告适合你的频道，机器人就会发布。",
  "ads.diag_own_only": "目前只有你自己的广告在投放。你自己账号的广告不会显示在你自己的频道中，因此需要其他广告主的广告。",
  "ads.diag_paused": "此频道已暂停，因此不会发布任何内容。恢复后即可开始赚钱。",
- "ads.diag_no_slots": "请至少添加一个发布时间，让机器人知道何时发布。"
+ "ads.diag_no_slots": "请至少添加一个发布时间，让机器人知道何时发布。",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "使用 TON 充值",
+ "wallet.ton_how": "将 TON 发送到下方地址，并填写你的专属备注（memo）。转账确认后，GRAM 将自动到账。",
+ "wallet.ton_address": "钱包地址",
+ "wallet.ton_memo": "备注 Memo（必填）",
+ "wallet.ton_memo_warn": "请务必填写此备注，否则无法将你的付款与账户匹配。",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "最低充值 ${n}。低于该金额的转账不会到账。",
+ "wallet.ton_open": "在钱包中打开",
+ "wallet.ton_check": "我已支付，立即查询",
+ "wallet.ton_none": "暂未找到付款。发送后可能需要约一分钟。",
+ "wallet.ton_ok": "已到账！你的余额已更新。",
+ "wallet.ton_history": "最近的 TON 充值",
+ "wallet.ton_off": "TON 充值暂不可用。",
+ "wallet.wd_ton_note": "TON 提现：最低 ${a}，最高 ${b}。仅可提现你赚取的 GRAM，充值的 GRAM 不可提现。提现将在快速审核后手动发放。",
+ "wallet.wd_ton_pub": "你拥有已开通变现的频道，因此在任何等级都可以使用 TON 提现。",
+ "wallet.wd_ton_addr_ph": "你的 TON 钱包地址（UQ… 或 EQ…）"
 };

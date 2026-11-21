@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "Şu anda bu kanal için bekleyen bir reklam kampanyası yok. Bir reklamverenin reklamı kanalına uyar uymaz bot paylaşacak.",
  "ads.diag_own_only": "Yalnızca kendi reklamların yayında. Kendi hesabından verilen reklamlar kendi kanallarında hiç gösterilmez, bu yüzden başka bir reklamverenin reklamı gerekiyor.",
  "ads.diag_paused": "Bu kanal duraklatıldı, bu yüzden hiçbir şey paylaşılmıyor. Kazanmaya başlamak için kanalı yeniden etkinleştir.",
- "ads.diag_no_slots": "Botun ne zaman paylaşım yapacağını bilmesi için en az bir paylaşım saati ekle."
+ "ads.diag_no_slots": "Botun ne zaman paylaşım yapacağını bilmesi için en az bir paylaşım saati ekle.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "TON ile yatır",
+ "wallet.ton_how": "TON'u aşağıdaki adrese gönderin ve kişisel memonuzu ekleyin. Transfer onaylandıktan sonra GRAM'ınız otomatik olarak hesabınıza eklenir.",
+ "wallet.ton_address": "Cüzdan adresi",
+ "wallet.ton_memo": "Memo (zorunlu)",
+ "wallet.ton_memo_warn": "Bu memoyu her zaman ekleyin, aksi halde ödemeniz hesabınızla eşleştirilemez.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "Minimum yatırım ${n}. Daha küçük transferler hesaba eklenmez.",
+ "wallet.ton_open": "Cüzdanda aç",
+ "wallet.ton_check": "Ödedim, şimdi kontrol et",
+ "wallet.ton_none": "Henüz ödeme bulunamadı. Gönderdikten sonra yaklaşık bir dakika sürebilir.",
+ "wallet.ton_ok": "Hesabınıza eklendi! Bakiyeniz güncellendi.",
+ "wallet.ton_history": "Son TON yatırımları",
+ "wallet.ton_off": "TON yatırımları şu anda kullanılamıyor.",
+ "wallet.wd_ton_note": "TON ödemeleri: minimum ${a}, maksimum ${b}. Yalnızca kazandığınız GRAM çekilebilir, yatırılan GRAM çekilemez. Ödemeler kısa bir incelemeden sonra manuel olarak gönderilir.",
+ "wallet.wd_ton_pub": "Gelir elde eden bir kanalınız var, bu yüzden her seviyede TON ile çekim yapabilirsiniz.",
+ "wallet.wd_ton_addr_ph": "TON cüzdan adresiniz (UQ… veya EQ…)"
 };

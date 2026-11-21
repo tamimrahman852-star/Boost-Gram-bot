@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "現在、このチャンネルで待機中の広告キャンペーンはありません。広告主の広告がチャンネルに合い次第、ボットが投稿します。",
  "ads.diag_own_only": "自分の広告のみが配信されています。自分のアカウントの広告は自分のチャンネルには表示されないため、他の広告主の広告が必要です。",
  "ads.diag_paused": "このチャンネルは一時停止中のため、何も投稿されません。収益を得るには再開してください。",
- "ads.diag_no_slots": "ボットが投稿するタイミングを把握できるよう、投稿時間を1つ以上追加してください。"
+ "ads.diag_no_slots": "ボットが投稿するタイミングを把握できるよう、投稿時間を1つ以上追加してください。",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "TONで入金",
+ "wallet.ton_how": "下記のアドレスにTONを送り、あなた専用のメモを追加してください。送金が承認されると、GRAMが自動的に反映されます。",
+ "wallet.ton_address": "ウォレットアドレス",
+ "wallet.ton_memo": "メモ(必須)",
+ "wallet.ton_memo_warn": "このメモは必ず入力してください。入力がないと、お支払いをアカウントと照合できません。",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "最低入金額は${n}です。それ以下の送金は反映されません。",
+ "wallet.ton_open": "ウォレットで開く",
+ "wallet.ton_check": "支払い済み、今すぐ確認",
+ "wallet.ton_none": "まだ支払いが見つかりません。送信後、1分ほどかかる場合があります。",
+ "wallet.ton_ok": "反映されました!残高が更新されました。",
+ "wallet.ton_history": "最近のTON入金",
+ "wallet.ton_off": "現在TONでの入金はご利用いただけません。",
+ "wallet.wd_ton_note": "TON出金:最低${a}、最大${b}。出金できるのは獲得したGRAMのみで、入金したGRAMは対象外です。出金は簡単な審査の後、手動で送金されます。",
+ "wallet.wd_ton_pub": "収益化されたチャンネルをお持ちのため、どのレベルでもTONで出金できます。",
+ "wallet.wd_ton_addr_ph": "あなたのTONウォレットアドレス(UQ… または EQ…)"
 };

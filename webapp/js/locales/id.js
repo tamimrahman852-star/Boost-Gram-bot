@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "Saat ini tidak ada kampanye iklan yang menunggu untuk channel ini. Bot akan memposting begitu iklan dari pengiklan cocok dengan channel Anda.",
  "ads.diag_own_only": "Hanya iklan Anda sendiri yang berjalan. Iklan dari akun Anda sendiri tidak pernah ditampilkan di channel Anda sendiri, jadi iklan dari pengiklan lain diperlukan.",
  "ads.diag_paused": "Channel ini dijeda, jadi tidak ada yang diposting. Lanjutkan untuk mulai menghasilkan uang.",
- "ads.diag_no_slots": "Tambahkan setidaknya satu waktu posting agar bot tahu kapan harus memposting."
+ "ads.diag_no_slots": "Tambahkan setidaknya satu waktu posting agar bot tahu kapan harus memposting.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "Deposit dengan TON",
+ "wallet.ton_how": "Kirim TON ke alamat di bawah dan tambahkan memo pribadimu. GRAM kamu akan dikreditkan otomatis setelah transfer dikonfirmasi.",
+ "wallet.ton_address": "Alamat dompet",
+ "wallet.ton_memo": "Memo (wajib)",
+ "wallet.ton_memo_warn": "Selalu sertakan memo ini, jika tidak pembayaranmu tidak dapat dicocokkan dengan akunmu.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "Deposit minimum ${n}. Transfer yang lebih kecil tidak dikreditkan.",
+ "wallet.ton_open": "Buka di dompet",
+ "wallet.ton_check": "Sudah bayar, cek sekarang",
+ "wallet.ton_none": "Belum ada pembayaran ditemukan. Bisa memakan waktu sekitar satu menit setelah pengiriman.",
+ "wallet.ton_ok": "Berhasil dikreditkan! Saldomu sudah diperbarui.",
+ "wallet.ton_history": "Deposit TON terbaru",
+ "wallet.ton_off": "Deposit TON sedang tidak tersedia.",
+ "wallet.wd_ton_note": "Penarikan TON: minimum ${a}, maksimum ${b}. Hanya GRAM hasil kamu peroleh yang bisa ditarik, bukan GRAM yang didepositkan. Penarikan dikirim manual setelah peninjauan singkat.",
+ "wallet.wd_ton_pub": "Kamu memiliki channel yang dimonetisasi, jadi kamu bisa menarik dalam TON di level mana pun.",
+ "wallet.wd_ton_addr_ph": "Alamat dompet TON kamu (UQ… atau EQ…)"
 };

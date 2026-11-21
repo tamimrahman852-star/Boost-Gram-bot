@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "Nenhuma campanha de anúncio está aguardando este canal no momento. O bot publicará assim que um anúncio de um anunciante combinar com o seu canal.",
  "ads.diag_own_only": "Apenas seus próprios anúncios estão ativos. Anúncios da sua própria conta nunca aparecem nos seus canais, então é preciso o anúncio de outro anunciante.",
  "ads.diag_paused": "Este canal está pausado, então nada é publicado. Retome-o para começar a ganhar.",
- "ads.diag_no_slots": "Adicione pelo menos um horário de publicação para o bot saber quando postar."
+ "ads.diag_no_slots": "Adicione pelo menos um horário de publicação para o bot saber quando postar.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "Depositar com TON",
+ "wallet.ton_how": "Envie TON para o endereço abaixo e adicione o seu memo pessoal. Seus GRAM são creditados automaticamente após a confirmação da transferência.",
+ "wallet.ton_address": "Endereço da carteira",
+ "wallet.ton_memo": "Memo (obrigatório)",
+ "wallet.ton_memo_warn": "Inclua sempre este memo, caso contrário seu pagamento não poderá ser associado à sua conta.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "Depósito mínimo de ${n}. Transferências menores não são creditadas.",
+ "wallet.ton_open": "Abrir na carteira",
+ "wallet.ton_check": "Já paguei, verificar agora",
+ "wallet.ton_none": "Nenhum pagamento encontrado ainda. Pode levar cerca de um minuto após o envio.",
+ "wallet.ton_ok": "Creditado! Seu saldo foi atualizado.",
+ "wallet.ton_history": "Depósitos TON recentes",
+ "wallet.ton_off": "Os depósitos em TON não estão disponíveis no momento.",
+ "wallet.wd_ton_note": "Saques em TON: mínimo de ${a}, máximo de ${b}. Só é possível sacar GRAM que você ganhou, não GRAM depositados. Os saques são enviados manualmente após uma rápida revisão.",
+ "wallet.wd_ton_pub": "Você possui um canal monetizado, então pode sacar em TON em qualquer nível.",
+ "wallet.wd_ton_addr_ph": "Endereço da sua carteira TON (UQ… ou EQ…)"
 };

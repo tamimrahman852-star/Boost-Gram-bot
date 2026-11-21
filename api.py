@@ -44,6 +44,7 @@ import i18n
 from config import (
     ADMIN_IDS, BOT_TOKEN, BOT_USERNAME, DEPOSIT_MAX_BDT, DEPOSIT_MIN_BDT, DEPOSIT_RATE_PER_BDT,
     PAY_NUMBERS, AdRules, BusinessRules, TaskPricing, WEBAPP_ORIGINS, logger,
+    GRAM_PER_USD, TON_DEPOSIT_MIN_USD, TON_WALLET, TON_WD_MAX_USD, TON_WD_MIN_USD,
 )
 from database import (
     AsyncSessionLocal, AutoRenew, Campaign, CampaignPost, CampaignStatus, Check, CheckActivation,
@@ -227,6 +228,7 @@ async def user_dict(ctx: Ctx) -> dict:
     locked = await locked_amount(ctx.session, u.id)
     wd = max(Decimal("0"), u.balance - locked)
     return {
+        "is_publisher": await is_publisher(ctx.session, u.id), "earned_balance": num(await earned_balance(ctx.session, u)),
         "id": u.id, "first_name": u.first_name, "username": u.username, "is_premium": u.is_premium,
         "photo_url": ctx.tg.get("photo_url"), "balance": num(u.balance), "xp": u.xp, "level": u.level,
         "current_level_xp": u.current_level_xp, "next_level_xp": u.next_level_xp,
@@ -315,7 +317,9 @@ async def bootstrap(ctx: Ctx = Depends(auth)):
         "langs": dict(L10N.LANGS),
         "pay": {m: PAY_NUMBERS[m] for m in methods},
         "deposit": {"rate": num(DEPOSIT_RATE_PER_BDT), "min": num(DEPOSIT_MIN_BDT), "max": num(DEPOSIT_MAX_BDT)},
-        "withdraw": {"methods": ["usdt_trc20", "usdt_erc20", "bank", "mobile"]},
+        "withdraw": {"methods": ["usdt_trc20", "usdt_erc20", "bank", "mobile", "ton"]},
+        "ton": {"deposit": bool(TON_WALLET), "min_deposit_usd": num(TON_DEPOSIT_MIN_USD), "wd_min_usd": num(TON_WD_MIN_USD), "wd_max_usd": num(TON_WD_MAX_USD),
+                "gram_per_usd": num(GRAM_PER_USD), "wd_min_gram": num(TON_WD_MIN_USD * GRAM_PER_USD)},
         "referral": {"base": num(BusinessRules.REFERRAL_BASE_REWARD), "tiers": {str(k): float(v) for k, v in BusinessRules.REFERRAL_TIER_BONUSES.items()}},
         "stars": {"rate": num(BusinessRules.STAR_TO_COIN_RATE), "packages": [50, 100, 250, 750, 1499, 2499], "min": 1, "max": 10000},
         "ads": {"commission": float(AdRules.COMMISSION), "min_members": AdRules.MIN_MEMBERS, "min_budget": num(AdRules.MIN_BUDGET),
@@ -929,6 +933,27 @@ async def deposit_stars(body: dict = Body(...), ctx: Ctx = Depends(auth)):
     return {"url": url, "gram": coins, "stars": n}
 
 
+async def is_publisher(session, uid: int) -> bool:
+    """Does this user own a monetized channel (any status except removed)?"""
+    from database import AdChannel
+    return bool((await session.execute(select(AdChannel.id).where(AdChannel.owner_id == uid, AdChannel.status != "removed").limit(1))).first())
+
+
+async def earned_balance(session, user: User) -> Decimal:
+    """GRAM that was earned (tasks, ads, referrals), not deposited: lifetime earned - paid out - payouts waiting."""
+    pending = (await session.execute(select(func.coalesce(func.sum(WithdrawalRequest.amount), 0)).where(
+        WithdrawalRequest.user_id == user.id, WithdrawalRequest.status == "pending"))).scalar() or 0
+    return max(Decimal("0"), user.total_earned - user.total_withdrawn - Decimal(pending))
+
+
+async def _ton_hint(method: str, usd: Decimal) -> str:
+    if method != "ton":
+        return ""
+    from ton import ton_usd
+    rate = await ton_usd()
+    return f" ≈ {usd / rate:,.3f} TON (1 TON = ${rate:,.2f})" if rate else ""
+
+
 @router.post("/withdrawals")
 async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
     try:
@@ -940,7 +965,15 @@ async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
     method, details = str(body.get("method", "")), str(body.get("details", "")).strip()
     if method not in ALLOWED_WD_METHODS or len(details) < 5:
         raise ctx.err("invalid", "❌ পেমেন্ট তথ্য দিন।", "❌ Enter your payout details.")
-    if amount < BusinessRules.WITHDRAWAL_MIN_AMOUNT or amount > BusinessRules.WITHDRAWAL_MAX_AMOUNT:
+    usd = amount / GRAM_PER_USD
+    if method == "ton":
+        from ton import valid_address
+        if not valid_address(details):
+            raise ctx.err("bad_address", "❌ সঠিক TON ওয়ালেট অ্যাড্রেস দিন।", "❌ Enter a valid TON wallet address.")
+        if usd < TON_WD_MIN_USD or usd > TON_WD_MAX_USD:
+            raise ctx.err("range", f"❌ TON উইথড্র ${TON_WD_MIN_USD:,.0f}–${TON_WD_MAX_USD:,.0f} এর মধ্যে হতে হবে।",
+                          f"❌ TON withdrawals must be between ${TON_WD_MIN_USD:,.0f} and ${TON_WD_MAX_USD:,.0f}.")
+    elif amount < BusinessRules.WITHDRAWAL_MIN_AMOUNT or amount > BusinessRules.WITHDRAWAL_MAX_AMOUNT:
         raise ctx.err("range", "❌ পরিমাণ সীমার বাইরে।", "❌ Amount is out of range.")
     lock = f"lock:wd:{ctx.uid}"
     if not await redis_client.set(lock, "1", nx=True, ex=20):
@@ -950,7 +983,8 @@ async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
         if user.is_blocked or user.risk_score >= BusinessRules.RISK_BLOCK_SCORE:
             await ctx.session.rollback()
             raise ctx.err("blocked", "❌ উইথড্র বন্ধ আছে।", "❌ Withdrawals are disabled for your account.", 403)
-        if not user.can_withdraw:
+        # channel owners who monetize with ads can cash out in TON at any level
+        if not user.can_withdraw and not (method == "ton" and await is_publisher(ctx.session, ctx.uid)):
             await ctx.session.rollback()
             raise ctx.err("level_locked", f"❌ লেভেল {BusinessRules.WITHDRAWAL_MIN_LEVEL} দরকার।", f"❌ Reach level {BusinessRules.WITHDRAWAL_MIN_LEVEL} to withdraw.")
         if await pending_withdrawals(ctx.session, ctx.uid) >= BusinessRules.MAX_PENDING_WITHDRAWALS:
@@ -959,6 +993,10 @@ async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
         if amount > await withdrawable(ctx.session, user):
             await ctx.session.rollback()
             raise ctx.err("insufficient_balance", "❌ উইথড্রযোগ্য ব্যালেন্স কম।", "❌ Not enough withdrawable balance.")
+        if method == "ton" and amount > await earned_balance(ctx.session, user):
+            await ctx.session.rollback()
+            raise ctx.err("earnings_only", "❌ TON-এ শুধু আয় করা GRAM তোলা যায় (ডিপোজিট নয়)।",
+                          "❌ TON payouts are for earned GRAM only (deposited GRAM cannot be withdrawn).")
         user.balance -= amount          # held now; refunded by the admin flow if rejected
         wd = WithdrawalRequest(user_id=ctx.uid, amount=amount, payment_method=method, payment_details=details[:500])
         ctx.session.add(wd)
@@ -974,7 +1012,7 @@ async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
         try:
             await get_bot().send_message(
                 aid, f"💸 <b>Withdrawal</b>\n\n👤 <code>{ctx.uid}</code> ({esc(name)})\n💰 <code>{amount:,.0f}</code>\n💳 {esc(method)}\n"
-                     f"📝 <code>{esc(details[:200])}</code>\n📊 Level {lvl} · tasks {tasks} · risk {risk}",
+                     f"📝 <code>{esc(details[:200])}</code>\n💵 ≈ ${usd:,.2f}" + await _ton_hint(method, usd) + f"\n📊 Level {lvl} · tasks {tasks} · risk {risk}",
                 reply_markup=withdrawal_review_kb(wd_id), parse_mode=ParseMode.HTML)
         except Exception:
             pass
@@ -1176,6 +1214,8 @@ def install(app) -> None:
     import api_ads
     app.include_router(router)
     app.include_router(api_ads.router)
+    from api_ton import router as ton_router
+    app.include_router(ton_router)
     try:
         app.router.on_shutdown.append(close_bot)
     except Exception:

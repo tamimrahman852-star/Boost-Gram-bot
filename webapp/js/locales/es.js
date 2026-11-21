@@ -448,5 +448,22 @@ export default {
  "ads.diag_no_campaign": "Ninguna campaña publicitaria está esperando a este canal ahora mismo. El bot publicará en cuanto el anuncio de un anunciante encaje con tu canal.",
  "ads.diag_own_only": "Solo se están mostrando tus propios anuncios. Los anuncios de tu propia cuenta nunca se muestran en tus propios canales, así que se necesita el anuncio de otro anunciante.",
  "ads.diag_paused": "Este canal está en pausa, así que no se publica nada. Reanúdalo para empezar a ganar.",
- "ads.diag_no_slots": "Añade al menos un horario de publicación para que el bot sepa cuándo publicar."
+ "ads.diag_no_slots": "Añade al menos un horario de publicación para que el bot sepa cuándo publicar.",
+ "wallet.ton": "TON",
+ "wallet.ton_title": "Depositar con TON",
+ "wallet.ton_how": "Envía TON a la dirección de abajo y añade tu memo personal. Tu GRAM se acredita automáticamente cuando se confirme la transferencia.",
+ "wallet.ton_address": "Dirección de la billetera",
+ "wallet.ton_memo": "Memo (obligatorio)",
+ "wallet.ton_memo_warn": "Incluye siempre este memo; de lo contrario, no podremos asociar tu pago a tu cuenta.",
+ "wallet.ton_rate": "1 TON ≈ ${p} ≈ {g} GRAM",
+ "wallet.ton_min": "Depósito mínimo ${n}. Las transferencias menores no se acreditan.",
+ "wallet.ton_open": "Abrir en la billetera",
+ "wallet.ton_check": "Ya pagué, comprobar ahora",
+ "wallet.ton_none": "Aún no se encontró ningún pago. Puede tardar un minuto aproximadamente después de enviar.",
+ "wallet.ton_ok": "¡Acreditado! Tu saldo se actualizó.",
+ "wallet.ton_history": "Depósitos recientes de TON",
+ "wallet.ton_off": "Los depósitos de TON no están disponibles por ahora.",
+ "wallet.wd_ton_note": "Retiros en TON: mínimo ${a}, máximo ${b}. Solo se puede retirar el GRAM que has ganado, no el GRAM depositado. Los pagos se envían manualmente tras una revisión rápida.",
+ "wallet.wd_ton_pub": "Eres dueño de un canal monetizado, así que puedes retirar en TON en cualquier nivel.",
+ "wallet.wd_ton_addr_ph": "Dirección de tu billetera TON (UQ… o EQ…)"
 };
