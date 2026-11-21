@@ -95,9 +95,19 @@ async def locked_amount(session, uid: int) -> Decimal:
     return Decimal(r.scalar() or 0)
 
 
+async def earned_gram(session, user: User) -> Decimal:
+    """GRAM earned (tasks, ads, referrals), not deposited: lifetime earned - paid out - payouts waiting."""
+    from sqlalchemy import func
+    from database import WithdrawalRequest
+    pending = (await session.execute(select(func.coalesce(func.sum(WithdrawalRequest.amount), 0)).where(
+        WithdrawalRequest.user_id == user.id, WithdrawalRequest.status == "pending"))).scalar() or 0
+    return max(Decimal("0"), user.total_earned - user.total_withdrawn - Decimal(pending))
+
+
 async def withdrawable(session, user: User) -> Decimal:
+    """Only EARNED GRAM can be withdrawn, for every payout method. GRAM bought with Stars/deposits can only be spent in the app."""
     locked = await locked_amount(session, user.id)
-    return max(Decimal("0"), user.balance - locked)
+    return max(Decimal("0"), min(user.balance - locked, await earned_gram(session, user)))
 
 
 async def pending_withdrawals(session, uid: int) -> int:

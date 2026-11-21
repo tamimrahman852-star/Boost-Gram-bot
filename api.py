@@ -266,7 +266,8 @@ async def daily_info(uid: int) -> dict:
 async def user_dict(ctx: Ctx) -> dict:
     u = ctx.user
     locked = await locked_amount(ctx.session, u.id)
-    wd = max(Decimal("0"), u.balance - locked)
+    earned = await earned_balance(ctx.session, u)
+    wd = max(Decimal("0"), min(u.balance - locked, earned))     # only earned GRAM can be withdrawn
     return {
         "is_publisher": await is_publisher(ctx.session, u.id), "earned_balance": num(await earned_balance(ctx.session, u)),
         "deposited_balance": num(max(Decimal("0"), u.balance - await earned_balance(ctx.session, u))),
@@ -1039,10 +1040,10 @@ async def withdraw(body: dict = Body(...), ctx: Ctx = Depends(auth)):
         if amount > await withdrawable(ctx.session, user):
             await ctx.session.rollback()
             raise ctx.err("insufficient_balance", "❌ উইথড্রযোগ্য ব্যালেন্স কম।", "❌ Not enough withdrawable balance.")
-        if method == "ton" and amount > await earned_balance(ctx.session, user):
+        if amount > await earned_balance(ctx.session, user):
             await ctx.session.rollback()
-            raise ctx.err("earnings_only", "❌ TON-এ শুধু আয় করা GRAM তোলা যায় (ডিপোজিট নয়)।",
-                          "❌ TON payouts are for earned GRAM only (deposited GRAM cannot be withdrawn).")
+            raise ctx.err("earnings_only", "❌ শুধু আয় করা GRAM তোলা যায় (ডিপোজিট নয়)।",
+                          "❌ Only earned GRAM can be withdrawn (deposited GRAM cannot).")
         user.balance -= amount          # held now; refunded by the admin flow if rejected
         wd = WithdrawalRequest(user_id=ctx.uid, amount=amount, payment_method=method, payment_details=details[:500])
         ctx.session.add(wd)
