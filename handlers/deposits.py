@@ -31,7 +31,8 @@ MAX_OPEN_REQUESTS = 2
 
 
 def available_methods():
-    return [m for m, num in PAY_NUMBERS.items() if num]
+    from config import LOCAL_DEPOSIT_ENABLED
+    return [m for m, num in PAY_NUMBERS.items() if num] if LOCAL_DEPOSIT_ENABLED else []
 
 
 async def _user(session, uid):

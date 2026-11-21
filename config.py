@@ -34,15 +34,20 @@ TON_DEPOSIT_MIN_USD = Decimal(os.getenv("TON_DEPOSIT_MIN_USD", "1"))
 TON_WD_MIN_USD = Decimal(os.getenv("TON_WD_MIN_USD", "20"))
 TON_WD_MAX_USD = Decimal(os.getenv("TON_WD_MAX_USD", "1000"))
 
+# STRICT_MODE=1 (default): only Telegram-compliant money flows. Digital goods (GRAM credit) are bought with Telegram Stars only;
+# TON / bKash / Nagad / Rocket deposits, the external portal and public-embed view scraping are forced off. Set STRICT_MODE=0 to allow them.
+STRICT_MODE = os.getenv("STRICT_MODE", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
 # ---- kill-switches: set to 0 in the environment and restart to turn a feature off instantly ----
 def _flag(name: str, default: str = "1") -> bool:
     return os.getenv(name, default).strip().lower() not in ("0", "false", "no", "off", "")
 
 STARS_DEPOSIT_ENABLED = _flag("STARS_DEPOSIT_ENABLED")                      # Telegram Stars top-ups (inside the Mini App)
-TON_DEPOSIT_ENABLED = _flag("TON_DEPOSIT_ENABLED") and bool(TON_WALLET)     # empty TON_WALLET also switches TON deposits off
+TON_DEPOSIT_ENABLED = (not STRICT_MODE) and _flag("TON_DEPOSIT_ENABLED") and bool(TON_WALLET)     # empty TON_WALLET also switches TON deposits off
 TON_WITHDRAW_ENABLED = _flag("TON_WITHDRAW_ENABLED")
-LOCAL_DEPOSIT_ENABLED = _flag("LOCAL_DEPOSIT_ENABLED")                      # bKash / Nagad / Rocket (these also need PAY_* numbers)
-PORTAL_ENABLED = _flag("PORTAL_ENABLED")                                    # the external browser portal for non-Stars top-ups
+LOCAL_DEPOSIT_ENABLED = (not STRICT_MODE) and _flag("LOCAL_DEPOSIT_ENABLED")                      # bKash / Nagad / Rocket (these also need PAY_* numbers)
+PORTAL_ENABLED = (not STRICT_MODE) and _flag("PORTAL_ENABLED")                                    # the external browser portal for non-Stars top-ups
 DEPOSIT_MAX_BDT = Decimal(os.getenv("DEPOSIT_MAX_BDT", "20000"))
 
 # Optional banner (GIF/MP4/PNG URL or Telegram file_id) shown with the welcome message
@@ -100,7 +105,7 @@ class AdRules:
     ALLOW_EXTERNAL_LINKS = os.getenv("AD_ALLOW_EXTERNAL_LINKS", "0") == "1"
     # Read the public view counter of OUR OWN ad posts through Telegram's official post-widget (t.me/<chan>/<id>?embed=1).
     # CPM needs views, so CPM campaigns are only offered while this is on.
-    VIEW_SYNC = os.getenv("AD_VIEW_SYNC", "1") == "1"
+    VIEW_SYNC = (not STRICT_MODE) and os.getenv("AD_VIEW_SYNC", "1") == "1"
     LIFETIMES = (1, 3, 6, 12, 24, 48, 72)                            # hours an ad stays in the channel
     DEFAULT_LIFETIME = 6
     IMAGE_MAX_BYTES = 8 * 1024 * 1024
