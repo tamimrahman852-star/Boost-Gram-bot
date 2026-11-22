@@ -390,5 +390,13 @@
 "💲 Return coins",
 "🔄 Re-subscribe",
 "Subscribe - №{v0}",
-"⚠️ You did not re-subscribe in time. {v0:,.0f} GRAM were revoked."
+"⚠️ You did not re-subscribe in time. {v0:,.0f} GRAM were revoked.",
+"🎁 <b>Perks & rewards</b>",
+"Daily streak, Lucky Spin and passes.",
+"📄 <b>Terms of Service</b>",
+"🔒 <b>Privacy Policy</b>",
+"🎁 Open",
+"❌ This task is not available for your profile.",
+"📱 Open the full app — tasks, wallet and promotion in one place.",
+"🚀 Open App"
 ]
